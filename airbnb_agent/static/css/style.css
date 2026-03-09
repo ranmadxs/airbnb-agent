@@ -1215,8 +1215,25 @@ footer {
     }
     
     .day-cell.reserved::after,
+    .day-cell.blocked.reserved::after {
+        height: 20px;
+        left: -3px;
+        right: -3px;
+    }
+    
+    .day-cell.checkin::after,
+    .day-cell.blocked.checkin::after {
+        height: 20px;
+        left: 10%;
+        right: -3px;
+        border-radius: 10px 0 0 10px;
+    }
+    
     .day-cell.checkout-day::after {
-        height: 32px;
+        height: 20px;
+        left: -3px;
+        width: 50%;
+        border-radius: 0 10px 10px 0;
     }
     
     .stats-widgets {
@@ -1283,10 +1300,89 @@ footer {
         align-items: flex-start;
         gap: 8px;
         padding: 12px;
+        min-height: auto;
     }
     
     .reservation-info {
         align-items: flex-start;
+        width: 100%;
+    }
+    
+    .reservation-type {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    .type-badge {
+        font-size: 0.75em;
+        padding: 4px 8px;
+    }
+    
+    .nights-badge {
+        font-size: 0.7em;
+        padding: 2px 6px;
+    }
+    
+    .checkout-badge {
+        font-size: 0.65em;
+        padding: 2px 8px;
+    }
+    
+    .dates-row {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+    
+    .date-block {
+        flex-direction: row;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .date-label {
+        min-width: 60px;
+    }
+    
+    .date-value {
+        font-size: 0.9em;
+    }
+    
+    .item-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .action-btn {
+        font-size: 0.75em;
+        padding: 6px 10px;
+    }
+    
+    /* Sello checkout más pequeño en móvil */
+    .reservation-item.has-checkout::before {
+        width: 45px;
+        height: 45px;
+        font-size: 0.4rem;
+        right: 8px;
+        border-width: 1.5px;
+        box-shadow: 
+            0 0 0 2px rgba(255,255,255,0.8),
+            0 0 0 3px rgba(5, 150, 105, 0.35);
+    }
+    
+    /* Overlays más pequeños */
+    .upcoming-label-overlay,
+    .in-progress-overlay {
+        padding: 4px 8px;
+    }
+    
+    .upcoming-label,
+    .in-progress-label {
+        font-size: 0.65em;
+    }
+    
+    .in-progress-icon {
+        font-size: 1em;
     }
     
     footer {
