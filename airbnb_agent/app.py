@@ -244,6 +244,50 @@ def api_finalizar_estadia(reserva_id):
     return jsonify(resultado)
 
 
+@app.route('/api/reserva/por-fecha/<fecha>')
+@login_required
+def api_reserva_por_fecha(fecha):
+    """API: Obtener reserva por fecha."""
+    reserva = db_service.buscar_reserva_por_fecha(fecha)
+    if reserva:
+        return jsonify({
+            "found": True,
+            "id": str(reserva.get('_id', '')),
+            "event_start": reserva.get('event_start', ''),
+            "event_end": reserva.get('event_end', ''),
+            "estado": reserva.get('estado', 'bloqueado'),
+            "summary": reserva.get('summary', ''),
+            "reservation_url": reserva.get('reservation_url', ''),
+            "readonly": reserva.get('readonly', False),
+            "source": reserva.get('source', '')
+        })
+    return jsonify({"found": False, "fecha": fecha})
+
+
+@app.route('/api/reserva/guardar', methods=['POST'])
+@login_required
+def api_guardar_reserva():
+    """API: Guardar/actualizar reserva."""
+    data = request.get_json()
+    
+    datos = {
+        'event_start': data.get('event_start'),
+        'event_end': data.get('event_end'),
+        'estado': data.get('estado', 'bloqueado'),
+        'summary': data.get('summary', ''),
+        'reservation_url': data.get('reservation_url') or None,
+        'readonly': data.get('readonly', False),
+        'source': 'admin'
+    }
+    
+    if datos['event_start'] >= datos['event_end']:
+        return jsonify({"success": False, "error": "Check-out debe ser posterior a check-in"})
+    
+    reserva_id = data.get('id', '')
+    resultado = db_service.guardar_reserva_manual(reserva_id, datos, get_audit_info())
+    return jsonify(resultado)
+
+
 @app.route('/admin/reserva', methods=['GET', 'POST'])
 @login_required
 def admin_reserva():

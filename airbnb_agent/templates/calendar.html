@@ -257,6 +257,63 @@
         </footer>
     </div>
 
+    <!-- Modal de Reserva -->
+    <div id="reserva-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Reserva</h3>
+                <button class="modal-close" onclick="cerrarModal()">&times;</button>
+            </div>
+            <form id="reserva-form" onsubmit="guardarReserva(event)">
+                <input type="hidden" id="reserva-id" name="id">
+                
+                <div class="form-group">
+                    <label>Check-in</label>
+                    <input type="date" id="reserva-start" name="event_start" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Check-out</label>
+                    <input type="date" id="reserva-end" name="event_end" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="reserva-estado" name="estado">
+                        <option value="reservado">Reserva</option>
+                        <option value="bloqueado">Bloqueo</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <input type="text" id="reserva-summary" name="summary" placeholder="Ej: Reservado por usuarios de Airbnb">
+                </div>
+                
+                <div class="form-group">
+                    <label>URL de reserva (Airbnb)</label>
+                    <div class="url-group">
+                        <input type="url" id="reserva-url" name="reservation_url" placeholder="https://airbnb.com/...">
+                        <a id="reserva-url-link" href="#" target="_blank" class="url-btn" style="display: none;">↗</a>
+                    </div>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="reserva-readonly" name="readonly">
+                        Proteger (no modificar en sincronización)
+                    </label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                    <button type="button" class="btn-danger" id="btn-eliminar" onclick="eliminarReservaModal()" style="display: none;">Eliminar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Datos de eventos desde el servidor
         const events = {{ events | tojson }};
@@ -438,7 +495,8 @@
                         cell.classList.add('reserved');
                         if (esCache) cell.classList.add('from-cache');
                         
-                        if (reservationUrl) {
+                        // Solo crear link si NO es admin (admin usa el modal)
+                        if (reservationUrl && !isAdmin) {
                             const dayNumber = cell.querySelector('.day-number');
                             if (dayNumber && !dayNumber.querySelector('a')) {
                                 const link = document.createElement('a');
@@ -474,24 +532,132 @@
                 todayCell.classList.add('today');
             }
             
-            // Agregar botón editar para admin en días futuros
+            // Para admin: hacer click en cualquier día abre el modal
             if (isAdmin) {
                 document.querySelectorAll('.day-cell[data-date]').forEach(cell => {
                     const dateStr = cell.dataset.date;
-                    if (dateStr > todayStr && !cell.classList.contains('empty')) {
-                        const editBtn = document.createElement('button');
-                        editBtn.className = 'day-edit-btn';
-                        editBtn.innerHTML = '✏️';
-                        editBtn.title = 'Editar/Crear reserva';
-                        editBtn.onclick = (e) => {
-                            e.stopPropagation();
-                            window.location.href = `/admin/reserva?fecha=${dateStr}`;
-                        };
-                        cell.appendChild(editBtn);
+                    if (!cell.classList.contains('empty')) {
+                        cell.style.cursor = 'pointer';
+                        cell.onclick = () => abrirModalReserva(dateStr);
                     }
                 });
             }
         }
+        
+        // ============================================================
+        // MODAL DE RESERVA
+        // ============================================================
+        
+        async function abrirModalReserva(fecha) {
+            const modal = document.getElementById('reserva-modal');
+            const title = document.getElementById('modal-title');
+            const btnEliminar = document.getElementById('btn-eliminar');
+            
+            // Resetear formulario
+            document.getElementById('reserva-form').reset();
+            document.getElementById('reserva-id').value = '';
+            document.getElementById('reserva-start').value = fecha;
+            document.getElementById('reserva-end').value = '';
+            document.getElementById('reserva-url-link').style.display = 'none';
+            btnEliminar.style.display = 'none';
+            title.textContent = 'Nueva Reserva/Bloqueo';
+            
+            // Buscar si existe reserva en esta fecha
+            try {
+                const res = await fetch(`/api/reserva/por-fecha/${fecha}`);
+                const data = await res.json();
+                
+                if (data.found) {
+                    title.textContent = 'Editar Reserva';
+                    document.getElementById('reserva-id').value = data.id;
+                    document.getElementById('reserva-start').value = data.event_start;
+                    document.getElementById('reserva-end').value = data.event_end;
+                    document.getElementById('reserva-estado').value = data.estado;
+                    document.getElementById('reserva-summary').value = data.summary || '';
+                    document.getElementById('reserva-url').value = data.reservation_url || '';
+                    document.getElementById('reserva-readonly').checked = data.readonly;
+                    
+                    if (data.reservation_url) {
+                        const urlLink = document.getElementById('reserva-url-link');
+                        urlLink.href = data.reservation_url;
+                        urlLink.style.display = 'inline-flex';
+                    }
+                    
+                    btnEliminar.style.display = 'inline-block';
+                }
+            } catch (err) {
+                console.error('Error cargando reserva:', err);
+            }
+            
+            modal.style.display = 'flex';
+        }
+        
+        function cerrarModal() {
+            document.getElementById('reserva-modal').style.display = 'none';
+        }
+        
+        async function guardarReserva(e) {
+            e.preventDefault();
+            
+            const data = {
+                id: document.getElementById('reserva-id').value,
+                event_start: document.getElementById('reserva-start').value,
+                event_end: document.getElementById('reserva-end').value,
+                estado: document.getElementById('reserva-estado').value,
+                summary: document.getElementById('reserva-summary').value,
+                reservation_url: document.getElementById('reserva-url').value,
+                readonly: document.getElementById('reserva-readonly').checked
+            };
+            
+            try {
+                const res = await fetch('/api/reserva/guardar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    cerrarModal();
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (result.error || 'No se pudo guardar'));
+                }
+            } catch (err) {
+                alert('Error de conexión');
+            }
+        }
+        
+        async function eliminarReservaModal() {
+            const id = document.getElementById('reserva-id').value;
+            if (!id) return;
+            
+            if (confirm('¿Eliminar esta reserva?')) {
+                try {
+                    const res = await fetch(`/api/reserva/${id}/eliminar`, { method: 'POST' });
+                    const result = await res.json();
+                    
+                    if (result.success) {
+                        cerrarModal();
+                        window.location.reload();
+                    } else {
+                        alert('Error al eliminar');
+                    }
+                } catch (err) {
+                    alert('Error de conexión');
+                }
+            }
+        }
+        
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') cerrarModal();
+        });
+        
+        // Cerrar modal clickeando fuera
+        document.getElementById('reserva-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'reserva-modal') cerrarModal();
+        });
         
         // Inicializar
         marcarDias();
