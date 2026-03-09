@@ -1,32 +1,21 @@
 [project]
 name = "airbnb-agent"
-version = "1.4.1"
+version = "1.5.2"
 description = "Agente visual de calendario Airbnb"
 requires-python = ">=3.11"
+authors = [{name = "edgsanchez"}]
+readme = "README.md"
 dependencies = [
     "flask>=3.0.0",
     "python-dotenv>=1.0.0",
     "icalendar>=5.0.0",
     "requests>=2.31.0",
     "pymongo>=4.0.0",
+    "gunicorn>=23.0.0",
 ]
 
 [tool.poetry]
-name = "airbnb-agent"
-version = "1.4.0"
-description = "Agente visual de calendario Airbnb"
-authors = ["mauriciocarreno"]
-readme = "README.md"
 packages = [{include = "airbnb_agent"}]
-
-[tool.poetry.dependencies]
-python = "^3.11"
-flask = "^3.0.0"
-python-dotenv = "^1.0.0"
-icalendar = "^5.0.0"
-requests = "^2.31.0"
-gunicorn = "^23.0.0"
-pymongo = "^4.0.0"
 
 [build-system]
 requires = ["poetry-core"]

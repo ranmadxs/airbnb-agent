@@ -17,11 +17,11 @@ load_dotenv()
 # MongoDB configuración
 MONGODB_URI = os.getenv("MONGODB_URI", "")
 mongo_client = None
-reservas_collection = None
+dias_collection = None
 
 def get_mongo_connection():
     """Obtiene la conexión a MongoDB."""
-    global mongo_client, reservas_collection
+    global mongo_client, dias_collection
     
     if not MONGODB_URI:
         return None
@@ -32,17 +32,119 @@ def get_mongo_connection():
             mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
             mongo_client.admin.command('ping')
             db = mongo_client["tomi-db"]
-            reservas_collection = db["airbnb-reservas"]
+            dias_collection = db["airbnb-dias"]
+            # Crear índice único por fecha
+            dias_collection.create_index("fecha", unique=True)
             print("✅ MongoDB conectado para Airbnb Agent")
         except Exception as e:
             print(f"❌ Error conectando MongoDB: {e}")
             return None
     
-    return reservas_collection
+    return dias_collection
 
 # Estado de conexiones
 calendar_status = {"connected": False, "last_check": None, "events_count": 0}
 mongo_status = {"connected": False}
+
+# ============================================================
+# FUNCIONES DE CACHÉ MONGODB
+# ============================================================
+
+def guardar_dia_en_mongodb(fecha: str, estado: str, source: str, event_data: dict = None):
+    """Guarda o actualiza un día en MongoDB (upsert por fecha)."""
+    collection = get_mongo_connection()
+    if collection is None:
+        return False
+    
+    documento = {
+        "fecha": fecha,
+        "estado": estado,
+        "source": source,
+        "updated_at": datetime.utcnow()
+    }
+    
+    if event_data:
+        documento.update({
+            "event_start": event_data.get("start"),
+            "event_end": event_data.get("end"),
+            "summary": event_data.get("summary"),
+            "reservation_url": event_data.get("reservation_url"),
+            "days": event_data.get("days")
+        })
+    
+    try:
+        collection.update_one(
+            {"fecha": fecha},
+            {"$set": documento, "$setOnInsert": {"created_at": datetime.utcnow()}},
+            upsert=True
+        )
+        return True
+    except Exception as e:
+        print(f"❌ Error guardando día {fecha}: {e}")
+        return False
+
+def obtener_dias_desde_mongodb(fecha_inicio: str = None, fecha_fin: str = None):
+    """Obtiene días desde MongoDB en un rango de fechas."""
+    collection = get_mongo_connection()
+    if collection is None:
+        return {}
+    
+    try:
+        query = {}
+        if fecha_inicio and fecha_fin:
+            query = {"fecha": {"$gte": fecha_inicio, "$lte": fecha_fin}}
+        
+        cursor = collection.find(query, {"_id": 0})
+        return {doc["fecha"]: doc for doc in cursor}
+    except Exception as e:
+        print(f"❌ Error obteniendo días: {e}")
+        return {}
+
+def sincronizar_con_airbnb(eventos_airbnb: list):
+    """
+    Sincroniza MongoDB con Airbnb:
+    - Guarda nuevos días de Airbnb
+    - Detecta cancelaciones (días en MongoDB con source=airbnb que ya no están en Airbnb)
+    """
+    collection = get_mongo_connection()
+    if collection is None:
+        return {"guardados": 0, "cancelados": 0}
+    
+    # Obtener todos los días de los eventos de Airbnb
+    dias_airbnb = set()
+    for event in eventos_airbnb:
+        start = datetime.strptime(event["start"], "%Y-%m-%d")
+        end = datetime.strptime(event["end"], "%Y-%m-%d")
+        
+        # Determinar estado
+        estado = "bloqueado" if not event.get("reservation_url") else "reservado"
+        
+        # Guardar cada día del evento
+        current = start
+        while current < end:
+            fecha_str = current.strftime("%Y-%m-%d")
+            dias_airbnb.add(fecha_str)
+            guardar_dia_en_mongodb(fecha_str, estado, "airbnb", event)
+            current += timedelta(days=1)
+    
+    # Detectar cancelaciones: días en MongoDB con source=airbnb que ya no están en Airbnb
+    cancelados = 0
+    try:
+        # Buscar días de airbnb que no están en la lista actual
+        dias_en_db = collection.find({"source": "airbnb", "estado": {"$ne": "cancelado"}}, {"fecha": 1})
+        for doc in dias_en_db:
+            if doc["fecha"] not in dias_airbnb:
+                # Este día fue cancelado en Airbnb
+                collection.update_one(
+                    {"fecha": doc["fecha"]},
+                    {"$set": {"estado": "cancelado", "updated_at": datetime.utcnow()}}
+                )
+                cancelados += 1
+                print(f"📅 Cancelación detectada: {doc['fecha']}")
+    except Exception as e:
+        print(f"❌ Error sincronizando: {e}")
+    
+    return {"guardados": len(dias_airbnb), "cancelados": cancelados}
 
 # Configurar rutas para Vercel
 BASE_DIR = Path(__file__).resolve().parent
@@ -65,12 +167,9 @@ except Exception:
 AIRBNB_CALENDAR_URL = os.getenv('AIRBNB_CALENDAR_URL', '')
 PROPERTY_NAME = os.getenv('PROPERTY_NAME', 'Posada en el Bosque')
 
-def fetch_calendar_events():
-    """Obtiene las reservas del calendario iCal de Airbnb."""
-    global calendar_status
-    
+def fetch_calendar_from_airbnb():
+    """Obtiene las reservas directamente del calendario iCal de Airbnb."""
     if not AIRBNB_CALENDAR_URL:
-        calendar_status = {"connected": False, "last_check": datetime.now().isoformat(), "events_count": 0, "error": "URL no configurada"}
         return []
     
     try:
@@ -113,17 +212,41 @@ def fetch_calendar_events():
                         'reservation_url': reservation_url
                     })
         
-        # Ordenar por fecha de inicio
         events.sort(key=lambda x: x['start'])
+        return events
         
-        # Actualizar estado
+    except Exception as e:
+        print(f"Error obteniendo calendario Airbnb: {e}")
+        return []
+
+def fetch_calendar_events():
+    """
+    Obtiene las reservas combinando MongoDB (caché) y Airbnb.
+    - Sincroniza con Airbnb para detectar nuevos eventos y cancelaciones
+    - Retorna eventos para mostrar en el calendario
+    """
+    global calendar_status
+    
+    if not AIRBNB_CALENDAR_URL:
+        calendar_status = {"connected": False, "last_check": datetime.now().isoformat(), "events_count": 0, "error": "URL no configurada"}
+        return []
+    
+    try:
+        # 1. Obtener eventos frescos de Airbnb
+        eventos_airbnb = fetch_calendar_from_airbnb()
+        
+        # 2. Sincronizar con MongoDB (guarda nuevos, detecta cancelaciones)
+        sync_result = sincronizar_con_airbnb(eventos_airbnb)
+        
+        # 3. Actualizar estado
         calendar_status = {
             "connected": True, 
             "last_check": datetime.now().isoformat(), 
-            "events_count": len(events)
+            "events_count": len(eventos_airbnb),
+            "sync": sync_result
         }
         
-        return events
+        return eventos_airbnb
         
     except Exception as e:
         print(f"Error obteniendo calendario: {e}")
@@ -235,6 +358,38 @@ def api_status():
     return jsonify({
         "calendar": calendar_status,
         "mongodb": mongo_status
+    })
+
+@app.route('/api/dias')
+def api_dias():
+    """API: Días almacenados en MongoDB."""
+    fecha_inicio = request.args.get('desde')
+    fecha_fin = request.args.get('hasta')
+    
+    dias = obtener_dias_desde_mongodb(fecha_inicio, fecha_fin)
+    
+    # Convertir datetime a string para JSON
+    for fecha, doc in dias.items():
+        if "updated_at" in doc and doc["updated_at"]:
+            doc["updated_at"] = doc["updated_at"].isoformat()
+        if "created_at" in doc and doc["created_at"]:
+            doc["created_at"] = doc["created_at"].isoformat()
+    
+    return jsonify({
+        "total": len(dias),
+        "dias": list(dias.values())
+    })
+
+@app.route('/api/sync', methods=['POST'])
+def api_sync():
+    """API: Forzar sincronización con Airbnb."""
+    eventos_airbnb = fetch_calendar_from_airbnb()
+    result = sincronizar_con_airbnb(eventos_airbnb)
+    return jsonify({
+        "mensaje": "Sincronización completada",
+        "eventos_airbnb": len(eventos_airbnb),
+        "dias_guardados": result["guardados"],
+        "cancelaciones": result["cancelados"]
     })
 
 if __name__ == '__main__':
