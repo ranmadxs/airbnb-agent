@@ -34,13 +34,13 @@ def get_mongo_collections():
             mongo_client.admin.command('ping')
             db = mongo_client["airbnb-db"]
             
-            # Colección de eventos/reservas de Airbnb
+            # Colección de eventos/reservas de Airbnb (llave única: event_start + event_end)
             airbnb_dias_collection = db["airbnb-dias"]
-            airbnb_dias_collection.create_index("fecha", unique=True)
+            airbnb_dias_collection.create_index([("event_start", 1), ("event_end", 1)], unique=True)
             
-            # Colección de días del calendario (llave: año-mes-día)
+            # Colección de días del calendario (llave única: fecha)
             calendario_collection = db["dias"]
-            calendario_collection.create_index([("anio", 1), ("mes", 1), ("dia", 1)], unique=True)
+            calendario_collection.create_index("fecha", unique=True)
             
             print("✅ MongoDB conectado para Airbnb Agent")
         except Exception as e:
@@ -77,27 +77,28 @@ def get_audit_info():
             "user_agent": "system"
         }
 
-def guardar_dia_en_mongodb(fecha: str, estado: str, source: str, event_data: dict = None, audit: dict = None):
-    """Guarda o actualiza un día en MongoDB (upsert por fecha)."""
+def guardar_evento_airbnb(event_data: dict, estado: str, source: str, audit: dict = None):
+    """Guarda o actualiza un evento en airbnb-dias (llave única: event_start + event_end)."""
     collection = get_mongo_connection()
     if collection is None:
-        return False
+        return None
+    
+    event_start = event_data.get("start")
+    event_end = event_data.get("end")
+    
+    if not event_start or not event_end:
+        return None
     
     documento = {
-        "fecha": fecha,
+        "event_start": event_start,
+        "event_end": event_end,
         "estado": estado,
         "source": source,
+        "summary": event_data.get("summary"),
+        "reservation_url": event_data.get("reservation_url"),
+        "days": event_data.get("days"),
         "updated_at": datetime.utcnow()
     }
-    
-    if event_data:
-        documento.update({
-            "event_start": event_data.get("start"),
-            "event_end": event_data.get("end"),
-            "summary": event_data.get("summary"),
-            "reservation_url": event_data.get("reservation_url"),
-            "days": event_data.get("days")
-        })
     
     # Agregar datos de auditoría
     if audit:
@@ -107,116 +108,90 @@ def guardar_dia_en_mongodb(fecha: str, estado: str, source: str, event_data: dic
         })
     
     try:
-        collection.update_one(
-            {"fecha": fecha},
+        result = collection.update_one(
+            {"event_start": event_start, "event_end": event_end},
             {"$set": documento, "$setOnInsert": {"created_at": datetime.utcnow()}},
             upsert=True
         )
-        return True
+        # Obtener el ID del documento
+        if result.upserted_id:
+            return result.upserted_id
+        else:
+            doc = collection.find_one({"event_start": event_start, "event_end": event_end}, {"_id": 1})
+            return doc["_id"] if doc else None
     except Exception as e:
-        print(f"❌ Error guardando día {fecha}: {e}")
-        return False
+        print(f"❌ Error guardando evento {event_start}-{event_end}: {e}")
+        return None
 
-def guardar_dia_calendario(anio: int, mes: int, dia: int, airbnb_dia_id=None, estado: str = "disponible", audit: dict = None):
-    """Guarda un día en la colección 'dias' del calendario."""
-    _, calendario = get_mongo_collections()
-    if calendario is None:
-        return False
-    
-    if audit is None:
-        audit = get_audit_info()
-    
-    documento = {
-        "anio": anio,
-        "mes": mes,
-        "dia": dia,
-        "fecha": f"{anio}-{mes:02d}-{dia:02d}",
-        "estado": estado,
-        "updated_at": datetime.utcnow(),
-        "user_origin": audit.get("user_origin"),
-        "user_agent": audit.get("user_agent")
-    }
-    
-    if airbnb_dia_id:
-        documento["airbnb_dia_id"] = airbnb_dia_id
-    
-    try:
-        calendario.update_one(
-            {"anio": anio, "mes": mes, "dia": dia},
-            {"$set": documento, "$setOnInsert": {"created_at": datetime.utcnow()}},
-            upsert=True
-        )
-        return True
-    except Exception as e:
-        print(f"❌ Error guardando día calendario {anio}-{mes}-{dia}: {e}")
-        return False
-
-def poblar_dias_mes(anio: int, mes: int, eventos: list, audit: dict = None):
-    """Puebla la colección 'dias' con los días de un mes, vinculando con airbnb-dias."""
-    import calendar
+def guardar_dias_airbnb(eventos: list, audit: dict = None):
+    """
+    Guarda eventos en airbnb-dias (únicos por event_start+event_end) 
+    y días individuales en 'dias' (únicos por fecha).
+    """
     from pymongo import UpdateOne
     
     airbnb_dias, calendario = get_mongo_collections()
     if calendario is None:
         return 0
     
-    # Verificar si el mes ya está poblado (optimización)
-    existe = calendario.find_one({"anio": anio, "mes": mes})
-    if existe:
-        # Solo actualizar estados de días con eventos
-        return actualizar_estados_mes(anio, mes, eventos, audit)
-    
     if audit is None:
         audit = get_audit_info()
     
-    # Obtener días del mes
-    _, num_dias = calendar.monthrange(anio, mes)
-    
-    # Crear índice de eventos por fecha
-    eventos_por_fecha = {}
+    # 1. Guardar eventos únicos en airbnb-dias y obtener sus IDs
+    eventos_guardados = {}
     for event in eventos:
+        event_key = f"{event['start']}_{event['end']}"
+        if event_key not in eventos_guardados:
+            estado = "bloqueado" if not event.get("reservation_url") else "reservado"
+            evento_id = guardar_evento_airbnb(event, estado, "airbnb", audit)
+            if evento_id:
+                eventos_guardados[event_key] = {
+                    "_id": evento_id,
+                    "estado": estado,
+                    "event": event
+                }
+    
+    # 2. Crear días únicos vinculados a su evento
+    dias_unicos = {}
+    for event_key, info in eventos_guardados.items():
+        event = info["event"]
         start = datetime.strptime(event["start"], "%Y-%m-%d")
         end = datetime.strptime(event["end"], "%Y-%m-%d")
         current = start
         while current < end:
-            eventos_por_fecha[current.strftime("%Y-%m-%d")] = event
+            fecha_str = current.strftime("%Y-%m-%d")
+            if fecha_str not in dias_unicos:
+                dias_unicos[fecha_str] = {
+                    "airbnb_dia_id": info["_id"],
+                    "estado": info["estado"]
+                }
             current += timedelta(days=1)
     
-    # Obtener IDs de airbnb-dias en una sola consulta
-    airbnb_ids = {}
-    if airbnb_dias and eventos_por_fecha:
-        fechas = list(eventos_por_fecha.keys())
-        cursor = airbnb_dias.find({"fecha": {"$in": fechas}}, {"_id": 1, "fecha": 1, "estado": 1})
-        for doc in cursor:
-            airbnb_ids[doc["fecha"]] = {"_id": doc["_id"], "estado": doc.get("estado", "reservado")}
+    if not dias_unicos:
+        return 0
     
-    # Crear operaciones bulk
+    # 3. Guardar días en colección 'dias' con bulk
     operaciones = []
-    for dia in range(1, num_dias + 1):
-        fecha_str = f"{anio}-{mes:02d}-{dia:02d}"
-        
-        airbnb_dia_id = None
-        estado = "disponible"
-        
-        if fecha_str in airbnb_ids:
-            airbnb_dia_id = airbnb_ids[fecha_str]["_id"]
-            estado = airbnb_ids[fecha_str]["estado"]
+    for fecha_str, info in dias_unicos.items():
+        partes = fecha_str.split("-")
+        anio = int(partes[0])
+        mes = int(partes[1])
+        dia = int(partes[2])
         
         documento = {
             "anio": anio,
             "mes": mes,
             "dia": dia,
             "fecha": fecha_str,
-            "estado": estado,
+            "estado": info["estado"],
+            "airbnb_dia_id": info["airbnb_dia_id"],
             "updated_at": datetime.utcnow(),
             "user_origin": audit.get("user_origin") if audit else "system",
             "user_agent": audit.get("user_agent") if audit else "system"
         }
-        if airbnb_dia_id:
-            documento["airbnb_dia_id"] = airbnb_dia_id
         
         operaciones.append(UpdateOne(
-            {"anio": anio, "mes": mes, "dia": dia},
+            {"fecha": fecha_str},
             {"$set": documento, "$setOnInsert": {"created_at": datetime.utcnow()}},
             upsert=True
         ))
@@ -227,59 +202,7 @@ def poblar_dias_mes(anio: int, mes: int, eventos: list, audit: dict = None):
             resultado = calendario.bulk_write(operaciones)
             return resultado.upserted_count + resultado.modified_count
     except Exception as e:
-        print(f"❌ Error poblando mes {anio}-{mes}: {e}")
-    
-    return 0
-
-def actualizar_estados_mes(anio: int, mes: int, eventos: list, audit: dict = None):
-    """Actualiza solo los estados de días que tienen eventos (más rápido)."""
-    from pymongo import UpdateOne
-    
-    airbnb_dias, calendario = get_mongo_collections()
-    if calendario is None:
-        return 0
-    
-    # Crear índice de eventos por fecha
-    eventos_por_fecha = {}
-    for event in eventos:
-        start = datetime.strptime(event["start"], "%Y-%m-%d")
-        end = datetime.strptime(event["end"], "%Y-%m-%d")
-        current = start
-        while current < end:
-            if current.year == anio and current.month == mes:
-                eventos_por_fecha[current.strftime("%Y-%m-%d")] = event
-            current += timedelta(days=1)
-    
-    if not eventos_por_fecha:
-        return 0
-    
-    # Obtener IDs de airbnb-dias
-    airbnb_ids = {}
-    if airbnb_dias:
-        fechas = list(eventos_por_fecha.keys())
-        cursor = airbnb_dias.find({"fecha": {"$in": fechas}}, {"_id": 1, "fecha": 1, "estado": 1})
-        for doc in cursor:
-            airbnb_ids[doc["fecha"]] = {"_id": doc["_id"], "estado": doc.get("estado", "reservado")}
-    
-    # Actualizar solo días con eventos
-    operaciones = []
-    for fecha_str, info in airbnb_ids.items():
-        dia = int(fecha_str.split("-")[2])
-        operaciones.append(UpdateOne(
-            {"anio": anio, "mes": mes, "dia": dia},
-            {"$set": {
-                "estado": info["estado"],
-                "airbnb_dia_id": info["_id"],
-                "updated_at": datetime.utcnow()
-            }}
-        ))
-    
-    try:
-        if operaciones:
-            resultado = calendario.bulk_write(operaciones)
-            return resultado.modified_count
-    except Exception as e:
-        print(f"❌ Error actualizando estados: {e}")
+        print(f"❌ Error guardando días: {e}")
     
     return 0
 
@@ -303,44 +226,36 @@ def obtener_dias_desde_mongodb(fecha_inicio: str = None, fecha_fin: str = None):
 def sincronizar_con_airbnb(eventos_airbnb: list, audit: dict = None):
     """
     Sincroniza MongoDB con Airbnb:
-    - Guarda nuevos días de Airbnb
-    - Detecta cancelaciones (días en MongoDB con source=airbnb que ya no están en Airbnb)
+    - Guarda eventos únicos (por event_start + event_end)
+    - Detecta cancelaciones (eventos en DB que ya no están en Airbnb)
     """
     collection = get_mongo_connection()
     if collection is None:
         return {"guardados": 0, "cancelados": 0}
     
-    # Obtener audit info si no se proporciona
     if audit is None:
         audit = get_audit_info()
     
-    # Obtener todos los días de los eventos de Airbnb
-    dias_airbnb = set()
-    for event in eventos_airbnb:
-        start = datetime.strptime(event["start"], "%Y-%m-%d")
-        end = datetime.strptime(event["end"], "%Y-%m-%d")
-        
-        # Determinar estado
-        estado = "bloqueado" if not event.get("reservation_url") else "reservado"
-        
-        # Guardar cada día del evento
-        current = start
-        while current < end:
-            fecha_str = current.strftime("%Y-%m-%d")
-            dias_airbnb.add(fecha_str)
-            guardar_dia_en_mongodb(fecha_str, estado, "airbnb", event, audit)
-            current += timedelta(days=1)
+    # Guardar eventos y días
+    dias_guardados = guardar_dias_airbnb(eventos_airbnb, audit)
     
-    # Detectar cancelaciones: días en MongoDB con source=airbnb que ya no están en Airbnb
+    # Crear set de eventos actuales de Airbnb (por event_start + event_end)
+    eventos_actuales = set()
+    for event in eventos_airbnb:
+        eventos_actuales.add(f"{event['start']}_{event['end']}")
+    
+    # Detectar cancelaciones: eventos en DB que ya no están en Airbnb
     cancelados = 0
     try:
-        # Buscar días de airbnb que no están en la lista actual
-        dias_en_db = collection.find({"source": "airbnb", "estado": {"$ne": "cancelado"}}, {"fecha": 1})
-        for doc in dias_en_db:
-            if doc["fecha"] not in dias_airbnb:
-                # Este día fue cancelado en Airbnb
+        eventos_en_db = collection.find(
+            {"source": "airbnb", "estado": {"$ne": "cancelado"}}, 
+            {"event_start": 1, "event_end": 1}
+        )
+        for doc in eventos_en_db:
+            event_key = f"{doc.get('event_start')}_{doc.get('event_end')}"
+            if event_key not in eventos_actuales:
                 collection.update_one(
-                    {"fecha": doc["fecha"]},
+                    {"event_start": doc["event_start"], "event_end": doc["event_end"]},
                     {"$set": {
                         "estado": "cancelado", 
                         "updated_at": datetime.utcnow(),
@@ -349,11 +264,11 @@ def sincronizar_con_airbnb(eventos_airbnb: list, audit: dict = None):
                     }}
                 )
                 cancelados += 1
-                print(f"📅 Cancelación detectada: {doc['fecha']}")
+                print(f"📅 Cancelación detectada: {doc.get('event_start')} - {doc.get('event_end')}")
     except Exception as e:
         print(f"❌ Error sincronizando: {e}")
     
-    return {"guardados": len(dias_airbnb), "cancelados": cancelados}
+    return {"guardados": dias_guardados, "cancelados": cancelados}
 
 # Configurar rutas para Vercel
 BASE_DIR = Path(__file__).resolve().parent
@@ -526,9 +441,9 @@ def home():
     now = datetime.now()
     current = get_month_calendar(now.year, now.month)
     
-    # Poblar días del mes actual en MongoDB
+    # Guardar días de Airbnb en MongoDB (solo los que tienen eventos)
     audit = get_audit_info()
-    poblar_dias_mes(now.year, now.month, events, audit)
+    guardar_dias_airbnb(events, audit)
     
     return render_template('calendar.html',
                          events=events,
@@ -542,11 +457,6 @@ def api_month():
     """API: Obtener datos de un mes específico."""
     year = request.args.get('year', 2025, type=int)
     month = request.args.get('month', 12, type=int)
-    
-    # Poblar días del mes en MongoDB
-    events = fetch_calendar_from_airbnb()
-    audit = get_audit_info()
-    poblar_dias_mes(year, month, events, audit)
     
     return jsonify(get_month_calendar(year, month))
 
