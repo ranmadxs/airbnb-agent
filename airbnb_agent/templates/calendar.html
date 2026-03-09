@@ -180,6 +180,7 @@
                 
                 const start = new Date(event.start);
                 const end = new Date(event.end);
+                const reservationUrl = event.reservation_url;
                 
                 // Día bloqueado ANTES del check-in
                 const dayBefore = new Date(start);
@@ -197,6 +198,22 @@
                     const cell = document.querySelector(`[data-date="${dateStr}"]`);
                     if (cell) {
                         cell.classList.add('reserved');
+                        
+                        // Agregar link a la URL de reserva en el número
+                        if (reservationUrl) {
+                            const dayNumber = cell.querySelector('.day-number');
+                            if (dayNumber) {
+                                const link = document.createElement('a');
+                                link.href = reservationUrl;
+                                link.target = '_blank';
+                                link.className = 'day-link';
+                                link.textContent = dayNumber.textContent;
+                                link.title = 'Ver reserva en Airbnb';
+                                dayNumber.textContent = '';
+                                dayNumber.appendChild(link);
+                            }
+                        }
+                        
                         // Check-in (primer día)
                         if (current.getTime() === start.getTime()) {
                             cell.classList.add('checkin');
