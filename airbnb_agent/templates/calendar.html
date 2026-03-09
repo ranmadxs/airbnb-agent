@@ -14,7 +14,10 @@
                 <div class="logo">
                     <img src="https://www.airbnb.com/favicon.ico" alt="Airbnb" class="airbnb-icon">
                 </div>
-                <h1>{{ property_name }}</h1>
+                <div class="title-version">
+                    <h1>{{ property_name }}</h1>
+                    <span class="version">v{{ version }}</span>
+                </div>
                 <div class="status-badges">
                     <div class="status-badge" id="calendar-status">
                         <span class="status-dot"></span>
@@ -29,7 +32,6 @@
                         <span class="status-text">Cache</span>
                     </div>
                 </div>
-                <span class="version">v{{ version }}</span>
             </div>
         </header>
 

@@ -56,12 +56,22 @@ header {
     height: 32px;
 }
 
+.title-version {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
 .header-content h1 {
     font-size: 1.3em;
     font-weight: 600;
     color: var(--airbnb-dark);
-    flex: 1;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
 }
 
 .version {
@@ -71,6 +81,7 @@ header {
     font-size: 0.75em;
     color: var(--airbnb-light);
     flex-shrink: 0;
+    white-space: nowrap;
 }
 
 /* Status Badges */
@@ -78,7 +89,7 @@ header {
     display: flex;
     gap: 8px;
     margin-left: auto;
-    margin-right: 12px;
+    flex-shrink: 0;
 }
 
 .status-badge {
@@ -561,8 +572,28 @@ footer {
         margin-bottom: 12px;
     }
     
+    .header-content {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .title-version {
+        order: 1;
+        flex: 1;
+        min-width: 0;
+    }
+    
     .header-content h1 {
         font-size: 1em;
+    }
+    
+    .logo {
+        order: 0;
+    }
+    
+    .status-badges {
+        order: 2;
+        margin-left: 0;
     }
     
     .airbnb-icon {
