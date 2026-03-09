@@ -252,24 +252,11 @@ header {
     text-decoration: underline;
 }
 
-/* Check-in: inicio de franja con círculo azul */
+/* Check-in: inicio de franja con borde azul */
 .day-cell.checkin::after {
     border-radius: 14px 0 0 14px;
     left: 20%;
-}
-
-.day-cell.checkin::before {
-    content: '';
-    position: absolute;
-    left: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 12px;
-    height: 12px;
     background: #3B82F6;
-    border-radius: 50%;
-    z-index: 3;
-    box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
 }
 
 /* Check-out: fin de franja (redondeado derecha) */
@@ -333,7 +320,7 @@ header {
 
 .legend-color.checkin-dot {
     background: #3B82F6;
-    box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+    border-radius: 4px;
 }
 
 .legend-color.reserved {
@@ -472,11 +459,6 @@ footer {
         min-width: 300px;
         padding: 20px;
     }
-    
-    .nav-btn {
-        width: 40px;
-        height: 40px;
-    }
 }
 
 @media (max-width: 600px) {
@@ -518,7 +500,16 @@ footer {
     }
     
     .calendar-navigation {
-        gap: 10px;
+        gap: 8px;
+    }
+    
+    .nav-btn {
+        width: 44px;
+        height: 44px;
+    }
+    
+    .nav-arrow {
+        font-size: 1.4em;
     }
     
     .calendar-card {
