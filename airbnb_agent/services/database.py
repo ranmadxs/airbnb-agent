@@ -188,7 +188,19 @@ class DatabaseService:
             print(f"❌ Error bulk eventos: {e}")
             return 0
         
-        # 3. Preparar bulk para días (solo días >= hoy)
+        # 3. Marcar días futuros como cache_airbnb (antes de actualizar con iCal)
+        try:
+            self.dias.update_many(
+                {
+                    "fecha": {"$gte": hoy},
+                    "source": "airbnb"
+                },
+                {"$set": {"source": "cache_airbnb"}}
+            )
+        except Exception as e:
+            print(f"❌ Error marcando días cache: {e}")
+        
+        # 4. Preparar bulk para días (solo días >= hoy)
         dias_ops = []
         dias_unicos = set()
         
@@ -214,6 +226,7 @@ class DatabaseService:
                             "dia": int(partes[2]),
                             "fecha": fecha_str,
                             "estado": estado,
+                            "source": "airbnb",
                             "event_start": event["start"],
                             "event_end": event["end"],
                             "updated_at": datetime.utcnow(),
