@@ -73,6 +73,54 @@ header {
     flex-shrink: 0;
 }
 
+/* Status Badges */
+.status-badges {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+    margin-right: 12px;
+}
+
+.status-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.7em;
+    background: var(--bg-secondary);
+    color: var(--airbnb-light);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ccc;
+}
+
+.status-badge.connected .status-dot {
+    background: #22c55e;
+    animation: pulse 2s infinite;
+}
+
+.status-badge.disconnected .status-dot {
+    background: #ef4444;
+}
+
+.status-badge.disabled {
+    opacity: 0.5;
+}
+
+.status-badge.disabled .status-dot {
+    background: #9ca3af;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
 /* Stats Widgets */
 .stats-widgets {
     display: flex;

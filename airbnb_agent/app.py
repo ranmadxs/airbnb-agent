@@ -14,6 +14,37 @@ from dotenv import load_dotenv
 # Cargar variables de entorno
 load_dotenv()
 
+# MongoDB configuración
+MONGODB_URI = os.getenv("MONGODB_URI", "")
+ENABLE_MONGO_DB = os.getenv("ENABLE_MONGO_DB", "False").lower() == "true"
+mongo_client = None
+reservas_collection = None
+
+def get_mongo_connection():
+    """Obtiene la conexión a MongoDB."""
+    global mongo_client, reservas_collection
+    
+    if not ENABLE_MONGO_DB or not MONGODB_URI:
+        return None
+    
+    if mongo_client is None:
+        try:
+            from pymongo import MongoClient
+            mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+            mongo_client.admin.command('ping')
+            db = mongo_client["tomi-db"]
+            reservas_collection = db["airbnb-reservas"]
+            print("✅ MongoDB conectado para Airbnb Agent")
+        except Exception as e:
+            print(f"❌ Error conectando MongoDB: {e}")
+            return None
+    
+    return reservas_collection
+
+# Estado de conexiones
+calendar_status = {"connected": False, "last_check": None, "events_count": 0}
+mongo_status = {"connected": False, "enabled": ENABLE_MONGO_DB}
+
 # Configurar rutas para Vercel
 BASE_DIR = Path(__file__).resolve().parent
 app = Flask(__name__, 
@@ -37,7 +68,10 @@ PROPERTY_NAME = os.getenv('PROPERTY_NAME', 'Posada en el Bosque')
 
 def fetch_calendar_events():
     """Obtiene las reservas del calendario iCal de Airbnb."""
+    global calendar_status
+    
     if not AIRBNB_CALENDAR_URL:
+        calendar_status = {"connected": False, "last_check": datetime.now().isoformat(), "events_count": 0, "error": "URL no configurada"}
         return []
     
     try:
@@ -82,10 +116,24 @@ def fetch_calendar_events():
         
         # Ordenar por fecha de inicio
         events.sort(key=lambda x: x['start'])
+        
+        # Actualizar estado
+        calendar_status = {
+            "connected": True, 
+            "last_check": datetime.now().isoformat(), 
+            "events_count": len(events)
+        }
+        
         return events
         
     except Exception as e:
         print(f"Error obteniendo calendario: {e}")
+        calendar_status = {
+            "connected": False, 
+            "last_check": datetime.now().isoformat(), 
+            "events_count": 0,
+            "error": str(e)
+        }
         return []
 
 def get_calendar_stats(events):
@@ -172,6 +220,23 @@ def api_stats():
     events = fetch_calendar_events()
     stats = get_calendar_stats(events)
     return jsonify(stats)
+
+@app.route('/api/status')
+def api_status():
+    """API: Estado de conexiones (MongoDB y Calendario)."""
+    global mongo_status
+    
+    # Verificar MongoDB
+    collection = get_mongo_connection()
+    mongo_status = {
+        "enabled": ENABLE_MONGO_DB,
+        "connected": collection is not None
+    }
+    
+    return jsonify({
+        "calendar": calendar_status,
+        "mongodb": mongo_status
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
