@@ -50,7 +50,22 @@ mongo_status = {"connected": False}
 # FUNCIONES DE CACHÉ MONGODB
 # ============================================================
 
-def guardar_dia_en_mongodb(fecha: str, estado: str, source: str, event_data: dict = None):
+def get_audit_info():
+    """Obtiene información de auditoría del request actual."""
+    try:
+        user_origin = request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown')
+        user_agent = request.headers.get('User-Agent', 'unknown')
+        return {
+            "user_origin": user_origin,
+            "user_agent": user_agent
+        }
+    except:
+        return {
+            "user_origin": "system",
+            "user_agent": "system"
+        }
+
+def guardar_dia_en_mongodb(fecha: str, estado: str, source: str, event_data: dict = None, audit: dict = None):
     """Guarda o actualiza un día en MongoDB (upsert por fecha)."""
     collection = get_mongo_connection()
     if collection is None:
@@ -70,6 +85,13 @@ def guardar_dia_en_mongodb(fecha: str, estado: str, source: str, event_data: dic
             "summary": event_data.get("summary"),
             "reservation_url": event_data.get("reservation_url"),
             "days": event_data.get("days")
+        })
+    
+    # Agregar datos de auditoría
+    if audit:
+        documento.update({
+            "user_origin": audit.get("user_origin"),
+            "user_agent": audit.get("user_agent")
         })
     
     try:
@@ -100,7 +122,7 @@ def obtener_dias_desde_mongodb(fecha_inicio: str = None, fecha_fin: str = None):
         print(f"❌ Error obteniendo días: {e}")
         return {}
 
-def sincronizar_con_airbnb(eventos_airbnb: list):
+def sincronizar_con_airbnb(eventos_airbnb: list, audit: dict = None):
     """
     Sincroniza MongoDB con Airbnb:
     - Guarda nuevos días de Airbnb
@@ -109,6 +131,10 @@ def sincronizar_con_airbnb(eventos_airbnb: list):
     collection = get_mongo_connection()
     if collection is None:
         return {"guardados": 0, "cancelados": 0}
+    
+    # Obtener audit info si no se proporciona
+    if audit is None:
+        audit = get_audit_info()
     
     # Obtener todos los días de los eventos de Airbnb
     dias_airbnb = set()
@@ -124,7 +150,7 @@ def sincronizar_con_airbnb(eventos_airbnb: list):
         while current < end:
             fecha_str = current.strftime("%Y-%m-%d")
             dias_airbnb.add(fecha_str)
-            guardar_dia_en_mongodb(fecha_str, estado, "airbnb", event)
+            guardar_dia_en_mongodb(fecha_str, estado, "airbnb", event, audit)
             current += timedelta(days=1)
     
     # Detectar cancelaciones: días en MongoDB con source=airbnb que ya no están en Airbnb
@@ -137,7 +163,12 @@ def sincronizar_con_airbnb(eventos_airbnb: list):
                 # Este día fue cancelado en Airbnb
                 collection.update_one(
                     {"fecha": doc["fecha"]},
-                    {"$set": {"estado": "cancelado", "updated_at": datetime.utcnow()}}
+                    {"$set": {
+                        "estado": "cancelado", 
+                        "updated_at": datetime.utcnow(),
+                        "user_origin": audit.get("user_origin"),
+                        "user_agent": audit.get("user_agent")
+                    }}
                 )
                 cancelados += 1
                 print(f"📅 Cancelación detectada: {doc['fecha']}")
@@ -159,7 +190,9 @@ APP_VERSION = "1.0.0"
 try:
     with open(PROJECT_ROOT / "pyproject.toml", "rb") as f:
         pyproject = tomllib.load(f)
-        APP_VERSION = pyproject.get("tool", {}).get("poetry", {}).get("version", APP_VERSION)
+        # Buscar en [project] (PEP 621) o fallback a [tool.poetry]
+        APP_VERSION = pyproject.get("project", {}).get("version") or \
+                      pyproject.get("tool", {}).get("poetry", {}).get("version", APP_VERSION)
 except Exception:
     pass
 
