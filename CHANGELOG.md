@@ -2,6 +2,19 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.4.40] - 2026-03-09
+### Changed
+- Simplificación lógica de finalizar: solo agrega campo `checkout` sin cambiar estado
+- Botón "Finalizar" renombrado a "Checkout"
+- Badge verde con fecha de checkout en lugar de cambio de estado
+
+### Fixed
+- Fix franjas negras/azules: problema de CSS width con from-cache resuelto
+- Mejorar estilos responsive para móviles Android
+- Franjas del calendario más pequeñas y mejor extendidas en móvil
+- Sello de checkout reducido en móvil
+- Badges y botones más compactos para pantallas pequeñas
+
 ## [2.1.0] - 2026-03-09
 ### Changed
 - Rediseño completo de la lista de reservas
