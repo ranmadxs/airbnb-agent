@@ -114,16 +114,12 @@
                     <span>Disponible</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color checkin"></span>
-                    <span>Check-in</span>
+                    <span class="legend-color reserved"></span>
+                    <span>Reservado</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color occupied"></span>
-                    <span>Ocupado</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-color checkout"></span>
-                    <span>Check-out</span>
+                    <span class="legend-color blocked"></span>
+                    <span>Bloqueado</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-color today"></span>
@@ -176,33 +172,51 @@
         // Datos de eventos desde el servidor
         const events = {{ events | tojson }};
         
-        // Marcar días reservados en el calendario
+        // Marcar días reservados en el calendario (estilo Airbnb)
         function markReservedDays() {
             events.forEach(event => {
+                // Solo procesar reservas confirmadas (no "Not available")
+                if (event.summary.includes('Not available')) return;
+                
                 const start = new Date(event.start);
                 const end = new Date(event.end);
-                const lastDay = new Date(end);
-                lastDay.setDate(lastDay.getDate() - 1);
                 
+                // Día bloqueado ANTES del check-in
+                const dayBefore = new Date(start);
+                dayBefore.setDate(dayBefore.getDate() - 1);
+                const beforeStr = dayBefore.toISOString().split('T')[0];
+                const beforeCell = document.querySelector(`[data-date="${beforeStr}"]`);
+                if (beforeCell && !beforeCell.classList.contains('reserved')) {
+                    beforeCell.classList.add('blocked');
+                }
+                
+                // Días de la reserva (franja negra)
                 let current = new Date(start);
                 while (current < end) {
                     const dateStr = current.toISOString().split('T')[0];
                     const cell = document.querySelector(`[data-date="${dateStr}"]`);
                     if (cell) {
-                        // Check-in (primer día) = azul
+                        cell.classList.add('reserved');
+                        // Check-in (primer día)
                         if (current.getTime() === start.getTime()) {
                             cell.classList.add('checkin');
                         }
-                        // Check-out (último día) = rojo
-                        else if (current.getTime() === lastDay.getTime()) {
+                        // Check-out (último día antes de end)
+                        const lastDay = new Date(end);
+                        lastDay.setDate(lastDay.getDate() - 1);
+                        if (current.getTime() === lastDay.getTime()) {
                             cell.classList.add('checkout');
-                        }
-                        // Días de ocupación (medio) = gris
-                        else {
-                            cell.classList.add('occupied');
                         }
                     }
                     current.setDate(current.getDate() + 1);
+                }
+                
+                // Día bloqueado DESPUÉS del check-out
+                const dayAfter = new Date(end);
+                const afterStr = dayAfter.toISOString().split('T')[0];
+                const afterCell = document.querySelector(`[data-date="${afterStr}"]`);
+                if (afterCell && !afterCell.classList.contains('reserved')) {
+                    afterCell.classList.add('blocked');
                 }
             });
         }

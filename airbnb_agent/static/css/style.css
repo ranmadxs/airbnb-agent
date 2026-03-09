@@ -218,33 +218,51 @@ header {
     color: var(--airbnb-light);
 }
 
-/* Check-in: azul */
-.day-cell.checkin {
-    background: #3B82F6;
+/* Reserva: franja negra estilo Airbnb */
+.day-cell.reserved {
+    position: relative;
+    background: white;
+}
+
+.day-cell.reserved::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 28px;
+    background: #222222;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+.day-cell.reserved .day-number {
+    position: relative;
+    z-index: 2;
     color: white;
+    font-weight: 600;
 }
 
-.day-cell.checkin .day-number {
-    color: white;
+/* Check-in: inicio de franja (redondeado izquierda) */
+.day-cell.checkin::after {
+    border-radius: 14px 0 0 14px;
+    left: 20%;
 }
 
-/* Ocupado: gris transparente 40% */
-.day-cell.occupied {
-    background: rgba(107, 114, 128, 0.4);
+/* Check-out: fin de franja (redondeado derecha) */
+.day-cell.checkout::after {
+    border-radius: 0 14px 14px 0;
+    right: 20%;
 }
 
-.day-cell.occupied .day-number {
-    color: var(--airbnb-dark);
+/* Día bloqueado (antes/después de reserva) */
+.day-cell.blocked {
+    background: #f0f0f0;
 }
 
-/* Check-out: rojo */
-.day-cell.checkout {
-    background: var(--airbnb-red);
-    color: white;
-}
-
-.day-cell.checkout .day-number {
-    color: white;
+.day-cell.blocked .day-number {
+    color: #ccc;
+    text-decoration: line-through;
 }
 
 .day-cell.today {
@@ -290,16 +308,14 @@ header {
     border: 1px solid var(--border-color);
 }
 
-.legend-color.checkin {
-    background: #3B82F6;
+.legend-color.reserved {
+    background: #222222;
+    border-radius: 8px;
 }
 
-.legend-color.occupied {
-    background: rgba(107, 114, 128, 0.4);
-}
-
-.legend-color.checkout {
-    background: var(--airbnb-red);
+.legend-color.blocked {
+    background: #f0f0f0;
+    border: 1px solid #ddd;
 }
 
 .legend-color.today {
