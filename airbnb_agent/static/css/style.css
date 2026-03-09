@@ -128,6 +128,35 @@ header {
     background: #f59e0b;
 }
 
+/* Botón de autenticación */
+.auth-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75em;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    margin-left: 8px;
+}
+
+.auth-btn.login {
+    background: var(--airbnb-red);
+    color: white;
+}
+
+.auth-btn.login:hover {
+    background: #e04e53;
+}
+
+.auth-btn.logout {
+    background: #f3f4f6;
+    color: var(--airbnb-dark);
+}
+
+.auth-btn.logout:hover {
+    background: #e5e7eb;
+}
+
 /* Puntito amarillo para días de caché */
 .day-cell.from-cache::after {
     content: '';

@@ -5,9 +5,11 @@ Solo endpoints Flask - lógica en services/
 import os
 import calendar
 import tomllib
+import secrets
 from pathlib import Path
 from datetime import datetime
-from flask import Flask, render_template, jsonify, request
+from functools import wraps
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from dotenv import load_dotenv
 
 from .services.airbnb_calendar import airbnb_service
@@ -20,6 +22,13 @@ BASE_DIR = Path(__file__).resolve().parent
 app = Flask(__name__, 
             template_folder=str(BASE_DIR / 'templates'),
             static_folder=str(BASE_DIR / 'static'))
+
+# Secret key para sesiones
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+
+# Autenticación
+AUTH_USERNAME = os.getenv('AUTH_USERNAME', 'admin')
+AUTH_PASSWORD = os.getenv('AUTH_PASSWORD', 'admin')
 
 # Leer versión
 PROJECT_ROOT = BASE_DIR.parent
@@ -61,6 +70,45 @@ def get_month_calendar(year: int, month: int) -> dict:
     }
 
 
+def login_required(f):
+    """Decorador para proteger rutas que requieren autenticación."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# ============================================================
+# AUTENTICACIÓN
+# ============================================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Página de login."""
+    error = None
+    if request.method == 'POST':
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
+        
+        if username == AUTH_USERNAME and password == AUTH_PASSWORD:
+            session['logged_in'] = True
+            session['username'] = username
+            return redirect(url_for('home'))
+        else:
+            error = 'Usuario o contraseña incorrectos'
+    
+    return render_template('login.html', error=error, version=APP_VERSION)
+
+
+@app.route('/logout')
+def logout():
+    """Cerrar sesión."""
+    session.clear()
+    return redirect(url_for('login'))
+
+
 # ============================================================
 # ENDPOINTS
 # ============================================================
@@ -85,12 +133,16 @@ def home():
     now = datetime.now()
     current = get_month_calendar(now.year, now.month)
     
+    # Verificar si está logueado
+    is_logged_in = session.get('logged_in', False)
+    
     return render_template('calendar.html',
                          events=events,
                          stats=stats,
                          current=current,
                          version=APP_VERSION,
-                         property_name=PROPERTY_NAME)
+                         property_name=PROPERTY_NAME,
+                         is_logged_in=is_logged_in)
 
 
 @app.route('/api/month')

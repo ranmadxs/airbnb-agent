@@ -32,6 +32,11 @@
                         <span class="status-text">Cache</span>
                     </div>
                 </div>
+                {% if is_logged_in %}
+                <a href="/logout" class="auth-btn logout">Salir</a>
+                {% else %}
+                <a href="/login" class="auth-btn login">Admin</a>
+                {% endif %}
             </div>
         </header>
 
@@ -94,7 +99,8 @@
                 </div>
             </div>
 
-            <!-- Stats Widgets -->
+            <!-- Stats Widgets (solo para admin) -->
+            {% if is_logged_in %}
             <div class="stats-widgets">
                 <div class="stat-widget">
                     <span class="widget-value">{{ stats.total_reservations }}</span>
@@ -109,6 +115,7 @@
                     <span class="widget-label">Ocupación</span>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Lista de Reservas -->
             <div class="reservations-panel">
