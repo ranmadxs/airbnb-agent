@@ -1114,6 +1114,33 @@ footer {
         min-width: 300px;
         padding: 20px;
     }
+    
+    /* Lista de reservas - tablets y móviles grandes */
+    .reservation-item {
+        padding: 14px;
+        min-height: 85px;
+    }
+    
+    .reservation-item.is-in-progress,
+    .reservation-item.is-upcoming.is-next {
+        min-height: 95px;
+    }
+    
+    .reservation-item.is-in-progress .in-progress-icon {
+        font-size: 1.5rem;
+    }
+    
+    .reservation-item.is-upcoming.is-next .upcoming-icon {
+        font-size: 1.3rem;
+    }
+    
+    .dates-row {
+        gap: 15px;
+    }
+    
+    .date-value {
+        font-size: 0.9em;
+    }
 }
 
 @media (max-width: 600px) {
@@ -1399,6 +1426,37 @@ footer {
     /* Overlay de eliminados */
     .reservation-item.is-deleted .deleted-overlay {
         font-size: 2rem;
+    }
+    
+    /* Asegurar colores y efectos en móvil */
+    .reservation-item.is-blocked {
+        border-left-color: #9ca3af !important;
+        background: #f9fafb !important;
+    }
+    
+    .reservation-item.is-past {
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%) !important;
+        border-left-color: #9ca3af !important;
+    }
+    
+    .reservation-item.is-in-progress {
+        border-left-color: #10b981 !important;
+        background: #f0fdf4 !important;
+    }
+    
+    .reservation-item.is-upcoming.is-next {
+        border-left-color: #f59e0b !important;
+    }
+    
+    /* Badges con colores correctos */
+    .type-badge.reservation {
+        background: rgba(255, 90, 95, 0.15) !important;
+        color: var(--airbnb-red) !important;
+    }
+    
+    .type-badge.blocked {
+        background: #e5e7eb !important;
+        color: #6b7280 !important;
     }
     
     footer {

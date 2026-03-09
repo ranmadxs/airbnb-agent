@@ -2,6 +2,14 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.4.43] - 2026-03-09
+### Fixed
+- Forzar colores y efectos en móvil con !important
+- Media query 900px para tablets
+- Bordes izquierdos con colores correctos (verde, naranja, gris)
+- Backgrounds de gradientes visibles en móvil
+- Badges con colores forzados
+
 ## [2.4.42] - 2026-03-09
 ### Fixed
 - Lista de reservas móvil más parecida a PC
