@@ -1295,94 +1295,110 @@ footer {
         font-size: 0.8em;
     }
     
+    /* Lista de reservas - mantener diseño similar a PC */
     .reservation-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-        padding: 12px;
-        min-height: auto;
+        padding: 14px;
+        gap: 10px;
+        min-height: 80px;
     }
     
     .reservation-info {
-        align-items: flex-start;
         width: 100%;
     }
     
     .reservation-type {
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
     }
     
     .type-badge {
-        font-size: 0.75em;
-        padding: 4px 8px;
+        font-size: 0.8em;
+        padding: 4px 10px;
     }
     
     .nights-badge {
-        font-size: 0.7em;
-        padding: 2px 6px;
+        font-size: 0.75em;
+        padding: 3px 8px;
     }
     
     .checkout-badge {
-        font-size: 0.65em;
-        padding: 2px 8px;
+        font-size: 0.7em;
+        padding: 3px 8px;
     }
     
     .dates-row {
-        flex-direction: column;
-        gap: 8px;
-        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: center;
     }
     
     .date-block {
-        flex-direction: row;
-        gap: 8px;
+        flex-direction: column;
         align-items: center;
+        gap: 2px;
     }
     
     .date-label {
-        min-width: 60px;
+        font-size: 0.7em;
     }
     
     .date-value {
-        font-size: 0.9em;
+        font-size: 0.85em;
+    }
+    
+    .date-arrow {
+        font-size: 1.2em;
     }
     
     .item-actions {
-        width: 100%;
-        justify-content: flex-start;
+        justify-content: center;
     }
     
     .action-btn {
-        font-size: 0.75em;
-        padding: 6px 10px;
+        font-size: 0.8em;
+        padding: 6px 12px;
+    }
+    
+    /* Mantener efectos de luz y gradientes en móvil */
+    .reservation-item.is-in-progress,
+    .reservation-item.is-upcoming.is-next {
+        min-height: 90px;
+    }
+    
+    /* Iconos y overlays proporcionales */
+    .reservation-item.is-in-progress .in-progress-overlay {
+        top: 35%;
+    }
+    
+    .reservation-item.is-in-progress .in-progress-label {
+        font-size: 0.65rem;
+        letter-spacing: 1px;
+    }
+    
+    .reservation-item.is-in-progress .in-progress-icon {
+        font-size: 1.4rem;
+    }
+    
+    .reservation-item.is-upcoming.is-next .upcoming-label {
+        font-size: 0.6rem;
+    }
+    
+    .reservation-item.is-upcoming.is-next .upcoming-icon {
+        font-size: 1.2rem;
     }
     
     /* Sello checkout más pequeño en móvil */
     .reservation-item.has-checkout::before {
-        width: 45px;
-        height: 45px;
+        width: 50px;
+        height: 50px;
         font-size: 0.4rem;
         right: 8px;
-        border-width: 1.5px;
-        box-shadow: 
-            0 0 0 2px rgba(255,255,255,0.8),
-            0 0 0 3px rgba(5, 150, 105, 0.35);
     }
     
-    /* Overlays más pequeños */
-    .upcoming-label-overlay,
-    .in-progress-overlay {
-        padding: 4px 8px;
-    }
-    
-    .upcoming-label,
-    .in-progress-label {
-        font-size: 0.65em;
-    }
-    
-    .in-progress-icon {
-        font-size: 1em;
+    /* Overlay de eliminados */
+    .reservation-item.is-deleted .deleted-overlay {
+        font-size: 2rem;
     }
     
     footer {

@@ -2,6 +2,14 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.4.42] - 2026-03-09
+### Fixed
+- Lista de reservas móvil más parecida a PC
+- Mantener efectos de gradientes y luz en móvil
+- Iconos de estadía proporcionales (no sobredimensionados)
+- Colores grises y naranjos visibles en móvil
+- Layout de fechas horizontal como en PC
+
 ## [2.4.40] - 2026-03-09
 ### Changed
 - Simplificación lógica de finalizar: solo agrega campo `checkout` sin cambiar estado
