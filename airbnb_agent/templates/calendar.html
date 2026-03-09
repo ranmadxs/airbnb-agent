@@ -18,10 +18,15 @@
                     <h1>{{ property_name }}</h1>
                     <span class="version">v{{ version }}</span>
                 </div>
+                {% if is_logged_in %}
+                <a href="/logout" class="auth-btn logout">Salir</a>
+                {% else %}
+                <a href="/login" class="auth-btn login">Admin</a>
+                {% endif %}
                 <div class="status-badges">
                     <div class="status-badge" id="calendar-status">
                         <span class="status-dot"></span>
-                        <span class="status-text">iCal...</span>
+                        <span class="status-text">Airbnb...</span>
                     </div>
                     <div class="status-badge" id="mongo-status">
                         <span class="status-dot"></span>
@@ -32,11 +37,6 @@
                         <span class="status-text">Cache</span>
                     </div>
                 </div>
-                {% if is_logged_in %}
-                <a href="/logout" class="auth-btn logout">Salir</a>
-                {% else %}
-                <a href="/login" class="auth-btn login">Admin</a>
-                {% endif %}
             </div>
         </header>
 
@@ -363,14 +363,14 @@
             fetch('/api/status')
                 .then(response => response.json())
                 .then(data => {
-                    // Badge iCal
+                    // Badge Airbnb Calendar
                     const calBadge = document.getElementById('calendar-status');
                     if (data.calendar.connected) {
                         calBadge.className = 'status-badge connected';
-                        calBadge.querySelector('.status-text').textContent = `iCal (${data.calendar.events_count})`;
+                        calBadge.querySelector('.status-text').textContent = `Airbnb (${data.calendar.events_count})`;
                     } else {
                         calBadge.className = 'status-badge disconnected';
-                        calBadge.querySelector('.status-text').textContent = 'iCal Error';
+                        calBadge.querySelector('.status-text').textContent = 'Airbnb Error';
                     }
                     
                     // Badge MongoDB

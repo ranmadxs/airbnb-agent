@@ -676,6 +676,10 @@ footer {
         gap: 8px;
     }
     
+    .logo {
+        order: 0;
+    }
+    
     .title-version {
         order: 1;
         flex: 1;
@@ -686,13 +690,16 @@ footer {
         font-size: 1em;
     }
     
-    .logo {
-        order: 0;
+    .auth-btn {
+        order: 2;
     }
     
     .status-badges {
-        order: 2;
+        order: 3;
+        width: 100%;
+        flex-direction: column;
         margin-left: 0;
+        margin-top: 8px;
     }
     
     .airbnb-icon {
