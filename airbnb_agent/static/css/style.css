@@ -1340,12 +1340,11 @@ footer {
     }
     
     .reservation-info .user-icon {
-        width: 16px !important;
-        height: 16px !important;
-        min-width: 16px !important;
-        max-width: 16px !important;
-        min-height: 16px !important;
-        max-height: 16px !important;
+        display: none !important;
+    }
+    
+    .reservation-info svg {
+        display: none !important;
     }
     
     .reservation-type {
