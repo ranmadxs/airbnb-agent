@@ -1269,7 +1269,7 @@ footer {
     .day-cell.checkout-day::after {
         height: 20px;
         left: -3px;
-        width: 50%;
+        width: 85%;
         border-radius: 0 10px 10px 0;
     }
     
