@@ -154,19 +154,25 @@ def guardar_dia_calendario(anio: int, mes: int, dia: int, airbnb_dia_id=None, es
 def poblar_dias_mes(anio: int, mes: int, eventos: list, audit: dict = None):
     """Puebla la colección 'dias' con los días de un mes, vinculando con airbnb-dias."""
     import calendar
+    from pymongo import UpdateOne
     
     airbnb_dias, calendario = get_mongo_collections()
     if calendario is None:
         return 0
+    
+    # Verificar si el mes ya está poblado (optimización)
+    existe = calendario.find_one({"anio": anio, "mes": mes})
+    if existe:
+        # Solo actualizar estados de días con eventos
+        return actualizar_estados_mes(anio, mes, eventos, audit)
     
     if audit is None:
         audit = get_audit_info()
     
     # Obtener días del mes
     _, num_dias = calendar.monthrange(anio, mes)
-    dias_guardados = 0
     
-    # Crear índice de eventos por fecha para búsqueda rápida
+    # Crear índice de eventos por fecha
     eventos_por_fecha = {}
     for event in eventos:
         start = datetime.strptime(event["start"], "%Y-%m-%d")
@@ -176,26 +182,106 @@ def poblar_dias_mes(anio: int, mes: int, eventos: list, audit: dict = None):
             eventos_por_fecha[current.strftime("%Y-%m-%d")] = event
             current += timedelta(days=1)
     
-    # Guardar cada día del mes
+    # Obtener IDs de airbnb-dias en una sola consulta
+    airbnb_ids = {}
+    if airbnb_dias and eventos_por_fecha:
+        fechas = list(eventos_por_fecha.keys())
+        cursor = airbnb_dias.find({"fecha": {"$in": fechas}}, {"_id": 1, "fecha": 1, "estado": 1})
+        for doc in cursor:
+            airbnb_ids[doc["fecha"]] = {"_id": doc["_id"], "estado": doc.get("estado", "reservado")}
+    
+    # Crear operaciones bulk
+    operaciones = []
     for dia in range(1, num_dias + 1):
         fecha_str = f"{anio}-{mes:02d}-{dia:02d}"
         
-        # Buscar si hay evento de airbnb para este día
         airbnb_dia_id = None
         estado = "disponible"
         
-        if fecha_str in eventos_por_fecha:
-            # Buscar el ID del documento en airbnb-dias
-            if airbnb_dias:
-                doc = airbnb_dias.find_one({"fecha": fecha_str}, {"_id": 1, "estado": 1})
-                if doc:
-                    airbnb_dia_id = doc["_id"]
-                    estado = doc.get("estado", "reservado")
+        if fecha_str in airbnb_ids:
+            airbnb_dia_id = airbnb_ids[fecha_str]["_id"]
+            estado = airbnb_ids[fecha_str]["estado"]
         
-        if guardar_dia_calendario(anio, mes, dia, airbnb_dia_id, estado, audit):
-            dias_guardados += 1
+        documento = {
+            "anio": anio,
+            "mes": mes,
+            "dia": dia,
+            "fecha": fecha_str,
+            "estado": estado,
+            "updated_at": datetime.utcnow(),
+            "user_origin": audit.get("user_origin") if audit else "system",
+            "user_agent": audit.get("user_agent") if audit else "system"
+        }
+        if airbnb_dia_id:
+            documento["airbnb_dia_id"] = airbnb_dia_id
+        
+        operaciones.append(UpdateOne(
+            {"anio": anio, "mes": mes, "dia": dia},
+            {"$set": documento, "$setOnInsert": {"created_at": datetime.utcnow()}},
+            upsert=True
+        ))
     
-    return dias_guardados
+    # Ejecutar bulk
+    try:
+        if operaciones:
+            resultado = calendario.bulk_write(operaciones)
+            return resultado.upserted_count + resultado.modified_count
+    except Exception as e:
+        print(f"❌ Error poblando mes {anio}-{mes}: {e}")
+    
+    return 0
+
+def actualizar_estados_mes(anio: int, mes: int, eventos: list, audit: dict = None):
+    """Actualiza solo los estados de días que tienen eventos (más rápido)."""
+    from pymongo import UpdateOne
+    
+    airbnb_dias, calendario = get_mongo_collections()
+    if calendario is None:
+        return 0
+    
+    # Crear índice de eventos por fecha
+    eventos_por_fecha = {}
+    for event in eventos:
+        start = datetime.strptime(event["start"], "%Y-%m-%d")
+        end = datetime.strptime(event["end"], "%Y-%m-%d")
+        current = start
+        while current < end:
+            if current.year == anio and current.month == mes:
+                eventos_por_fecha[current.strftime("%Y-%m-%d")] = event
+            current += timedelta(days=1)
+    
+    if not eventos_por_fecha:
+        return 0
+    
+    # Obtener IDs de airbnb-dias
+    airbnb_ids = {}
+    if airbnb_dias:
+        fechas = list(eventos_por_fecha.keys())
+        cursor = airbnb_dias.find({"fecha": {"$in": fechas}}, {"_id": 1, "fecha": 1, "estado": 1})
+        for doc in cursor:
+            airbnb_ids[doc["fecha"]] = {"_id": doc["_id"], "estado": doc.get("estado", "reservado")}
+    
+    # Actualizar solo días con eventos
+    operaciones = []
+    for fecha_str, info in airbnb_ids.items():
+        dia = int(fecha_str.split("-")[2])
+        operaciones.append(UpdateOne(
+            {"anio": anio, "mes": mes, "dia": dia},
+            {"$set": {
+                "estado": info["estado"],
+                "airbnb_dia_id": info["_id"],
+                "updated_at": datetime.utcnow()
+            }}
+        ))
+    
+    try:
+        if operaciones:
+            resultado = calendario.bulk_write(operaciones)
+            return resultado.modified_count
+    except Exception as e:
+        print(f"❌ Error actualizando estados: {e}")
+    
+    return 0
 
 def obtener_dias_desde_mongodb(fecha_inicio: str = None, fecha_fin: str = None):
     """Obtiene días desde MongoDB en un rango de fechas."""
