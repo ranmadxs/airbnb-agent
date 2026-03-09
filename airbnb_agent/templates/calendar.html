@@ -58,11 +58,15 @@
                 </div>
             </div>
 
-            <!-- Calendarios -->
-            <div class="calendars-container">
-                <div class="calendar-card">
-                    <h3>{{ current_month.month_name }} {{ current_month.year }}</h3>
-                    <div class="calendar-grid">
+            <!-- Calendario con navegación -->
+            <div class="calendar-navigation">
+                <button class="nav-btn" id="prev-btn" onclick="navegarMes(-1)">
+                    <span class="nav-arrow">←</span>
+                </button>
+                
+                <div class="calendar-card" id="calendar-card">
+                    <h3 id="month-title">{{ current.month_name }} {{ current.year }}</h3>
+                    <div class="calendar-grid" id="calendar-grid">
                         <div class="day-header">Lu</div>
                         <div class="day-header">Ma</div>
                         <div class="day-header">Mi</div>
@@ -70,41 +74,22 @@
                         <div class="day-header">Vi</div>
                         <div class="day-header weekend">Sa</div>
                         <div class="day-header weekend">Do</div>
-                        {% for day, weekday in current_month.days %}
+                        {% for day, weekday in current.days %}
                             {% if day == 0 %}
                                 <div class="day-cell empty"></div>
                             {% else %}
                                 <div class="day-cell {% if weekday >= 5 %}weekend{% endif %}" 
-                                     data-date="{{ current_month.year }}-{{ '%02d'|format(current_month.month) }}-{{ '%02d'|format(day) }}">
+                                     data-date="{{ current.year }}-{{ '%02d'|format(current.month) }}-{{ '%02d'|format(day) }}">
                                     <span class="day-number">{{ day }}</span>
                                 </div>
                             {% endif %}
                         {% endfor %}
                     </div>
                 </div>
-
-                <div class="calendar-card">
-                    <h3>{{ next_month.month_name }} {{ next_month.year }}</h3>
-                    <div class="calendar-grid">
-                        <div class="day-header">Lu</div>
-                        <div class="day-header">Ma</div>
-                        <div class="day-header">Mi</div>
-                        <div class="day-header">Ju</div>
-                        <div class="day-header">Vi</div>
-                        <div class="day-header weekend">Sa</div>
-                        <div class="day-header weekend">Do</div>
-                        {% for day, weekday in next_month.days %}
-                            {% if day == 0 %}
-                                <div class="day-cell empty"></div>
-                            {% else %}
-                                <div class="day-cell {% if weekday >= 5 %}weekend{% endif %}"
-                                     data-date="{{ next_month.year }}-{{ '%02d'|format(next_month.month) }}-{{ '%02d'|format(day) }}">
-                                    <span class="day-number">{{ day }}</span>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
+                
+                <button class="nav-btn" id="next-btn" onclick="navegarMes(1)">
+                    <span class="nav-arrow">→</span>
+                </button>
             </div>
 
             <!-- Leyenda -->
@@ -129,7 +114,7 @@
 
             <!-- Lista de Reservas -->
             <div class="reservations-panel">
-                <h3>📋 Próximas Reservas</h3>
+                <h3>📋 Todas las Reservas ({{ events|length }} en el feed)</h3>
                 <div class="reservations-list">
                     {% if events %}
                         {% for event in events %}
@@ -172,37 +157,117 @@
         // Datos de eventos desde el servidor
         const events = {{ events | tojson }};
         
-        // Marcar días reservados en el calendario (estilo Airbnb)
-        function markReservedDays() {
+        // Estado de navegación - inicia en mes actual
+        let currentYear = {{ current.year }};
+        let currentMonth = {{ current.month }};
+        const minYear = 2025, minMonth = 12;
+        const maxYear = 2027, maxMonth = 12;
+        
+        // Navegar entre meses
+        async function navegarMes(delta) {
+            currentMonth += delta;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            } else if (currentMonth < 1) {
+                currentMonth = 12;
+                currentYear--;
+            }
+            
+            // Límites
+            if (currentYear < minYear || (currentYear === minYear && currentMonth < minMonth)) {
+                currentYear = minYear;
+                currentMonth = minMonth;
+                return;
+            }
+            if (currentYear > maxYear || (currentYear === maxYear && currentMonth > maxMonth)) {
+                currentYear = maxYear;
+                currentMonth = maxMonth;
+                return;
+            }
+            
+            await cargarMes(currentYear, currentMonth);
+        }
+        
+        // Cargar mes desde API
+        async function cargarMes(year, month) {
+            try {
+                const res = await fetch(`/api/month?year=${year}&month=${month}`);
+                const data = await res.json();
+                renderizarMes(data);
+                marcarDias();
+            } catch (e) {
+                console.error('Error cargando mes:', e);
+            }
+        }
+        
+        // Renderizar calendario
+        function renderizarMes(data) {
+            document.getElementById('month-title').textContent = `${data.month_name} ${data.year}`;
+            
+            const grid = document.getElementById('calendar-grid');
+            // Mantener headers
+            const headers = `
+                <div class="day-header">Lu</div>
+                <div class="day-header">Ma</div>
+                <div class="day-header">Mi</div>
+                <div class="day-header">Ju</div>
+                <div class="day-header">Vi</div>
+                <div class="day-header weekend">Sa</div>
+                <div class="day-header weekend">Do</div>
+            `;
+            
+            let cells = '';
+            data.days.forEach(([day, weekday]) => {
+                if (day === 0) {
+                    cells += '<div class="day-cell empty"></div>';
+                } else {
+                    const dateStr = `${data.year}-${String(data.month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                    const weekendClass = weekday >= 5 ? 'weekend' : '';
+                    cells += `<div class="day-cell ${weekendClass}" data-date="${dateStr}">
+                        <span class="day-number">${day}</span>
+                    </div>`;
+                }
+            });
+            
+            grid.innerHTML = headers + cells;
+        }
+        
+        // Formatear fecha como YYYY-MM-DD (zona horaria local)
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        
+        // Marcar días reservados
+        function marcarDias() {
             events.forEach(event => {
-                // Solo procesar reservas confirmadas (no "Not available")
-                if (event.summary.includes('Not available')) return;
-                
-                const start = new Date(event.start);
-                const end = new Date(event.end);
+                const start = new Date(event.start + 'T00:00:00');
+                const end = new Date(event.end + 'T00:00:00');
                 const reservationUrl = event.reservation_url;
                 
                 // Día bloqueado ANTES del check-in
                 const dayBefore = new Date(start);
                 dayBefore.setDate(dayBefore.getDate() - 1);
-                const beforeStr = dayBefore.toISOString().split('T')[0];
+                const beforeStr = formatDate(dayBefore);
                 const beforeCell = document.querySelector(`[data-date="${beforeStr}"]`);
                 if (beforeCell && !beforeCell.classList.contains('reserved')) {
                     beforeCell.classList.add('blocked');
                 }
                 
-                // Días de la reserva (franja negra)
+                // Días de la reserva
                 let current = new Date(start);
                 while (current < end) {
-                    const dateStr = current.toISOString().split('T')[0];
+                    const dateStr = formatDate(current);
                     const cell = document.querySelector(`[data-date="${dateStr}"]`);
                     if (cell) {
                         cell.classList.add('reserved');
                         
-                        // Agregar link a la URL de reserva en el número
                         if (reservationUrl) {
                             const dayNumber = cell.querySelector('.day-number');
-                            if (dayNumber) {
+                            if (dayNumber && !dayNumber.querySelector('a')) {
                                 const link = document.createElement('a');
                                 link.href = reservationUrl;
                                 link.target = '_blank';
@@ -214,14 +279,12 @@
                             }
                         }
                         
-                        // Check-in (primer día)
-                        if (current.getTime() === start.getTime()) {
+                        if (formatDate(current) === formatDate(start)) {
                             cell.classList.add('checkin');
                         }
-                        // Check-out (último día antes de end)
                         const lastDay = new Date(end);
                         lastDay.setDate(lastDay.getDate() - 1);
-                        if (current.getTime() === lastDay.getTime()) {
+                        if (formatDate(current) === formatDate(lastDay)) {
                             cell.classList.add('checkout');
                         }
                     }
@@ -230,26 +293,25 @@
                 
                 // Día bloqueado DESPUÉS del check-out
                 const dayAfter = new Date(end);
-                const afterStr = dayAfter.toISOString().split('T')[0];
+                const afterStr = formatDate(dayAfter);
                 const afterCell = document.querySelector(`[data-date="${afterStr}"]`);
                 if (afterCell && !afterCell.classList.contains('reserved')) {
                     afterCell.classList.add('blocked');
                 }
             });
-        }
-        
-        // Marcar el día de hoy
-        function markToday() {
-            const today = new Date().toISOString().split('T')[0];
-            const cell = document.querySelector(`[data-date="${today}"]`);
-            if (cell) {
-                cell.classList.add('today');
+            
+            // Marcar hoy
+            const today = formatDate(new Date());
+            const todayCell = document.querySelector(`[data-date="${today}"]`);
+            if (todayCell) {
+                todayCell.classList.add('today');
             }
         }
         
         // Inicializar
-        markReservedDays();
-        markToday();
+        console.log('Eventos disponibles en el calendario:', events);
+        console.log('Fechas de eventos:', events.map(e => `${e.start} → ${e.end}`));
+        marcarDias();
     </script>
 </body>
 </html>

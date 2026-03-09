@@ -2,7 +2,7 @@
 Airbnb Agent - Calendario Visual de Reservas
 """
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from datetime import datetime, timedelta
 from pathlib import Path
 import requests
@@ -69,8 +69,8 @@ def fetch_calendar_events():
                         end_dt = datetime.combine(end_dt, datetime.min.time())
                     
                     events.append({
-                        'start': start_dt.isoformat(),
-                        'end': end_dt.isoformat(),
+                        'start': start_dt.strftime('%Y-%m-%d'),
+                        'end': end_dt.strftime('%Y-%m-%d'),
                         'summary': summary,
                         'days': (end_dt - start_dt).days,
                         'reservation_url': reservation_url
@@ -86,22 +86,22 @@ def fetch_calendar_events():
 
 def get_calendar_stats(events):
     """Calcula estadísticas del calendario."""
-    now = datetime.now()
-    next_30_days = now + timedelta(days=30)
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    next_30_days = today + timedelta(days=30)
     
     total_reserved_days = 0
     upcoming_reservations = 0
     
     for event in events:
-        start = datetime.fromisoformat(event['start'])
-        end = datetime.fromisoformat(event['end'])
+        start = datetime.strptime(event['start'], '%Y-%m-%d')
+        end = datetime.strptime(event['end'], '%Y-%m-%d')
         
-        if start >= now:
+        if start >= today:
             upcoming_reservations += 1
         
         # Contar días reservados en próximos 30 días
-        if start <= next_30_days and end >= now:
-            overlap_start = max(start, now)
+        if start <= next_30_days and end >= today:
+            overlap_start = max(start, today)
             overlap_end = min(end, next_30_days)
             total_reserved_days += (overlap_end - overlap_start).days
     
@@ -114,6 +114,9 @@ def get_calendar_stats(events):
         'ocupacion_30': ocupacion
     }
 
+MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
 def get_month_calendar(year, month):
     """Genera datos del calendario para un mes específico."""
     import calendar
@@ -124,7 +127,7 @@ def get_month_calendar(year, month):
     return {
         'year': year,
         'month': month,
-        'month_name': calendar.month_name[month],
+        'month_name': MESES_ES[month],
         'days': month_days
     }
 
@@ -134,24 +137,24 @@ def home():
     events = fetch_calendar_events()
     stats = get_calendar_stats(events)
     
-    # Obtener calendario del mes actual y siguiente
+    # Iniciar en el mes actual
     now = datetime.now()
-    current_month = get_month_calendar(now.year, now.month)
-    
-    next_month = now.month + 1
-    next_year = now.year
-    if next_month > 12:
-        next_month = 1
-        next_year += 1
-    next_month_cal = get_month_calendar(next_year, next_month)
+    current = get_month_calendar(now.year, now.month)
     
     return render_template('calendar.html',
                          events=events,
                          stats=stats,
-                         current_month=current_month,
-                         next_month=next_month_cal,
+                         current=current,
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME)
+
+@app.route('/api/month')
+def api_month():
+    """API: Obtener datos de un mes específico."""
+    year = request.args.get('year', 2025, type=int)
+    month = request.args.get('month', 12, type=int)
+    
+    return jsonify(get_month_calendar(year, month))
 
 @app.route('/api/events')
 def api_events():

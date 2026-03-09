@@ -150,19 +150,51 @@ header {
     color: rgba(255,255,255,0.9);
 }
 
-/* Calendars */
-.calendars-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
+/* Calendar Navigation */
+.calendar-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
     margin-bottom: 24px;
+}
+
+.nav-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    background: var(--bg-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow);
+}
+
+.nav-btn:hover {
+    background: var(--airbnb-red);
+    border-color: var(--airbnb-red);
+}
+
+.nav-btn:hover .nav-arrow {
+    color: white;
+}
+
+.nav-arrow {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--airbnb-dark);
 }
 
 .calendar-card {
     background: var(--bg-primary);
     border-radius: 16px;
-    padding: 24px;
+    padding: 32px;
     box-shadow: var(--shadow);
+    min-width: 400px;
+    max-width: 500px;
 }
 
 .calendar-card h3 {
@@ -195,10 +227,12 @@ header {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
+    background: white;
 }
 
 .day-cell:not(.empty):hover {
@@ -207,6 +241,8 @@ header {
 
 .day-cell.empty {
     cursor: default;
+    border: none;
+    background: transparent;
 }
 
 .day-number {
@@ -222,6 +258,7 @@ header {
 .day-cell.reserved {
     position: relative;
     background: white;
+    border: 1px solid var(--border-color);
 }
 
 .day-cell.reserved::after {
@@ -270,11 +307,11 @@ header {
 /* Día bloqueado (antes/después de reserva) */
 .day-cell.blocked {
     background: #f0f0f0;
+    border: 1px solid #ddd;
 }
 
 .day-cell.blocked .day-number {
-    color: #ccc;
-    text-decoration: line-through;
+    color: #999;
 }
 
 .day-cell.today {
@@ -456,8 +493,14 @@ footer {
         grid-template-columns: repeat(2, 1fr);
     }
     
-    .calendars-container {
-        grid-template-columns: 1fr;
+    .calendar-card {
+        min-width: 300px;
+        padding: 20px;
+    }
+    
+    .nav-btn {
+        width: 40px;
+        height: 40px;
     }
 }
 
