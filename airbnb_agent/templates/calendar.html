@@ -320,8 +320,6 @@
         const isAdmin = {{ 'true' if is_logged_in else 'false' }};
         const todayStr = '{{ today }}';
         
-        console.log('isAdmin:', isAdmin);
-        
         // Estado de navegación - inicia en mes actual
         let currentYear = {{ current.year }};
         let currentMonth = {{ current.month }};
@@ -497,20 +495,8 @@
                         cell.classList.add('reserved');
                         if (esCache) cell.classList.add('from-cache');
                         
-                        // Solo crear link si NO es admin (admin usa el modal)
-                        if (reservationUrl && !isAdmin) {
-                            const dayNumber = cell.querySelector('.day-number');
-                            if (dayNumber && !dayNumber.querySelector('a')) {
-                                const link = document.createElement('a');
-                                link.href = reservationUrl;
-                                link.target = '_blank';
-                                link.className = 'day-link';
-                                link.textContent = dayNumber.textContent;
-                                link.title = 'Ver reserva en Airbnb';
-                                dayNumber.textContent = '';
-                                dayNumber.appendChild(link);
-                            }
-                        }
+                        // No crear links - el calendario es solo visual
+                        // La URL de Airbnb está disponible en el modal para admin
                         
                         // Primer día = entrada (azul)
                         if (formatDate(current) === formatDate(start)) {
@@ -536,28 +522,13 @@
             
             // Para admin: hacer click en cualquier día abre el modal
             if (isAdmin) {
-                console.log('Configurando clicks para admin...');
                 document.querySelectorAll('.day-cell[data-date]').forEach(cell => {
                     const dateStr = cell.dataset.date;
                     if (!cell.classList.contains('empty')) {
                         cell.style.cursor = 'pointer';
-                        
-                        // Remover cualquier link existente y deshabilitar pointer-events
-                        const links = cell.querySelectorAll('a');
-                        links.forEach(link => {
-                            link.style.pointerEvents = 'none';
-                            link.removeAttribute('href');
-                        });
-                        
-                        cell.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('Click en día:', dateStr);
-                            abrirModalReserva(dateStr);
-                        }, true); // capture phase
+                        cell.addEventListener('click', () => abrirModalReserva(dateStr));
                     }
                 });
-                console.log('Clicks configurados');
             }
         }
         
