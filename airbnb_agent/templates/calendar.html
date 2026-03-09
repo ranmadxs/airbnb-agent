@@ -105,21 +105,68 @@
 
             <!-- Lista de Reservas -->
             <div class="reservations-panel">
-                <h3>📋 Calendario de Ocupación</h3>
+                <div class="panel-header">
+                    <h3>📋 Calendario de Ocupación</h3>
+                    <div class="filter-controls">
+                        <select id="filter-status" onchange="aplicarFiltros()">
+                            <option value="todas" selected>📋 Todas</option>
+                            <option value="activas">🟢 Activas</option>
+                            <option value="pasadas">⏳ Pasadas</option>
+                            {% if is_logged_in %}
+                            <option value="eliminadas">🗑️ Eliminadas</option>
+                            {% endif %}
+                        </select>
+                        <select id="filter-type" onchange="aplicarFiltros()">
+                            <option value="todos">Todos</option>
+                            <option value="reservas" selected>🏠 Reservas</option>
+                            <option value="bloqueos">🚫 Bloqueos</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="reservations-list" id="reservations-list">
                     {% if events %}
                         {% for event in events|sort(attribute='start') %}
-                            {% set is_reservation = event.reservation_url %}
+                            {% set is_reservation = event.estado == 'reservado' %}
+                            {% set is_deleted = event.estado == 'eliminado' %}
+                            {% set has_checkout = event.checkout %}
                             {% set is_past = event.end <= today %}
-                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }}" 
-                                 data-start="{{ event.start }}" data-end="{{ event.end }}">
+                            {% set is_in_progress = event.start <= today and event.end > today and not has_checkout %}
+                            {% set is_upcoming = event.start > today and is_reservation %}
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'has-checkout' if has_checkout else '' }}" 
+                                 data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}">
+                                
+                                {% if is_upcoming and not is_deleted %}
+                                <div class="upcoming-label-overlay">
+                                    <span class="upcoming-label">Próxima estadía</span>
+                                </div>
+                                <div class="upcoming-icon-overlay">
+                                    <span class="upcoming-icon"></span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if is_in_progress and not is_deleted %}
+                                <div class="in-progress-overlay">
+                                    <span class="in-progress-label">Estadía en curso</span>
+                                    <span class="in-progress-icon">🧳</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if is_deleted %}
+                                <div class="deleted-overlay">🗑️</div>
+                                {% endif %}
+                                
                                 <div class="reservation-type">
-                                    {% if is_reservation %}
+                                    {% if is_deleted %}
+                                        <span class="type-badge deleted">🗑️ Eliminado</span>
+                                    {% elif is_reservation %}
                                         <span class="type-badge reservation">🏠 Reserva</span>
                                     {% else %}
                                         <span class="type-badge blocked">🚫 Bloqueo</span>
                                     {% endif %}
                                     <span class="nights-badge">{{ event.days }} noche{{ 's' if event.days != 1 else '' }}</span>
+                                    {% if has_checkout %}
+                                    <span class="checkout-badge">✓ Checkout: {{ event.checkout }}</span>
+                                    {% endif %}
                                 </div>
                                 <div class="dates-row">
                                     <div class="date-block">
@@ -132,20 +179,49 @@
                                         <span class="date-value">{{ event.end }}</span>
                                     </div>
                                 </div>
-                                {% if not is_reservation %}
+                                {% if is_deleted %}
                                 <div class="blocked-reason">
-                                    <span>📌 Bloqueado por propietario en Airbnb</span>
+                                    <span>📌 {{ event.summary }}</span>
+                                </div>
+                                {% elif not is_reservation %}
+                                <div class="blocked-reason">
+                                    <span>📌 {{ event.summary }}</span>
                                 </div>
                                 {% else %}
-                                    {% if is_logged_in %}
+                                    {% if event.reservation_url and is_logged_in %}
                                     <a href="{{ event.reservation_url }}" target="_blank" class="reservation-link-btn">
                                         Ver en Airbnb ↗
                                     </a>
                                     {% else %}
                                     <div class="reservation-info">
-                                        <span>👤 Reserva hecha por usuario de Airbnb</span>
+                                        <svg class="user-icon" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                        </svg>
+                                        <span>{{ event.summary }}</span>
                                     </div>
                                     {% endif %}
+                                {% endif %}
+                                
+                                {% if is_logged_in %}
+                                <div class="item-actions">
+                                    {% if is_deleted %}
+                                    <button class="action-btn restore" onclick="restaurarReserva('{{ event.id }}')" title="Restaurar">
+                                        ♻️ Restaurar
+                                    </button>
+                                    {% else %}
+                                        {% if is_in_progress and is_reservation %}
+                                        <button class="action-btn finish" onclick="registrarCheckout('{{ event.id }}')" title="Registrar checkout">
+                                            🏁 Checkout
+                                        </button>
+                                        {% endif %}
+                                        <button class="action-btn edit" onclick="editarReserva('{{ event.id }}')" title="Editar">
+                                            ✏️
+                                        </button>
+                                        <button class="action-btn delete" onclick="eliminarReserva('{{ event.id }}')" title="Eliminar">
+                                            🗑️
+                                        </button>
+                                    {% endif %}
+                                </div>
                                 {% endif %}
                             </div>
                         {% endfor %}
@@ -186,6 +262,8 @@
     <script>
         // Datos de eventos desde el servidor
         const events = {{ events | tojson }};
+        const isAdmin = {{ 'true' if is_logged_in else 'false' }};
+        const todayStr = '{{ today }}';
         
         // Estado de navegación - inicia en mes actual
         let currentYear = {{ current.year }};
@@ -226,9 +304,49 @@
                 const data = await res.json();
                 renderizarMes(data);
                 marcarDias();
+                filtrarReservasPorMes(year, month);
             } catch (e) {
                 console.error('Error cargando mes:', e);
             }
+        }
+        
+        // Filtrar reservas por mes desplegado
+        function filtrarReservasPorMes(year, month) {
+            const mesStr = String(month).padStart(2, '0');
+            const prefijoMes = `${year}-${mesStr}`;
+            
+            document.querySelectorAll('.reservation-item').forEach(item => {
+                const startStr = item.dataset.start || '';
+                const endStr = item.dataset.end || '';
+                
+                // Mostrar si la fecha de INICIO o la fecha de FIN está en este mes
+                const iniciaEnMes = startStr.startsWith(prefijoMes);
+                const terminaEnMes = endStr.startsWith(prefijoMes);
+                
+                // También mostrar si la reserva ATRAVIESA el mes completo
+                // (empieza antes y termina después)
+                const inicioMes = new Date(year, month - 1, 1);
+                const finMes = new Date(year, month, 0, 23, 59, 59);
+                const start = new Date(startStr + 'T00:00:00');
+                const end = new Date(endStr + 'T00:00:00');
+                const atraviesaMes = start < inicioMes && end > finMes;
+                
+                const enMes = iniciaEnMes || terminaEnMes || atraviesaMes;
+                
+                // Guardar estado original de display si no está guardado
+                if (!item.dataset.displayOriginal) {
+                    item.dataset.displayOriginal = item.style.display || '';
+                }
+                
+                if (enMes) {
+                    item.dataset.enMes = 'true';
+                } else {
+                    item.dataset.enMes = 'false';
+                }
+            });
+            
+            // Re-aplicar filtros considerando el mes
+            aplicarFiltros();
         }
         
         // Renderizar calendario
@@ -284,68 +402,70 @@
                 }
             });
             
-            // Determinar si es bloqueo o reserva real
-            const esBloqueo = (event) => {
-                return !event.reservation_url;
+            // Determinar si es bloqueo o reserva real (basado en estado)
+            const esReserva = (event) => {
+                return event.estado === 'reservado';
             };
             
-            events.forEach(event => {
+            // PASO 1: Primero marcar TODOS los bloqueos (gris)
+            events.filter(e => !esReserva(e)).forEach(event => {
+                const start = new Date(event.start + 'T00:00:00');
+                const end = new Date(event.end + 'T00:00:00');
+                const esCache = event.source === 'cache_airbnb';
+                
+                let current = new Date(start);
+                while (current <= end) {
+                    const dateStr = formatDate(current);
+                    const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                    if (cell) {
+                        cell.classList.add('blocked');
+                        if (esCache) cell.classList.add('from-cache');
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+            });
+            
+            // PASO 2: Después marcar TODAS las reservas (franja negra, tiene prioridad)
+            events.filter(e => esReserva(e)).forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 const reservationUrl = event.reservation_url;
-                const bloqueado = esBloqueo(event);
                 const esCache = event.source === 'cache_airbnb';
                 
-                if (bloqueado) {
-                    // Bloqueo: marcar días como gris
-                    let current = new Date(start);
-                    while (current < end) {
-                        const dateStr = formatDate(current);
-                        const cell = document.querySelector(`[data-date="${dateStr}"]`);
-                        if (cell && !cell.classList.contains('reserved') && !cell.classList.contains('checkout-day')) {
-                            cell.classList.add('blocked');
-                            if (esCache) cell.classList.add('from-cache');
-                        }
-                        current.setDate(current.getDate() + 1);
-                    }
-                } else {
-                    // Reserva real: marcar con franja
-                    let current = new Date(start);
-                    while (current < end) {
-                        const dateStr = formatDate(current);
-                        const cell = document.querySelector(`[data-date="${dateStr}"]`);
-                        if (cell) {
-                            cell.classList.add('reserved');
-                            if (esCache) cell.classList.add('from-cache');
-                            
-                            if (reservationUrl) {
-                                const dayNumber = cell.querySelector('.day-number');
-                                if (dayNumber && !dayNumber.querySelector('a')) {
-                                    const link = document.createElement('a');
-                                    link.href = reservationUrl;
-                                    link.target = '_blank';
-                                    link.className = 'day-link';
-                                    link.textContent = dayNumber.textContent;
-                                    link.title = 'Ver reserva en Airbnb';
-                                    dayNumber.textContent = '';
-                                    dayNumber.appendChild(link);
-                                }
-                            }
-                            
-                            // Primer día = entrada (azul)
-                            if (formatDate(current) === formatDate(start)) {
-                                cell.classList.add('checkin');
+                let current = new Date(start);
+                while (current < end) {
+                    const dateStr = formatDate(current);
+                    const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                    if (cell) {
+                        cell.classList.add('reserved');
+                        if (esCache) cell.classList.add('from-cache');
+                        
+                        if (reservationUrl) {
+                            const dayNumber = cell.querySelector('.day-number');
+                            if (dayNumber && !dayNumber.querySelector('a')) {
+                                const link = document.createElement('a');
+                                link.href = reservationUrl;
+                                link.target = '_blank';
+                                link.className = 'day-link';
+                                link.textContent = dayNumber.textContent;
+                                link.title = 'Ver reserva en Airbnb';
+                                dayNumber.textContent = '';
+                                dayNumber.appendChild(link);
                             }
                         }
-                        current.setDate(current.getDate() + 1);
+                        
+                        // Primer día = entrada (azul)
+                        if (formatDate(current) === formatDate(start)) {
+                            cell.classList.add('checkin');
+                        }
                     }
-                    
-                    // Día de checkout (end) - marcar con colita negra
-                    const checkoutCell = document.querySelector(`[data-date="${formatDate(end)}"]`);
-                    if (checkoutCell) {
-                        checkoutCell.classList.add('checkout-day');
-                        checkoutCell.classList.remove('blocked');
-                    }
+                    current.setDate(current.getDate() + 1);
+                }
+                
+                // Día de checkout (end) - marcar con colita negra
+                const checkoutCell = document.querySelector(`[data-date="${formatDate(end)}"]`);
+                if (checkoutCell) {
+                    checkoutCell.classList.add('checkout-day');
                 }
             });
             
@@ -355,12 +475,214 @@
             if (todayCell) {
                 todayCell.classList.add('today');
             }
+            
+            // Agregar botón editar para admin en días futuros
+            if (isAdmin) {
+                document.querySelectorAll('.day-cell[data-date]').forEach(cell => {
+                    const dateStr = cell.dataset.date;
+                    if (dateStr > todayStr && !cell.classList.contains('empty')) {
+                        const editBtn = document.createElement('button');
+                        editBtn.className = 'day-edit-btn';
+                        editBtn.innerHTML = '✏️';
+                        editBtn.title = 'Editar/Crear reserva';
+                        editBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            window.location.href = `/admin/reserva?fecha=${dateStr}`;
+                        };
+                        cell.appendChild(editBtn);
+                    }
+                });
+            }
         }
         
         // Inicializar
-        console.log('Eventos disponibles en el calendario:', events);
-        console.log('Fechas de eventos:', events.map(e => `${e.start} → ${e.end}`));
         marcarDias();
+        filtrarReservasPorMes(currentYear, currentMonth);
+        
+        // ============================================================
+        // FILTROS DE RESERVAS
+        // ============================================================
+        
+        function aplicarFiltros() {
+            const filterStatus = document.getElementById('filter-status').value;
+            const filterType = document.getElementById('filter-type').value;
+            const items = document.querySelectorAll('.reservation-item');
+            
+            items.forEach(item => {
+                const isPast = item.classList.contains('is-past');
+                const isReservation = item.classList.contains('is-reservation');
+                const isBlocked = item.classList.contains('is-blocked');
+                const isDeleted = item.classList.contains('is-deleted');
+                
+                let showByStatus = true;
+                let showByType = true;
+                
+                // Filtro por estado
+                if (filterStatus === 'activas') {
+                    showByStatus = !isPast && !isDeleted;
+                } else if (filterStatus === 'pasadas') {
+                    showByStatus = isPast && !isDeleted;
+                } else if (filterStatus === 'eliminadas') {
+                    showByStatus = isDeleted;
+                } else if (filterStatus === 'todas') {
+                    showByStatus = !isDeleted;
+                }
+                
+                // Filtro por tipo (no aplica a eliminados)
+                if (filterType === 'reservas') {
+                    showByType = isReservation || isDeleted;
+                } else if (filterType === 'bloqueos') {
+                    showByType = isBlocked || isDeleted;
+                }
+                
+                // Filtro por mes (si está definido)
+                const enMes = item.dataset.enMes !== 'false';
+                
+                // Mostrar u ocultar
+                item.style.display = (showByStatus && showByType && enMes) ? '' : 'none';
+            });
+            
+            // Actualizar contador
+            const visibles = document.querySelectorAll('.reservation-item:not([style*="display: none"])').length;
+            const total = items.length;
+            const contador = document.getElementById('filter-count');
+            if (contador) {
+                contador.textContent = `${visibles}/${total}`;
+            }
+        }
+        
+        // Funciones de admin
+        function editarReserva(id) {
+            window.location.href = `/admin/reserva?id=${id}`;
+        }
+        
+        function eliminarReserva(id) {
+            if (confirm('¿Eliminar esta reserva? Podrás restaurarla después.')) {
+                fetch(`/api/reserva/${id}/eliminar`, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Error al eliminar');
+                        }
+                    });
+            }
+        }
+        
+        function restaurarReserva(id) {
+            if (confirm('¿Restaurar esta reserva?')) {
+                fetch(`/api/reserva/${id}/restaurar`, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Error al restaurar');
+                        }
+                    });
+            }
+        }
+        
+        function registrarCheckout(id) {
+            if (confirm('¿Registrar checkout? El cliente se retiró de la propiedad.')) {
+                fetch(`/api/reserva/${id}/finalizar`, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Error al registrar checkout: ' + (data.error || 'Error desconocido'));
+                        }
+                    });
+            }
+        }
+        
+        // Aplicar filtro inicial (activas por defecto)
+        aplicarFiltros();
+        
+        // Calcular proximidad para reservas próximas (solo la más cercana)
+        function calcularProximidad() {
+            const today = new Date(todayStr + 'T00:00:00');
+            
+            // Encontrar todas las reservas próximas
+            const upcomingItems = Array.from(document.querySelectorAll('.reservation-item.is-upcoming'));
+            
+            // Ordenar por fecha más cercana
+            upcomingItems.sort((a, b) => {
+                return new Date(a.dataset.start) - new Date(b.dataset.start);
+            });
+            
+            // Solo la primera (más cercana) tiene el efecto naranja
+            upcomingItems.forEach((item, index) => {
+                const overlay = item.querySelector('.upcoming-overlay');
+                const icon = item.querySelector('.upcoming-icon');
+                
+                if (index === 0) {
+                    // Solo la más próxima tiene el efecto
+                    item.classList.add('is-next');
+                    
+                    const startDate = new Date(item.dataset.start + 'T00:00:00');
+                    const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+                    
+                    // Calcular porcentaje: 
+                    // 30+ días = 5%, 1 día = 95%
+                    // Fórmula: cuanto menos días faltan, más lleno
+                    let progress;
+                    if (daysUntil >= 30) {
+                        progress = 5;
+                    } else if (daysUntil <= 1) {
+                        progress = 95;
+                    } else {
+                        // Interpolación lineal: de 30 días (5%) a 1 día (95%)
+                        progress = 5 + ((30 - daysUntil) / 29) * 90;
+                    }
+                    
+                    const iconPos = Math.max(2, progress - 3);
+                    
+                    item.style.setProperty('--upcoming-progress', progress + '%');
+                    item.style.setProperty('--upcoming-car-pos', iconPos + '%');
+                    
+                    // Cambiar icono según proximidad
+                    if (icon) {
+                        if (daysUntil <= 1) {
+                            icon.textContent = '🧳'; // Ya llegó
+                        } else {
+                            icon.textContent = '🚗'; // En camino
+                        }
+                    }
+                    
+                    if (overlay) overlay.style.display = '';
+                } else {
+                    // Las demás no tienen efecto
+                    item.classList.remove('is-next');
+                    item.style.removeProperty('--upcoming-progress');
+                    item.style.removeProperty('--upcoming-car-pos');
+                    if (overlay) overlay.style.display = 'none';
+                }
+            });
+        }
+        
+        // Calcular progreso para estadías en curso
+        function calcularProgresoEstadia() {
+            const today = new Date(todayStr + 'T00:00:00');
+            
+            document.querySelectorAll('.reservation-item.is-in-progress').forEach(item => {
+                const startDate = new Date(item.dataset.start + 'T00:00:00');
+                const endDate = new Date(item.dataset.end + 'T00:00:00');
+                
+                const totalDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+                const daysElapsed = (today - startDate) / (1000 * 60 * 60 * 24);
+                
+                // Calcular porcentaje completado (mínimo 10%, máximo 95%)
+                const progress = Math.max(10, Math.min(95, (daysElapsed / totalDays) * 100));
+                
+                item.style.setProperty('--stay-progress', progress + '%');
+            });
+        }
+        
+        calcularProximidad();
+        calcularProgresoEstadia();
         
         // ============================================================
         // STATUS BADGES

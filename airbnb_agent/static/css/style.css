@@ -277,7 +277,8 @@ header {
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
+    gap: 0;
+    padding: 0;
 }
 
 .day-header {
@@ -297,12 +298,13 @@ header {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid var(--border-color);
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
     background: white;
+    overflow: visible;
 }
 
 .day-cell:not(.empty):hover {
@@ -331,19 +333,40 @@ header {
     border: 1px solid var(--border-color);
 }
 
-.day-cell.reserved::after {
+.day-cell.reserved::after,
+.day-cell.blocked.reserved::after {
     content: '';
     position: absolute;
     top: 50%;
-    left: -3px;
-    right: -3px;
+    left: -2px;
+    right: -2px;
+    width: auto;
     height: 28px;
     background: #222222;
     transform: translateY(-50%);
     z-index: 1;
+    border-radius: 0;
 }
 
-.day-cell.reserved .day-number {
+/* Asegurar franja negra en días reservados con bloqueo (no check-in) */
+.day-cell.blocked.reserved:not(.checkin)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -2px;
+    right: -2px;
+    width: auto;
+    height: 28px;
+    background: #222222;
+    transform: translateY(-50%);
+    z-index: 1;
+    border-radius: 0;
+}
+
+.day-cell.reserved .day-number,
+.day-cell.blocked.reserved .day-number,
+.day-cell.checkin .day-number,
+.day-cell.blocked.checkin .day-number {
     position: relative;
     z-index: 2;
     color: white;
@@ -363,10 +386,19 @@ header {
 }
 
 /* Check-in: inicio de franja con borde azul */
-.day-cell.checkin::after {
+.day-cell.checkin::after,
+.day-cell.blocked.checkin::after,
+.day-cell.blocked.reserved.checkin::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: auto;
+    height: 28px;
+    z-index: 1;
     border-radius: 14px 0 0 14px;
     left: 15%;
-    right: -3px;
+    right: -2px;
     background: #3B82F6;
 }
 
@@ -398,12 +430,17 @@ header {
 
 /* Día bloqueado (antes/después de reserva) */
 .day-cell.blocked {
-    background: #f0f0f0;
-    border: 1px solid #ddd;
+    background: #e5e5e5;
+    border: 1px solid #ccc;
 }
 
 .day-cell.blocked .day-number {
-    color: #999;
+    color: #888;
+}
+
+/* Cuando tiene bloqueo Y reserva, mostrar fondo gris con franja negra */
+.day-cell.blocked.reserved {
+    background: #d5d5d5;
 }
 
 .day-cell.today {
@@ -413,6 +450,36 @@ header {
 .day-cell.today .day-number {
     font-weight: 700;
     color: var(--today-color);
+}
+
+/* Botón editar en días (admin) */
+.day-edit-btn {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: rgba(255, 90, 95, 0.9);
+    border-radius: 4px;
+    font-size: 10px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.day-cell:hover .day-edit-btn {
+    opacity: 1;
+}
+
+.day-edit-btn:hover {
+    background: var(--airbnb-red);
+    transform: scale(1.1);
 }
 
 .day-cell.reserved.today {
@@ -477,9 +544,39 @@ header {
     box-shadow: var(--shadow);
 }
 
-.reservations-panel h3 {
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.panel-header h3 {
+    margin: 0;
     font-size: 1.1em;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.filter-controls select {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.85em;
+    background: white;
+    cursor: pointer;
+    color: var(--airbnb-dark);
+}
+
+.filter-controls select:focus {
+    outline: none;
+    border-color: var(--airbnb-red);
 }
 
 .reservations-list {
@@ -489,6 +586,7 @@ header {
 }
 
 .reservation-item {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -511,21 +609,6 @@ header {
     overflow: hidden;
 }
 
-.reservation-item.is-past::before {
-    content: '✓ FINALIZADO';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-12deg);
-    font-size: 1.1rem;
-    font-weight: 800;
-    letter-spacing: 3px;
-    color: rgba(107, 114, 128, 0.25);
-    text-transform: uppercase;
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 1;
-}
 
 .reservation-item.is-past > * {
     position: relative;
@@ -534,9 +617,13 @@ header {
 }
 
 .reservation-item.is-past .type-badge,
-.reservation-item.is-past .nights-badge,
 .reservation-item.is-past .date-value {
     color: #6b7280;
+}
+
+.reservation-item.is-past .nights-badge {
+    background: #9ca3af;
+    color: white;
 }
 
 .reservation-item:hover {
@@ -573,6 +660,24 @@ header {
     color: white;
     padding: 3px 8px;
     border-radius: 12px;
+}
+
+.checkout-badge {
+    font-size: 0.75em;
+    background: #059669;
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.reservation-item.has-checkout {
+    opacity: 0.7;
+    background: linear-gradient(135deg, #f8f8f8 0%, #f0f0f0 100%);
+}
+
+.reservation-item.has-checkout .type-badge.reservation {
+    background: #6b7280;
 }
 
 .dates-row {
@@ -629,7 +734,319 @@ header {
     padding: 8px;
     background: rgba(5, 150, 105, 0.1);
     border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
+
+.reservation-info .user-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* Reserva próxima: colores naranjas */
+.reservation-item.is-upcoming.is-next .reservation-info {
+    color: #b45309;
+    background: rgba(245, 158, 11, 0.15);
+}
+
+/* Reservas futuras (no próximas ni en curso): escala de grises */
+.reservation-item.is-upcoming:not(.is-next) .reservation-info,
+.reservation-item.is-reservation:not(.is-in-progress):not(.is-upcoming) .reservation-info {
+    color: #6b7280;
+    background: rgba(107, 114, 128, 0.1);
+}
+
+/* Reservas próximas (check-in futuro) - solo la más cercana */
+.reservation-item.is-upcoming {
+    position: relative;
+    overflow: hidden;
+}
+
+.reservation-item.is-upcoming.is-next {
+    border-left-color: #f59e0b;
+}
+
+.reservation-item.is-upcoming.is-next::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--upcoming-progress, 5%);
+    background: linear-gradient(90deg, 
+        rgba(245, 158, 11, 0.25) 0%,
+        rgba(245, 158, 11, 0.15) 80%,
+        rgba(245, 158, 11, 0.05) 100%
+    );
+    transition: width 0.5s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Efecto de luz animada naranja */
+.reservation-item.is-upcoming.is-next::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        linear-gradient(
+            100deg,
+            transparent 0%,
+            transparent 40%,
+            rgba(245, 158, 11, 0.12) 50%,
+            transparent 60%,
+            transparent 100%
+        );
+    animation: flyArrowOrange 3s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes flyArrowOrange {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.reservation-item.is-upcoming .upcoming-label-overlay,
+.reservation-item.is-upcoming .upcoming-icon-overlay {
+    display: none;
+}
+
+/* Texto centrado */
+.reservation-item.is-upcoming.is-next .upcoming-label-overlay {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 25%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.5;
+}
+
+.reservation-item.is-upcoming.is-next .upcoming-label {
+    font-size: 0.7rem;
+    font-weight: 900;
+    color: #92400e;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    text-shadow: 0 0 8px rgba(255,255,255,0.9);
+}
+
+/* Auto siguiendo la línea proporcional */
+.reservation-item.is-upcoming.is-next .upcoming-icon-overlay {
+    display: block;
+    position: absolute;
+    left: var(--upcoming-car-pos, 5%);
+    top: 55%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+    transition: left 0.5s ease;
+    opacity: 0.4;
+}
+
+.reservation-item.is-upcoming.is-next .upcoming-icon {
+    font-size: 1.5rem;
+    display: inline-block;
+    transform: scaleX(-1);
+}
+
+/* Reservas en curso */
+.reservation-item.is-in-progress {
+    position: relative;
+    border-left-color: #10b981;
+    background: #f0fdf4;
+    overflow: hidden;
+}
+
+.reservation-item.is-in-progress::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--stay-progress, 50%);
+    background: linear-gradient(90deg, 
+        rgba(16, 185, 129, 0.25) 0%,
+        rgba(16, 185, 129, 0.15) 90%,
+        rgba(16, 185, 129, 0.05) 100%
+    );
+    transition: width 0.5s ease;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.reservation-item.is-in-progress::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        linear-gradient(
+            100deg,
+            transparent 0%,
+            transparent 40%,
+            rgba(16, 185, 129, 0.1) 50%,
+            transparent 60%,
+            transparent 100%
+        );
+    animation: flyArrow 3s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes flyArrow {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.reservation-item.is-in-progress .in-progress-overlay {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.reservation-item.is-in-progress .in-progress-label {
+    font-size: 0.8rem;
+    font-weight: 900;
+    color: #065f46;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(255,255,255,0.9);
+}
+
+.reservation-item.is-in-progress .in-progress-icon {
+    font-size: 2rem;
+}
+
+/* Reservas eliminadas */
+.reservation-item.is-deleted {
+    position: relative;
+    opacity: 0.5;
+    background: #f3f4f6;
+    border-left-color: #9ca3af;
+}
+
+.reservation-item.is-deleted .deleted-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.type-badge.deleted {
+    background: #9ca3af;
+    color: white;
+}
+
+/* Botones de acción */
+.item-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s;
+}
+
+.action-btn.edit {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.action-btn.edit:hover {
+    background: #bfdbfe;
+}
+
+.action-btn.delete {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.action-btn.delete:hover {
+    background: #fecaca;
+}
+
+.action-btn.restore {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.action-btn.restore:hover {
+    background: #a7f3d0;
+}
+
+.action-btn.finish {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.action-btn.finish:hover {
+    background: #fde68a;
+}
+
+.reservation-item.has-checkout::before {
+    content: 'CHECKOUT\A✓';
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%) rotate(-15deg);
+    font-size: 0.5rem;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    color: rgba(5, 150, 105, 0.7);
+    text-transform: uppercase;
+    white-space: pre-wrap;
+    pointer-events: none;
+    z-index: 1;
+    width: 62px;
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border: 2px solid rgba(5, 150, 105, 0.5);
+    border-radius: 50%;
+    text-align: center;
+    line-height: 1.4;
+    box-shadow: 
+        0 0 0 3px rgba(255,255,255,0.8),
+        0 0 0 5px rgba(5, 150, 105, 0.35);
+    text-shadow: 
+        1px 0 0 rgba(255,255,255,0.3),
+        -1px 0 0 rgba(255,255,255,0.3),
+        0 1px 0 rgba(255,255,255,0.3);
+    font-family: 'Georgia', serif;
+}
+
 
 .reservation-link-btn {
     display: block;
@@ -843,8 +1260,22 @@ footer {
         border-radius: 12px;
     }
     
-    .reservations-panel h3 {
+    .panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .panel-header h3 {
         font-size: 1em;
+    }
+    
+    .filter-controls {
+        width: 100%;
+    }
+    
+    .filter-controls select {
+        flex: 1;
+        font-size: 0.8em;
     }
     
     .reservation-item {

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Editar' if reserva else 'Nueva' }} Reserva - {{ property_name }}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+    <style>
+        :root {
+            --airbnb-red: #FF5A5F;
+            --airbnb-dark: #484848;
+            --airbnb-light: #767676;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: var(--airbnb-red);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .form-container {
+            padding: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--airbnb-dark);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--airbnb-red);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: #fff8e7;
+            border-radius: 8px;
+            border: 2px solid #f59e0b;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+        }
+        
+        .checkbox-group small {
+            display: block;
+            color: var(--airbnb-light);
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+        
+        .info-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        
+        .info-badge.readonly {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .info-badge.airbnb {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--airbnb-red);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #e04e53;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: var(--airbnb-dark);
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+        
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .alert-error {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+        }
+        
+        .alert-success {
+            background: #d1fae5;
+            color: #059669;
+            border: 1px solid #6ee7b7;
+        }
+        
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 16px;
+            color: var(--airbnb-light);
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            color: var(--airbnb-red);
+        }
+        
+        .nights-display {
+            text-align: center;
+            padding: 8px;
+            background: #f0f9ff;
+            border-radius: 6px;
+            color: #0369a1;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ 'Editar' if reserva else 'Nueva' }} Reserva</h1>
+            <p>{{ property_name }}</p>
+        </div>
+        
+        <div class="form-container">
+            {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+            {% endif %}
+            
+            {% if success %}
+            <div class="alert alert-success">{{ success }}</div>
+            {% endif %}
+            
+            <form method="POST" id="reserva-form">
+                <input type="hidden" name="reserva_id" value="{{ reserva._id if reserva else '' }}">
+                
+                <div class="form-group">
+                    <label>
+                        Tipo de evento
+                        {% if reserva and reserva.readonly %}
+                        <span class="info-badge readonly">🔒 Protegida</span>
+                        {% endif %}
+                        {% if reserva and reserva.source == 'airbnb' %}
+                        <span class="info-badge airbnb">Airbnb</span>
+                        {% endif %}
+                    </label>
+                    <select name="estado" required>
+                        <option value="reservado" {{ 'selected' if reserva and reserva.estado == 'reservado' else '' }}>🏠 Reserva</option>
+                        <option value="bloqueado" {{ 'selected' if reserva and reserva.estado == 'bloqueado' else '' }}>🚫 Bloqueo</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Check-in / Desde</label>
+                        <input type="date" name="event_start" value="{{ reserva.event_start if reserva else fecha }}" required min="{{ today }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Check-out / Hasta</label>
+                        <input type="date" name="event_end" value="{{ reserva.event_end if reserva else '' }}" required min="{{ today }}">
+                    </div>
+                </div>
+                
+                <div id="nights-display" class="nights-display" style="display: none;">
+                    <span id="nights-count">0</span> noche(s)
+                </div>
+                
+                <div class="form-group">
+                    <label>Descripción / Notas</label>
+                    <textarea name="summary" rows="2" placeholder="Ej: Reserva manual, Mantenimiento...">{{ reserva.summary if reserva else '' }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>URL Reserva (opcional)</label>
+                    <input type="url" name="reservation_url" value="{{ reserva.reservation_url if reserva and reserva.reservation_url else '' }}" placeholder="https://...">
+                </div>
+                
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="readonly" id="readonly" {{ 'checked' if reserva and reserva.readonly else '' }}>
+                        <label for="readonly">
+                            🔒 Proteger de sincronización
+                            <small>No será modificada por actualizaciones de Airbnb</small>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="buttons">
+                    <button type="button" class="btn btn-secondary" onclick="window.location.href='/'">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">{{ 'Guardar' if reserva else 'Crear' }}</button>
+                </div>
+                
+                {% if reserva %}
+                <div class="buttons">
+                    <button type="button" class="btn btn-danger" onclick="eliminarReserva()">🗑️ Eliminar</button>
+                </div>
+                {% endif %}
+            </form>
+            
+            <a href="/" class="back-link">← Volver al calendario</a>
+        </div>
+    </div>
+    
+    <script>
+        const startInput = document.querySelector('input[name="event_start"]');
+        const endInput = document.querySelector('input[name="event_end"]');
+        const nightsDisplay = document.getElementById('nights-display');
+        const nightsCount = document.getElementById('nights-count');
+        
+        function calcularNoches() {
+            if (startInput.value && endInput.value) {
+                const start = new Date(startInput.value);
+                const end = new Date(endInput.value);
+                const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+                if (diff > 0) {
+                    nightsCount.textContent = diff;
+                    nightsDisplay.style.display = 'block';
+                } else {
+                    nightsDisplay.style.display = 'none';
+                }
+            } else {
+                nightsDisplay.style.display = 'none';
+            }
+        }
+        
+        startInput.addEventListener('change', () => {
+            if (startInput.value && !endInput.value) {
+                const nextDay = new Date(startInput.value);
+                nextDay.setDate(nextDay.getDate() + 1);
+                endInput.value = nextDay.toISOString().split('T')[0];
+            }
+            endInput.min = startInput.value;
+            calcularNoches();
+        });
+        
+        endInput.addEventListener('change', calcularNoches);
+        calcularNoches();
+        
+        function eliminarReserva() {
+            if (confirm('¿Estás seguro de eliminar esta reserva?')) {
+                const form = document.getElementById('reserva-form');
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'action';
+                input.value = 'delete';
+                form.appendChild(input);
+                form.submit();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -106,7 +106,7 @@ def login():
 def logout():
     """Cerrar sesión."""
     session.clear()
-    return redirect(url_for('login'))
+    return redirect(url_for('home'))
 
 
 # ============================================================
@@ -218,6 +218,99 @@ def api_calendario():
         "total": len(dias),
         "dias": dias
     })
+
+
+@app.route('/api/reserva/<reserva_id>/eliminar', methods=['POST'])
+@login_required
+def api_eliminar_reserva(reserva_id):
+    """API: Eliminar reserva (lógico)."""
+    resultado = db_service.eliminar_reserva(reserva_id, get_audit_info())
+    return jsonify({"success": resultado})
+
+
+@app.route('/api/reserva/<reserva_id>/restaurar', methods=['POST'])
+@login_required
+def api_restaurar_reserva(reserva_id):
+    """API: Restaurar reserva eliminada."""
+    resultado = db_service.restaurar_reserva(reserva_id, get_audit_info())
+    return jsonify({"success": resultado})
+
+
+@app.route('/api/reserva/<reserva_id>/finalizar', methods=['POST'])
+@login_required
+def api_finalizar_estadia(reserva_id):
+    """API: Finalizar estadía (cliente se retiró)."""
+    resultado = db_service.finalizar_estadia(reserva_id, get_audit_info())
+    return jsonify(resultado)
+
+
+@app.route('/admin/reserva', methods=['GET', 'POST'])
+@login_required
+def admin_reserva():
+    """Página para crear/editar reservas (solo admin)."""
+    from bson import ObjectId
+    
+    error = None
+    success = None
+    reserva = None
+    
+    # Obtener fecha del parámetro o reserva existente
+    fecha = request.args.get('fecha', '')
+    reserva_id = request.args.get('id', '')
+    
+    # Si hay ID, cargar la reserva existente
+    if reserva_id:
+        reserva = db_service.obtener_reserva_por_id(reserva_id)
+        if reserva:
+            fecha = reserva.get('event_start', fecha)
+    
+    # Si hay fecha, buscar si existe reserva en ese día
+    if fecha and not reserva:
+        reserva = db_service.buscar_reserva_por_fecha(fecha)
+    
+    if request.method == 'POST':
+        action = request.form.get('action', '')
+        
+        if action == 'delete':
+            # Eliminar reserva
+            rid = request.form.get('reserva_id', '')
+            if rid:
+                resultado = db_service.eliminar_reserva(rid, get_audit_info())
+                if resultado:
+                    return redirect(url_for('home'))
+                error = 'Error al eliminar la reserva'
+        else:
+            # Crear/actualizar reserva
+            datos = {
+                'event_start': request.form.get('event_start'),
+                'event_end': request.form.get('event_end'),
+                'estado': request.form.get('estado'),
+                'summary': request.form.get('summary', ''),
+                'reservation_url': request.form.get('reservation_url', '') or None,
+                'readonly': request.form.get('readonly') == 'on',
+                'source': 'admin'
+            }
+            
+            # Validar fechas
+            if datos['event_start'] >= datos['event_end']:
+                error = 'La fecha de check-out debe ser posterior al check-in'
+            else:
+                rid = request.form.get('reserva_id', '')
+                resultado = db_service.guardar_reserva_manual(rid, datos, get_audit_info())
+                
+                if resultado.get('success'):
+                    return redirect(url_for('home'))
+                else:
+                    error = resultado.get('error', 'Error al guardar')
+    
+    now = datetime.now()
+    return render_template('reserva_edit.html',
+                         reserva=reserva,
+                         fecha=fecha,
+                         today=now.strftime('%Y-%m-%d'),
+                         property_name=PROPERTY_NAME,
+                         error=error,
+                         success=success)
 
 
 if __name__ == '__main__':
