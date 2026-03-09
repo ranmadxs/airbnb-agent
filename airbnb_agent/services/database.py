@@ -113,7 +113,12 @@ class DatabaseService:
             print(f"❌ Error en sync: {e}")
     
     def guardar_eventos(self, eventos: list, audit: dict = None):
-        """Guarda eventos en airbnb-dias y días en 'dias' usando bulk operations."""
+        """Guarda eventos en airbnb-dias y días en 'dias' usando bulk operations.
+        
+        - Eventos de iCal se guardan con source: "airbnb"
+        - Eventos en BD que no vienen en iCal se marcan como source: "cache_airbnb"
+        - Datos históricos (< hoy) no se modifican
+        """
         from pymongo import UpdateOne
         
         if not self.connect():
@@ -122,11 +127,35 @@ class DatabaseService:
         if audit is None:
             audit = {"user_origin": "system", "user_agent": "system"}
         
-        # 1. Preparar bulk para eventos
+        hoy = datetime.now().strftime("%Y-%m-%d")
+        
+        # 1. Obtener eventos actuales de iCal (claves)
+        eventos_ical_keys = set()
+        for event in eventos:
+            if event["end"] >= hoy:
+                eventos_ical_keys.add(f"{event['start']}_{event['end']}")
+        
+        # 2. Marcar eventos futuros que NO están en iCal como cache_airbnb
+        try:
+            self.airbnb_dias.update_many(
+                {
+                    "event_end": {"$gte": hoy},
+                    "source": "airbnb"
+                },
+                {"$set": {"source": "cache_airbnb"}}
+            )
+        except Exception as e:
+            print(f"❌ Error marcando cache: {e}")
+        
+        # 3. Preparar bulk para eventos de iCal (solo futuros)
         eventos_ops = []
         eventos_unicos = {}
         
         for event in eventos:
+            # Solo sincronizar eventos que terminan hoy o en el futuro
+            if event["end"] < hoy:
+                continue
+                
             event_key = f"{event['start']}_{event['end']}"
             if event_key not in eventos_unicos:
                 estado = "bloqueado" if not event.get("reservation_url") else "reservado"
@@ -159,7 +188,7 @@ class DatabaseService:
             print(f"❌ Error bulk eventos: {e}")
             return 0
         
-        # 3. Preparar bulk para días
+        # 3. Preparar bulk para días (solo días >= hoy)
         dias_ops = []
         dias_unicos = set()
         
@@ -172,7 +201,8 @@ class DatabaseService:
             
             while current < end:
                 fecha_str = current.strftime("%Y-%m-%d")
-                if fecha_str not in dias_unicos:
+                # Solo sincronizar días >= hoy (históricos son definitivos)
+                if fecha_str >= hoy and fecha_str not in dias_unicos:
                     dias_unicos.add(fecha_str)
                     partes = fecha_str.split("-")
                     
@@ -267,7 +297,8 @@ class DatabaseService:
                     "end": doc.get("event_end"),
                     "days": doc.get("days", 1),
                     "summary": doc.get("summary", "Cached"),
-                    "reservation_url": doc.get("reservation_url")
+                    "reservation_url": doc.get("reservation_url"),
+                    "source": doc.get("source", "cache_airbnb")
                 })
             
             return eventos

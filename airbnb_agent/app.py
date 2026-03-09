@@ -68,30 +68,29 @@ def get_month_calendar(year: int, month: int) -> dict:
 @app.route('/')
 def home():
     """Página principal."""
-    events = airbnb_service.fetch_events()
-    data_source = "ical"
+    # 1. Sincronizar desde iCal en background (si está disponible)
+    ical_events = airbnb_service.fetch_events()
+    if ical_events:
+        db_service.sync_en_background(ical_events, get_audit_info())
     
-    # Si iCal falló, intentar desde MongoDB
-    if not events and db_service.connected:
-        events = db_service.obtener_eventos_formato_ical()
-        data_source = "cache"
+    # 2. Mostrar siempre desde MongoDB (fuente principal)
+    events = db_service.obtener_eventos_formato_ical()
+    
+    # 3. Fallback a iCal solo si MongoDB está vacío
+    if not events and ical_events:
+        events = ical_events
     
     stats = airbnb_service.get_stats(events)
     
     now = datetime.now()
     current = get_month_calendar(now.year, now.month)
     
-    # Sync en background solo si tenemos datos frescos de iCal
-    if data_source == "ical" and events:
-        db_service.sync_en_background(events, get_audit_info())
-    
     return render_template('calendar.html',
                          events=events,
                          stats=stats,
                          current=current,
                          version=APP_VERSION,
-                         property_name=PROPERTY_NAME,
-                         data_source=data_source)
+                         property_name=PROPERTY_NAME)
 
 
 @app.route('/api/month')

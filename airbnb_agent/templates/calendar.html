@@ -24,12 +24,10 @@
                         <span class="status-dot"></span>
                         <span class="status-text">MongoDB...</span>
                     </div>
-                    {% if data_source == 'cache' %}
-                    <div class="status-badge cached">
+                    <div class="status-badge cached" id="cache-status" style="display: none;">
                         <span class="status-dot"></span>
-                        <span class="status-text">📦 Cache</span>
+                        <span class="status-text">Cache</span>
                     </div>
-                    {% endif %}
                 </div>
                 <span class="version">v{{ version }}</span>
             </div>
@@ -262,6 +260,7 @@
                 const end = new Date(event.end + 'T00:00:00');
                 const reservationUrl = event.reservation_url;
                 const bloqueado = esBloqueo(event);
+                const esCache = event.source === 'cache_airbnb';
                 
                 if (bloqueado) {
                     // Bloqueo: marcar días como gris
@@ -271,6 +270,7 @@
                         const cell = document.querySelector(`[data-date="${dateStr}"]`);
                         if (cell && !cell.classList.contains('reserved') && !cell.classList.contains('checkout-day')) {
                             cell.classList.add('blocked');
+                            if (esCache) cell.classList.add('from-cache');
                         }
                         current.setDate(current.getDate() + 1);
                     }
@@ -282,6 +282,7 @@
                         const cell = document.querySelector(`[data-date="${dateStr}"]`);
                         if (cell) {
                             cell.classList.add('reserved');
+                            if (esCache) cell.classList.add('from-cache');
                             
                             if (reservationUrl) {
                                 const dayNumber = cell.querySelector('.day-number');
@@ -347,15 +348,19 @@
                     
                     // Badge MongoDB
                     const mongoBadge = document.getElementById('mongo-status');
+                    const cacheBadge = document.getElementById('cache-status');
                     if (!data.mongodb.configured) {
                         mongoBadge.className = 'status-badge disabled';
                         mongoBadge.querySelector('.status-text').textContent = 'MongoDB N/C';
+                        cacheBadge.style.display = 'none';
                     } else if (data.mongodb.connected) {
                         mongoBadge.className = 'status-badge connected';
                         mongoBadge.querySelector('.status-text').textContent = 'MongoDB';
+                        cacheBadge.style.display = 'flex';
                     } else {
                         mongoBadge.className = 'status-badge disconnected';
                         mongoBadge.querySelector('.status-text').textContent = 'MongoDB Error';
+                        cacheBadge.style.display = 'none';
                     }
                 })
                 .catch(error => {
