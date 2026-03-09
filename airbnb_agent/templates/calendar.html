@@ -225,60 +225,97 @@
         
         // Marcar días reservados
         function marcarDias() {
+            // Crear set de todas las fechas ocupadas
+            const diasOcupados = new Set();
+            events.forEach(event => {
+                let current = new Date(event.start + 'T00:00:00');
+                const end = new Date(event.end + 'T00:00:00');
+                while (current < end) {
+                    diasOcupados.add(formatDate(current));
+                    current.setDate(current.getDate() + 1);
+                }
+            });
+            
+            // Determinar si es bloqueo o reserva real
+            const esBloqueo = (event) => {
+                return !event.reservation_url;
+            };
+            
             events.forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 const reservationUrl = event.reservation_url;
+                const bloqueado = esBloqueo(event);
                 
-                // Día bloqueado ANTES del check-in
-                const dayBefore = new Date(start);
-                dayBefore.setDate(dayBefore.getDate() - 1);
-                const beforeStr = formatDate(dayBefore);
-                const beforeCell = document.querySelector(`[data-date="${beforeStr}"]`);
-                if (beforeCell && !beforeCell.classList.contains('reserved')) {
-                    beforeCell.classList.add('blocked');
-                }
-                
-                // Días de la reserva
-                let current = new Date(start);
-                while (current < end) {
-                    const dateStr = formatDate(current);
-                    const cell = document.querySelector(`[data-date="${dateStr}"]`);
-                    if (cell) {
-                        cell.classList.add('reserved');
-                        
-                        if (reservationUrl) {
-                            const dayNumber = cell.querySelector('.day-number');
-                            if (dayNumber && !dayNumber.querySelector('a')) {
-                                const link = document.createElement('a');
-                                link.href = reservationUrl;
-                                link.target = '_blank';
-                                link.className = 'day-link';
-                                link.textContent = dayNumber.textContent;
-                                link.title = 'Ver reserva en Airbnb';
-                                dayNumber.textContent = '';
-                                dayNumber.appendChild(link);
+                if (bloqueado) {
+                    // Bloqueo: marcar días como gris
+                    let current = new Date(start);
+                    while (current < end) {
+                        const dateStr = formatDate(current);
+                        const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                        if (cell && !cell.classList.contains('reserved') && !cell.classList.contains('checkout-day')) {
+                            cell.classList.add('blocked');
+                        }
+                        current.setDate(current.getDate() + 1);
+                    }
+                } else {
+                    // Reserva real: marcar con franja
+                    let current = new Date(start);
+                    while (current < end) {
+                        const dateStr = formatDate(current);
+                        const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                        if (cell) {
+                            cell.classList.add('reserved');
+                            
+                            if (reservationUrl) {
+                                const dayNumber = cell.querySelector('.day-number');
+                                if (dayNumber && !dayNumber.querySelector('a')) {
+                                    const link = document.createElement('a');
+                                    link.href = reservationUrl;
+                                    link.target = '_blank';
+                                    link.className = 'day-link';
+                                    link.textContent = dayNumber.textContent;
+                                    link.title = 'Ver reserva en Airbnb';
+                                    dayNumber.textContent = '';
+                                    dayNumber.appendChild(link);
+                                }
+                            }
+                            
+                            // Primer día = entrada (azul)
+                            if (formatDate(current) === formatDate(start)) {
+                                cell.classList.add('checkin');
                             }
                         }
-                        
-                        if (formatDate(current) === formatDate(start)) {
-                            cell.classList.add('checkin');
-                        }
-                        const lastDay = new Date(end);
-                        lastDay.setDate(lastDay.getDate() - 1);
-                        if (formatDate(current) === formatDate(lastDay)) {
-                            cell.classList.add('checkout');
-                        }
+                        current.setDate(current.getDate() + 1);
                     }
-                    current.setDate(current.getDate() + 1);
-                }
-                
-                // Día bloqueado DESPUÉS del check-out
-                const dayAfter = new Date(end);
-                const afterStr = formatDate(dayAfter);
-                const afterCell = document.querySelector(`[data-date="${afterStr}"]`);
-                if (afterCell && !afterCell.classList.contains('reserved')) {
-                    afterCell.classList.add('blocked');
+                    
+                    // Día de checkout (end) - marcar con colita negra
+                    const checkoutCell = document.querySelector(`[data-date="${formatDate(end)}"]`);
+                    if (checkoutCell) {
+                        checkoutCell.classList.add('checkout-day');
+                        checkoutCell.classList.remove('blocked');
+                    }
+                    
+                    // Día ANTES del check-in
+                    const dayBefore = new Date(start);
+                    dayBefore.setDate(dayBefore.getDate() - 1);
+                    const beforeStr = formatDate(dayBefore);
+                    if (!diasOcupados.has(beforeStr)) {
+                        const beforeCell = document.querySelector(`[data-date="${beforeStr}"]`);
+                        if (beforeCell) beforeCell.classList.add('blocked');
+                    }
+                    
+                    // Día DESPUÉS del checkout - buscar el primer día libre
+                    let dayAfter = new Date(end);
+                    dayAfter.setDate(dayAfter.getDate() + 1);
+                    while (diasOcupados.has(formatDate(dayAfter))) {
+                        dayAfter.setDate(dayAfter.getDate() + 1);
+                    }
+                    const afterStr = formatDate(dayAfter);
+                    const afterCell = document.querySelector(`[data-date="${afterStr}"]`);
+                    if (afterCell && !afterCell.classList.contains('reserved')) {
+                        afterCell.classList.add('blocked');
+                    }
                 }
             });
             

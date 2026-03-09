@@ -214,7 +214,7 @@ header {
     color: var(--airbnb-light);
 }
 
-/* Reserva: franja negra estilo Airbnb */
+/* Reserva: franja negra estilo Airbnb - continua */
 .day-cell.reserved {
     position: relative;
     background: white;
@@ -225,8 +225,8 @@ header {
     content: '';
     position: absolute;
     top: 50%;
-    left: 0;
-    right: 0;
+    left: -3px;
+    right: -3px;
     height: 28px;
     background: #222222;
     transform: translateY(-50%);
@@ -255,14 +255,35 @@ header {
 /* Check-in: inicio de franja con borde azul */
 .day-cell.checkin::after {
     border-radius: 14px 0 0 14px;
-    left: 20%;
+    left: 15%;
+    right: -3px;
     background: #3B82F6;
 }
 
-/* Check-out: fin de franja (redondeado derecha) */
-.day-cell.checkout::after {
+/* Día de checkout (colita negra que termina) */
+.day-cell.checkout-day {
+    position: relative;
+    background: #f0f0f0;
+}
+
+.day-cell.checkout-day::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -3px;
+    width: 55%;
+    height: 28px;
+    background: #222222;
+    transform: translateY(-50%);
     border-radius: 0 14px 14px 0;
-    right: 20%;
+    z-index: 1;
+}
+
+.day-cell.checkout-day .day-number {
+    position: relative;
+    z-index: 2;
+    color: var(--airbnb-red);
+    font-weight: 600;
 }
 
 /* Día bloqueado (antes/después de reserva) */
@@ -462,58 +483,138 @@ footer {
 }
 
 @media (max-width: 600px) {
+    .container {
+        padding: 8px;
+    }
+    
+    header {
+        padding: 12px 16px;
+        margin-bottom: 12px;
+    }
+    
     .header-content h1 {
+        font-size: 1em;
+    }
+    
+    .airbnb-icon {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .version {
+        font-size: 0.65em;
+        padding: 2px 6px;
+    }
+    
+    .calendar-navigation {
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+    
+    .nav-btn {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+    
+    .nav-arrow {
+        font-size: 1.2em;
+    }
+    
+    .calendar-card {
+        min-width: unset;
+        width: 100%;
+        max-width: 100%;
+        padding: 12px 8px;
+        border-radius: 12px;
+    }
+    
+    .calendar-card h3 {
         font-size: 1.1em;
+        margin-bottom: 12px;
+    }
+    
+    .calendar-grid {
+        gap: 2px;
+    }
+    
+    .day-header {
+        font-size: 0.7em;
+        padding: 6px 0;
+    }
+    
+    .day-cell {
+        border-radius: 6px;
+    }
+    
+    .day-number {
+        font-size: 1em;
+        font-weight: 600;
+    }
+    
+    .day-cell.reserved::after,
+    .day-cell.checkout-day::after {
+        height: 32px;
     }
     
     .stats-widgets {
-        gap: 8px;
+        gap: 6px;
+        margin-bottom: 12px;
     }
     
     .stat-widget {
-        padding: 10px 14px;
-        min-width: 70px;
+        padding: 8px 12px;
+        min-width: 60px;
+        border-radius: 8px;
     }
     
     .widget-value {
-        font-size: 1.2em;
+        font-size: 1.1em;
+    }
+    
+    .widget-label {
+        font-size: 0.65em;
     }
     
     .legend {
         flex-wrap: wrap;
-        gap: 12px;
-        padding: 12px;
+        gap: 8px;
+        padding: 10px;
+        margin-bottom: 12px;
+        border-radius: 8px;
     }
     
     .legend-item {
-        font-size: 0.8em;
+        font-size: 0.7em;
+    }
+    
+    .legend-color {
+        width: 12px;
+        height: 12px;
+    }
+    
+    .reservations-panel {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    
+    .reservations-panel h3 {
+        font-size: 1em;
     }
     
     .reservation-item {
         flex-direction: column;
         align-items: flex-start;
-        gap: 12px;
+        gap: 8px;
+        padding: 12px;
     }
     
     .reservation-info {
         align-items: flex-start;
     }
     
-    .calendar-navigation {
-        gap: 8px;
-    }
-    
-    .nav-btn {
-        width: 44px;
-        height: 44px;
-    }
-    
-    .nav-arrow {
-        font-size: 1.4em;
-    }
-    
-    .calendar-card {
-        min-width: 260px;
+    footer {
         padding: 16px;
+        font-size: 0.8em;
     }
 }
