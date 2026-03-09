@@ -36,117 +36,77 @@ body {
 header {
     background: var(--bg-primary);
     border-radius: 16px;
-    padding: 24px 32px;
-    margin-bottom: 24px;
+    padding: 16px 24px;
+    margin-bottom: 20px;
     box-shadow: var(--shadow);
 }
 
 .header-content {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
 }
 
 .logo {
-    width: 60px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-shrink: 0;
 }
 
 .airbnb-icon {
-    width: 48px;
-    height: 48px;
+    width: 32px;
+    height: 32px;
 }
 
-.title-group h1 {
-    font-size: 1.8em;
+.header-content h1 {
+    font-size: 1.3em;
     font-weight: 600;
     color: var(--airbnb-dark);
-}
-
-.subtitle {
-    color: var(--airbnb-light);
-    font-size: 1em;
-    margin-top: 4px;
+    flex: 1;
+    white-space: nowrap;
 }
 
 .version {
     background: var(--bg-secondary);
-    padding: 2px 8px;
+    padding: 4px 10px;
     border-radius: 4px;
-    font-size: 0.8em;
+    font-size: 0.75em;
+    color: var(--airbnb-light);
+    flex-shrink: 0;
 }
 
-.stats-badge {
-    margin-left: auto;
-    text-align: center;
-    background: linear-gradient(135deg, var(--airbnb-red) 0%, #E00B41 100%);
-    color: white;
-    padding: 16px 24px;
-    border-radius: 12px;
-}
-
-.ocupacion {
-    display: block;
-    font-size: 2em;
-    font-weight: 700;
-}
-
-.ocupacion-label {
-    font-size: 0.85em;
-    opacity: 0.9;
-}
-
-/* Stats Grid */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+/* Stats Widgets */
+.stats-widgets {
+    display: flex;
+    justify-content: center;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 
-.stat-card {
+.stat-widget {
     background: var(--bg-primary);
-    border-radius: 12px;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
+    border-radius: 10px;
+    padding: 12px 20px;
+    text-align: center;
     box-shadow: var(--shadow);
-    transition: transform 0.2s ease;
+    min-width: 80px;
 }
 
-.stat-card:hover {
-    transform: translateY(-2px);
-}
-
-.stat-card.highlight {
-    background: linear-gradient(135deg, var(--available-color) 0%, #00857a 100%);
+.stat-widget.highlight {
+    background: var(--airbnb-red);
     color: white;
 }
 
-.stat-icon {
-    font-size: 2em;
-}
-
-.stat-content {
-    display: flex;
-    flex-direction: column;
-}
-
-.stat-value {
-    font-size: 1.8em;
+.widget-value {
+    display: block;
+    font-size: 1.4em;
     font-weight: 700;
 }
 
-.stat-label {
-    font-size: 0.85em;
+.widget-label {
+    font-size: 0.75em;
     color: var(--airbnb-light);
 }
 
-.stat-card.highlight .stat-label {
+.stat-widget.highlight .widget-label {
     color: rgba(255,255,255,0.9);
 }
 
@@ -292,10 +252,24 @@ header {
     text-decoration: underline;
 }
 
-/* Check-in: inicio de franja (redondeado izquierda) */
+/* Check-in: inicio de franja con círculo azul */
 .day-cell.checkin::after {
     border-radius: 14px 0 0 14px;
     left: 20%;
+}
+
+.day-cell.checkin::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    background: #3B82F6;
+    border-radius: 50%;
+    z-index: 3;
+    box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
 }
 
 /* Check-out: fin de franja (redondeado derecha) */
@@ -355,6 +329,11 @@ header {
 .legend-color.available {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
+}
+
+.legend-color.checkin-dot {
+    background: #3B82F6;
+    box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
 }
 
 .legend-color.reserved {
@@ -489,10 +468,6 @@ footer {
 
 /* Responsive */
 @media (max-width: 900px) {
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
     .calendar-card {
         min-width: 300px;
         padding: 20px;
@@ -505,23 +480,31 @@ footer {
 }
 
 @media (max-width: 600px) {
-    .header-content {
-        flex-direction: column;
-        text-align: center;
+    .header-content h1 {
+        font-size: 1.1em;
     }
     
-    .stats-badge {
-        margin-left: 0;
-        width: 100%;
+    .stats-widgets {
+        gap: 8px;
     }
     
-    .stats-grid {
-        grid-template-columns: 1fr 1fr;
+    .stat-widget {
+        padding: 10px 14px;
+        min-width: 70px;
+    }
+    
+    .widget-value {
+        font-size: 1.2em;
     }
     
     .legend {
         flex-wrap: wrap;
-        gap: 16px;
+        gap: 12px;
+        padding: 12px;
+    }
+    
+    .legend-item {
+        font-size: 0.8em;
     }
     
     .reservation-item {
@@ -532,5 +515,14 @@ footer {
     
     .reservation-info {
         align-items: flex-start;
+    }
+    
+    .calendar-navigation {
+        gap: 10px;
+    }
+    
+    .calendar-card {
+        min-width: 260px;
+        padding: 16px;
     }
 }

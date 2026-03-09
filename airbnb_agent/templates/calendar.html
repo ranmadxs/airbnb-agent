@@ -14,50 +14,12 @@
                 <div class="logo">
                     <img src="https://www.airbnb.com/favicon.ico" alt="Airbnb" class="airbnb-icon">
                 </div>
-                <div class="title-group">
-                    <h1>Calendario de Reservas</h1>
-                    <p class="subtitle">{{ property_name }} <span class="version">v{{ version }}</span></p>
-                </div>
-                <div class="stats-badge">
-                    <span class="ocupacion">{{ stats.ocupacion_30 }}%</span>
-                    <span class="ocupacion-label">ocupación</span>
-                </div>
+                <h1>{{ property_name }}</h1>
+                <span class="version">v{{ version }}</span>
             </div>
         </header>
 
         <main>
-            <!-- Stats Cards -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">📅</div>
-                    <div class="stat-content">
-                        <span class="stat-value">{{ stats.total_reservations }}</span>
-                        <span class="stat-label">Total Reservas</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🔜</div>
-                    <div class="stat-content">
-                        <span class="stat-value">{{ stats.upcoming_reservations }}</span>
-                        <span class="stat-label">Próximas</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🛏️</div>
-                    <div class="stat-content">
-                        <span class="stat-value">{{ stats.reserved_days_30 }}</span>
-                        <span class="stat-label">Días ocupados (30d)</span>
-                    </div>
-                </div>
-                <div class="stat-card highlight">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-content">
-                        <span class="stat-value">{{ stats.ocupacion_30 }}%</span>
-                        <span class="stat-label">Ocupación</span>
-                    </div>
-                </div>
-            </div>
-
             <!-- Calendario con navegación -->
             <div class="calendar-navigation">
                 <button class="nav-btn" id="prev-btn" onclick="navegarMes(-1)">
@@ -99,6 +61,10 @@
                     <span>Disponible</span>
                 </div>
                 <div class="legend-item">
+                    <span class="legend-color checkin-dot"></span>
+                    <span>Check-in</span>
+                </div>
+                <div class="legend-item">
                     <span class="legend-color reserved"></span>
                     <span>Reservado</span>
                 </div>
@@ -109,6 +75,22 @@
                 <div class="legend-item">
                     <span class="legend-color today"></span>
                     <span>Hoy</span>
+                </div>
+            </div>
+
+            <!-- Stats Widgets -->
+            <div class="stats-widgets">
+                <div class="stat-widget">
+                    <span class="widget-value">{{ stats.total_reservations }}</span>
+                    <span class="widget-label">Total</span>
+                </div>
+                <div class="stat-widget">
+                    <span class="widget-value">{{ stats.upcoming_reservations }}</span>
+                    <span class="widget-label">Próximas</span>
+                </div>
+                <div class="stat-widget highlight">
+                    <span class="widget-value">{{ stats.ocupacion_30 }}%</span>
+                    <span class="widget-label">Ocupación</span>
                 </div>
             </div>
 
