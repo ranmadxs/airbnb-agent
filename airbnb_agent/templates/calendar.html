@@ -362,9 +362,9 @@
                     
                     // Badge MongoDB
                     const mongoBadge = document.getElementById('mongo-status');
-                    if (!data.mongodb.enabled) {
+                    if (!data.mongodb.configured) {
                         mongoBadge.className = 'status-badge disabled';
-                        mongoBadge.querySelector('.status-text').textContent = 'MongoDB Off';
+                        mongoBadge.querySelector('.status-text').textContent = 'MongoDB N/C';
                     } else if (data.mongodb.connected) {
                         mongoBadge.className = 'status-badge connected';
                         mongoBadge.querySelector('.status-text').textContent = 'MongoDB';

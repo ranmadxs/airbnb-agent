@@ -16,7 +16,6 @@ load_dotenv()
 
 # MongoDB configuración
 MONGODB_URI = os.getenv("MONGODB_URI", "")
-ENABLE_MONGO_DB = os.getenv("ENABLE_MONGO_DB", "False").lower() == "true"
 mongo_client = None
 reservas_collection = None
 
@@ -24,7 +23,7 @@ def get_mongo_connection():
     """Obtiene la conexión a MongoDB."""
     global mongo_client, reservas_collection
     
-    if not ENABLE_MONGO_DB or not MONGODB_URI:
+    if not MONGODB_URI:
         return None
     
     if mongo_client is None:
@@ -43,7 +42,7 @@ def get_mongo_connection():
 
 # Estado de conexiones
 calendar_status = {"connected": False, "last_check": None, "events_count": 0}
-mongo_status = {"connected": False, "enabled": ENABLE_MONGO_DB}
+mongo_status = {"connected": False}
 
 # Configurar rutas para Vercel
 BASE_DIR = Path(__file__).resolve().parent
@@ -229,7 +228,7 @@ def api_status():
     # Verificar MongoDB
     collection = get_mongo_connection()
     mongo_status = {
-        "enabled": ENABLE_MONGO_DB,
+        "configured": bool(MONGODB_URI),
         "connected": collection is not None
     }
     
