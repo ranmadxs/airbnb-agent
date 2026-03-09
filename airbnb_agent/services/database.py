@@ -17,7 +17,7 @@ class DatabaseService:
     def __init__(self):
         self.uri = MONGODB_URI
         self.client = None
-        self.airbnb_dias = None
+        self.reservas = None
         self.dias = None
         self.connected = False
         self.ultima_sync = None
@@ -41,13 +41,13 @@ class DatabaseService:
             # Ping para verificar conexión
             self.client.admin.command('ping')
             
-            if self.airbnb_dias is None:
+            if self.reservas is None:
                 db = self.client["airbnb-db"]
-                self.airbnb_dias = db["airbnb-dias"]
+                self.reservas = db["reservas"]
                 self.dias = db["dias"]
                 
                 # Crear índices
-                self.airbnb_dias.create_index([("event_start", 1), ("event_end", 1)], unique=True)
+                self.reservas.create_index([("event_start", 1), ("event_end", 1)], unique=True)
                 self.dias.create_index("fecha", unique=True)
             
             self.connected = True
@@ -137,7 +137,7 @@ class DatabaseService:
         
         # 2. Marcar eventos futuros que NO están en iCal como cache_airbnb
         try:
-            self.airbnb_dias.update_many(
+            self.reservas.update_many(
                 {
                     "event_end": {"$gte": hoy},
                     "source": "airbnb"
@@ -182,7 +182,7 @@ class DatabaseService:
         eventos_guardados = 0
         try:
             if eventos_ops:
-                resultado = self.airbnb_dias.bulk_write(eventos_ops)
+                resultado = self.reservas.bulk_write(eventos_ops)
                 eventos_guardados = resultado.upserted_count + resultado.modified_count
         except Exception as e:
             print(f"❌ Error bulk eventos: {e}")
@@ -265,8 +265,8 @@ class DatabaseService:
                     doc["updated_at"] = doc["updated_at"].isoformat()
                 if "created_at" in doc and doc["created_at"]:
                     doc["created_at"] = doc["created_at"].isoformat()
-                if "airbnb_dia_id" in doc and doc["airbnb_dia_id"]:
-                    doc["airbnb_dia_id"] = str(doc["airbnb_dia_id"])
+                if "reserva_id" in doc and doc["reserva_id"]:
+                    doc["reserva_id"] = str(doc["reserva_id"])
                 dias.append(doc)
             
             return dias
@@ -280,7 +280,7 @@ class DatabaseService:
             return []
         
         try:
-            cursor = self.airbnb_dias.find({}, {"_id": 0}).sort("event_start", 1)
+            cursor = self.reservas.find({}, {"_id": 0}).sort("event_start", 1)
             
             eventos = []
             for doc in cursor:
@@ -301,7 +301,7 @@ class DatabaseService:
             return []
         
         try:
-            cursor = self.airbnb_dias.find({}, {"_id": 0}).sort("event_start", 1)
+            cursor = self.reservas.find({}, {"_id": 0}).sort("event_start", 1)
             
             eventos = []
             for doc in cursor:

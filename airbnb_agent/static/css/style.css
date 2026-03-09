@@ -84,12 +84,13 @@ header {
     white-space: nowrap;
 }
 
-/* Status Badges */
+/* Status Badges (en footer) */
 .status-badges {
     display: flex;
     gap: 8px;
-    margin-left: auto;
-    flex-shrink: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
 }
 
 .status-badge {
@@ -503,6 +504,41 @@ header {
     background: #f9fafb;
 }
 
+.reservation-item.is-past {
+    position: relative;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    border-left-color: #9ca3af;
+    overflow: hidden;
+}
+
+.reservation-item.is-past::before {
+    content: '✓ FINALIZADO';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-12deg);
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: rgba(107, 114, 128, 0.25);
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.reservation-item.is-past > * {
+    position: relative;
+    z-index: 2;
+    opacity: 0.6;
+}
+
+.reservation-item.is-past .type-badge,
+.reservation-item.is-past .nights-badge,
+.reservation-item.is-past .date-value {
+    color: #6b7280;
+}
+
 .reservation-item:hover {
     transform: translateX(4px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -586,6 +622,15 @@ header {
     border-radius: 6px;
 }
 
+.reservation-info {
+    font-size: 0.85em;
+    color: #059669;
+    text-align: center;
+    padding: 8px;
+    background: rgba(5, 150, 105, 0.1);
+    border-radius: 6px;
+}
+
 .reservation-link-btn {
     display: block;
     text-align: center;
@@ -604,14 +649,6 @@ header {
     transform: translateY(-1px);
 }
 
-.reservation-item.highlight {
-    animation: highlightPulse 2s ease;
-}
-
-@keyframes highlightPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 95, 0); }
-    50% { box-shadow: 0 0 0 8px rgba(255, 90, 95, 0.3); }
-}
 
 .reservation-link:hover {
     background: #3B82F6;
@@ -624,10 +661,6 @@ header {
     color: var(--airbnb-light);
 }
 
-/* Container para badges en móvil (dentro del footer) */
-.status-badges-mobile-container {
-    display: none;
-}
 
 /* Footer */
 footer {
@@ -707,17 +740,6 @@ footer {
         color: white;
     }
     
-    /* Badges se mueven al footer via JS */
-    .status-badges-mobile-container {
-        display: block;
-        margin-bottom: 16px;
-    }
-    
-    .status-badges-mobile-container .status-badges {
-        justify-content: center;
-        flex-wrap: wrap;
-        margin-left: 0;
-    }
     
     .airbnb-icon {
         width: 24px;

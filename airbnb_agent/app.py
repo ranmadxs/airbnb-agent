@@ -142,7 +142,8 @@ def home():
                          current=current,
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
-                         is_logged_in=is_logged_in)
+                         is_logged_in=is_logged_in,
+                         today=now.strftime('%Y-%m-%d'))
 
 
 @app.route('/api/month')

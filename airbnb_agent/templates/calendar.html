@@ -23,20 +23,6 @@
                 {% else %}
                 <a href="/login" class="auth-btn login">Admin</a>
                 {% endif %}
-                <div class="status-badges">
-                    <div class="status-badge" id="calendar-status">
-                        <span class="status-dot"></span>
-                        <span class="status-text">Airbnb...</span>
-                    </div>
-                    <div class="status-badge" id="mongo-status">
-                        <span class="status-dot"></span>
-                        <span class="status-text">MongoDB...</span>
-                    </div>
-                    <div class="status-badge cached" id="cache-status" style="display: none;">
-                        <span class="status-dot"></span>
-                        <span class="status-text">Cache</span>
-                    </div>
-                </div>
             </div>
         </header>
 
@@ -124,7 +110,8 @@
                     {% if events %}
                         {% for event in events|sort(attribute='start') %}
                             {% set is_reservation = event.reservation_url %}
-                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }}" 
+                            {% set is_past = event.end <= today %}
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }}" 
                                  data-start="{{ event.start }}" data-end="{{ event.end }}">
                                 <div class="reservation-type">
                                     {% if is_reservation %}
@@ -136,12 +123,12 @@
                                 </div>
                                 <div class="dates-row">
                                     <div class="date-block">
-                                        <span class="date-label">Check-in</span>
+                                        <span class="date-label">{% if is_reservation %}Check-in{% else %}Desde{% endif %}</span>
                                         <span class="date-value">{{ event.start }}</span>
                                     </div>
                                     <span class="date-arrow">→</span>
                                     <div class="date-block">
-                                        <span class="date-label">Check-out</span>
+                                        <span class="date-label">{% if is_reservation %}Check-out{% else %}Hasta{% endif %}</span>
                                         <span class="date-value">{{ event.end }}</span>
                                     </div>
                                 </div>
@@ -150,9 +137,15 @@
                                     <span>📌 Bloqueado por propietario en Airbnb</span>
                                 </div>
                                 {% else %}
-                                <a href="{{ event.reservation_url }}" target="_blank" class="reservation-link-btn">
-                                    Ver en Airbnb ↗
-                                </a>
+                                    {% if is_logged_in %}
+                                    <a href="{{ event.reservation_url }}" target="_blank" class="reservation-link-btn">
+                                        Ver en Airbnb ↗
+                                    </a>
+                                    {% else %}
+                                    <div class="reservation-info">
+                                        <span>👤 Reserva hecha por usuario de Airbnb</span>
+                                    </div>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         {% endfor %}
@@ -166,6 +159,20 @@
         </main>
 
         <footer>
+            <div class="status-badges">
+                <div class="status-badge" id="calendar-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Airbnb...</span>
+                </div>
+                <div class="status-badge" id="mongo-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">MongoDB...</span>
+                </div>
+                <div class="status-badge cached" id="cache-status" style="display: none;">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Cache</span>
+                </div>
+            </div>
             <p>🏠 {{ property_name }} v{{ version }}</p>
             <p class="footer-links">
                 <a href="https://airbnb.cl/h/posadaenelbosque" target="_blank" class="footer-link">
@@ -173,8 +180,6 @@
                     Ver en Airbnb
                 </a>
             </p>
-            <!-- Status badges - se mueven aquí en móvil via CSS -->
-            <div class="status-badges-mobile-container"></div>
         </footer>
     </div>
 
@@ -397,63 +402,9 @@
                 });
         }
         
-        // Mover badges al footer en móvil
-        function moverBadgesMobile() {
-            const isMobile = window.innerWidth <= 600;
-            const badges = document.querySelector('.status-badges');
-            const mobileContainer = document.querySelector('.status-badges-mobile-container');
-            
-            if (isMobile && badges.parentElement !== mobileContainer) {
-                mobileContainer.appendChild(badges);
-            } else if (!isMobile && badges.parentElement === mobileContainer) {
-                const headerContent = document.querySelector('.header-content');
-                headerContent.appendChild(badges);
-            }
-        }
-        
-        // Ejecutar al cargar y al redimensionar
-        moverBadgesMobile();
-        window.addEventListener('resize', moverBadgesMobile);
-        
         // Cargar status al inicio y cada 30 segundos
         actualizarStatus();
         setInterval(actualizarStatus, 30000);
-        
-        // Scroll a la reserva más cercana al día actual
-        function scrollToClosestReservation() {
-            const list = document.getElementById('reservations-list');
-            const items = list.querySelectorAll('.reservation-item');
-            if (items.length === 0) return;
-            
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            let closestItem = null;
-            let closestDiff = Infinity;
-            
-            items.forEach(item => {
-                const startDate = new Date(item.dataset.start + 'T00:00:00');
-                const endDate = new Date(item.dataset.end + 'T00:00:00');
-                
-                // Si el evento está en curso o es futuro
-                if (endDate >= today) {
-                    const diff = Math.abs(startDate - today);
-                    if (diff < closestDiff) {
-                        closestDiff = diff;
-                        closestItem = item;
-                    }
-                }
-            });
-            
-            if (closestItem) {
-                closestItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                closestItem.classList.add('highlight');
-                setTimeout(() => closestItem.classList.remove('highlight'), 2000);
-            }
-        }
-        
-        // Scroll después de un pequeño delay para que cargue todo
-        setTimeout(scrollToClosestReservation, 500);
     </script>
 </body>
 </html>
