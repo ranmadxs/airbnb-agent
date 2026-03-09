@@ -2,6 +2,11 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.4.44] - 2026-03-09
+### Fixed
+- Icono de usuario (avatar) gigante en móvil - ahora tamaño fijo 16px
+- Forzar min/max width/height en .user-icon para evitar crecimiento
+
 ## [2.4.43] - 2026-03-09
 ### Fixed
 - Forzar colores y efectos en móvil con !important
