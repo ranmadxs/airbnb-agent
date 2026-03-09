@@ -114,8 +114,16 @@
                     <span>Disponible</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color reserved"></span>
-                    <span>Reservado</span>
+                    <span class="legend-color checkin"></span>
+                    <span>Check-in</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color occupied"></span>
+                    <span>Ocupado</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color checkout"></span>
+                    <span>Check-out</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-color today"></span>
@@ -170,13 +178,26 @@
             events.forEach(event => {
                 const start = new Date(event.start);
                 const end = new Date(event.end);
+                const lastDay = new Date(end);
+                lastDay.setDate(lastDay.getDate() - 1);
                 
                 let current = new Date(start);
                 while (current < end) {
                     const dateStr = current.toISOString().split('T')[0];
                     const cell = document.querySelector(`[data-date="${dateStr}"]`);
                     if (cell) {
-                        cell.classList.add('reserved');
+                        // Check-in (primer día) = azul
+                        if (current.getTime() === start.getTime()) {
+                            cell.classList.add('checkin');
+                        }
+                        // Check-out (último día) = rojo
+                        else if (current.getTime() === lastDay.getTime()) {
+                            cell.classList.add('checkout');
+                        }
+                        // Días de ocupación (medio) = gris
+                        else {
+                            cell.classList.add('occupied');
+                        }
                     }
                     current.setDate(current.getDate() + 1);
                 }

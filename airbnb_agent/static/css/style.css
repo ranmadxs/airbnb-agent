@@ -218,12 +218,32 @@ header {
     color: var(--airbnb-light);
 }
 
-.day-cell.reserved {
+/* Check-in: azul */
+.day-cell.checkin {
+    background: #3B82F6;
+    color: white;
+}
+
+.day-cell.checkin .day-number {
+    color: white;
+}
+
+/* Ocupado: gris transparente 40% */
+.day-cell.occupied {
+    background: rgba(107, 114, 128, 0.4);
+}
+
+.day-cell.occupied .day-number {
+    color: var(--airbnb-dark);
+}
+
+/* Check-out: rojo */
+.day-cell.checkout {
     background: var(--airbnb-red);
     color: white;
 }
 
-.day-cell.reserved .day-number {
+.day-cell.checkout .day-number {
     color: white;
 }
 
@@ -270,7 +290,15 @@ header {
     border: 1px solid var(--border-color);
 }
 
-.legend-color.reserved {
+.legend-color.checkin {
+    background: #3B82F6;
+}
+
+.legend-color.occupied {
+    background: rgba(107, 114, 128, 0.4);
+}
+
+.legend-color.checkout {
     background: var(--airbnb-red);
 }
 
