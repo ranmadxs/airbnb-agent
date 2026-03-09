@@ -173,6 +173,8 @@
                     Ver en Airbnb
                 </a>
             </p>
+            <!-- Status badges - se mueven aquí en móvil via CSS -->
+            <div class="status-badges-mobile-container"></div>
         </footer>
     </div>
 
@@ -394,6 +396,24 @@
                     console.error('Error cargando status:', error);
                 });
         }
+        
+        // Mover badges al footer en móvil
+        function moverBadgesMobile() {
+            const isMobile = window.innerWidth <= 600;
+            const badges = document.querySelector('.status-badges');
+            const mobileContainer = document.querySelector('.status-badges-mobile-container');
+            
+            if (isMobile && badges.parentElement !== mobileContainer) {
+                mobileContainer.appendChild(badges);
+            } else if (!isMobile && badges.parentElement === mobileContainer) {
+                const headerContent = document.querySelector('.header-content');
+                headerContent.appendChild(badges);
+            }
+        }
+        
+        // Ejecutar al cargar y al redimensionar
+        moverBadgesMobile();
+        window.addEventListener('resize', moverBadgesMobile);
         
         // Cargar status al inicio y cada 30 segundos
         actualizarStatus();

@@ -624,6 +624,11 @@ header {
     color: var(--airbnb-light);
 }
 
+/* Container para badges en móvil (dentro del footer) */
+.status-badges-mobile-container {
+    display: none;
+}
+
 /* Footer */
 footer {
     text-align: center;
@@ -692,14 +697,26 @@ footer {
     
     .auth-btn {
         order: 2;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
     }
     
-    .status-badges {
-        order: 3;
-        width: 100%;
-        flex-direction: column;
+    .auth-btn.login {
+        background: var(--airbnb-red);
+        color: white;
+    }
+    
+    /* Badges se mueven al footer via JS */
+    .status-badges-mobile-container {
+        display: block;
+        margin-bottom: 16px;
+    }
+    
+    .status-badges-mobile-container .status-badges {
+        justify-content: center;
+        flex-wrap: wrap;
         margin-left: 0;
-        margin-top: 8px;
     }
     
     .airbnb-icon {
