@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏠 Airbnb Calendar Agent</title>
+    <title>🏠 {{ property_name }} - Calendario</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
@@ -16,7 +16,7 @@
                 </div>
                 <div class="title-group">
                     <h1>Calendario de Reservas</h1>
-                    <p class="subtitle">Posada en el Bosque <span class="version">v{{ version }}</span></p>
+                    <p class="subtitle">{{ property_name }} <span class="version">v{{ version }}</span></p>
                 </div>
                 <div class="stats-badge">
                     <span class="ocupacion">{{ stats.ocupacion_30 }}%</span>
@@ -159,7 +159,7 @@
         </main>
 
         <footer>
-            <p>🏠 Airbnb Calendar Agent v{{ version }}</p>
+            <p>🏠 {{ property_name }} v{{ version }}</p>
             <p class="footer-links">
                 <a href="https://airbnb.cl/h/posadaenelbosque" target="_blank" class="footer-link">
                     <img src="https://www.airbnb.com/favicon.ico" alt="Airbnb" width="16" height="16">

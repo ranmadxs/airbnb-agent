@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import requests
 import os
+import tomllib
 from icalendar import Calendar
 from dotenv import load_dotenv
 
@@ -15,9 +16,20 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Leer versión desde pyproject.toml
+BASE_DIR = Path(__file__).resolve().parent.parent
+APP_VERSION = "1.0.0"
+
+try:
+    with open(BASE_DIR / "pyproject.toml", "rb") as f:
+        pyproject = tomllib.load(f)
+        APP_VERSION = pyproject.get("tool", {}).get("poetry", {}).get("version", APP_VERSION)
+except Exception:
+    pass
+
 # Configuración
 AIRBNB_CALENDAR_URL = os.getenv('AIRBNB_CALENDAR_URL', '')
-APP_VERSION = "1.0.0"
+PROPERTY_NAME = os.getenv('PROPERTY_NAME', 'Posada en el Bosque')
 
 def fetch_calendar_events():
     """Obtiene las reservas del calendario iCal de Airbnb."""
@@ -128,7 +140,8 @@ def home():
                          stats=stats,
                          current_month=current_month,
                          next_month=next_month_cal,
-                         version=APP_VERSION)
+                         version=APP_VERSION,
+                         property_name=PROPERTY_NAME)
 
 @app.route('/api/events')
 def api_events():

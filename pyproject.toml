@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "airbnb-agent"
-version = "1.0.3"
+version = "1.0.4"
 description = "Agente visual de calendario Airbnb"
 authors = ["mauriciocarreno"]
 readme = "README.md"
