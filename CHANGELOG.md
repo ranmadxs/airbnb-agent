@@ -2,6 +2,12 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.4.49] - 2026-03-09
+### Fixed
+- Botón Admin con fondo rojo en móvil (!important)
+- Agregar emoji 🚗 al icono de próxima estadía
+- Colores directos sin variables CSS para móvil
+
 ## [2.4.48] - 2026-03-09
 ### Fixed
 - Mostrar gradiente naranja en próxima estadía móvil

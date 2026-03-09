@@ -1184,8 +1184,14 @@ footer {
     }
     
     .auth-btn.login {
-        background: var(--airbnb-red);
-        color: white;
+        background: #FF5A5F !important;
+        color: white !important;
+        border: none !important;
+    }
+    
+    .auth-btn.logout {
+        background: #f3f4f6 !important;
+        color: #484848 !important;
     }
     
     
