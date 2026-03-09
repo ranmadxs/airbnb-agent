@@ -22,18 +22,26 @@ class DatabaseService:
         self.connected = False
         self.ultima_sync = None
         self.sync_interval = 300  # 5 minutos
+        
+        # Intentar conectar al inicializar si está configurado
+        if self.uri:
+            self.connect()
     
     def connect(self):
         """Conecta a MongoDB."""
         if not self.uri:
             return False
         
-        if self.client is None:
-            try:
-                from pymongo import MongoClient
-                self.client = MongoClient(self.uri, serverSelectionTimeoutMS=5000)
-                self.client.admin.command('ping')
-                
+        try:
+            from pymongo import MongoClient
+            
+            if self.client is None:
+                self.client = MongoClient(self.uri, serverSelectionTimeoutMS=2000)
+            
+            # Ping para verificar conexión
+            self.client.admin.command('ping')
+            
+            if self.airbnb_dias is None:
                 db = self.client["airbnb-db"]
                 self.airbnb_dias = db["airbnb-dias"]
                 self.dias = db["dias"]
@@ -41,21 +49,39 @@ class DatabaseService:
                 # Crear índices
                 self.airbnb_dias.create_index([("event_start", 1), ("event_end", 1)], unique=True)
                 self.dias.create_index("fecha", unique=True)
-                
-                self.connected = True
-                print("✅ MongoDB conectado")
-                return True
-            except Exception as e:
-                print(f"❌ Error conectando MongoDB: {e}")
-                self.connected = False
-                return False
-        
-        return self.connected
+            
+            self.connected = True
+            return True
+        except Exception as e:
+            print(f"❌ Error MongoDB: {e}")
+            self.connected = False
+            return False
+    
+    def _ping(self) -> bool:
+        """Verifica conexión con ping rápido."""
+        if self.client is None:
+            return False
+        try:
+            self.client.admin.command('ping')
+            return True
+        except:
+            return False
     
     def get_status(self) -> dict:
         """Retorna el estado de la conexión."""
+        if not self.uri:
+            return {"configured": False, "connected": False}
+        
+        if self.connected:
+            # Verificar que sigue conectado
+            if not self._ping():
+                self.connected = False
+        else:
+            # Intentar reconectar
+            self.connect()
+        
         return {
-            "configured": bool(self.uri),
+            "configured": True,
             "connected": self.connected
         }
     
@@ -206,7 +232,7 @@ class DatabaseService:
             return []
     
     def obtener_eventos(self) -> list:
-        """Obtiene eventos desde MongoDB."""
+        """Obtiene eventos desde MongoDB (formato interno)."""
         if not self.connect():
             return []
         
@@ -220,6 +246,29 @@ class DatabaseService:
                 if "created_at" in doc and doc["created_at"]:
                     doc["created_at"] = doc["created_at"].isoformat()
                 eventos.append(doc)
+            
+            return eventos
+        except Exception as e:
+            print(f"❌ Error obteniendo eventos: {e}")
+            return []
+    
+    def obtener_eventos_formato_ical(self) -> list:
+        """Obtiene eventos desde MongoDB en formato compatible con iCal/frontend."""
+        if not self.connect():
+            return []
+        
+        try:
+            cursor = self.airbnb_dias.find({}, {"_id": 0}).sort("event_start", 1)
+            
+            eventos = []
+            for doc in cursor:
+                eventos.append({
+                    "start": doc.get("event_start"),
+                    "end": doc.get("event_end"),
+                    "days": doc.get("days", 1),
+                    "summary": doc.get("summary", "Cached"),
+                    "reservation_url": doc.get("reservation_url")
+                })
             
             return eventos
         except Exception as e:

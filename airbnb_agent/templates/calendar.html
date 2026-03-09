@@ -24,6 +24,12 @@
                         <span class="status-dot"></span>
                         <span class="status-text">MongoDB...</span>
                     </div>
+                    {% if data_source == 'cache' %}
+                    <div class="status-badge cached">
+                        <span class="status-dot"></span>
+                        <span class="status-text">📦 Cache</span>
+                    </div>
+                    {% endif %}
                 </div>
                 <span class="version">v{{ version }}</span>
             </div>

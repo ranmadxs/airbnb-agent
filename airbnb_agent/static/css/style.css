@@ -108,6 +108,15 @@ header {
     background: #ef4444;
 }
 
+.status-badge.cached {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.cached .status-dot {
+    background: #f59e0b;
+}
+
 .status-badge.disabled {
     opacity: 0.5;
 }
