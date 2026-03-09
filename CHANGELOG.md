@@ -2,6 +2,11 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.4.46] - 2026-03-09
+### Fixed
+- Agregar query string de versión al CSS para evitar caché
+- CSS ahora carga como style.css?v=2.4.46
+
 ## [2.4.45] - 2026-03-09
 ### Fixed
 - Ocultar completamente icono SVG de usuario en móvil (display: none)
