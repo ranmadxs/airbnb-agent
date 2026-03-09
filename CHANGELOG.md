@@ -2,6 +2,12 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.4.48] - 2026-03-09
+### Fixed
+- Mostrar gradiente naranja en próxima estadía móvil
+- Mostrar overlays (PRÓXIMA ESTADÍA, auto) en móvil
+- Fondo amarillo/naranja para reservas próximas
+
 ## [2.4.47] - 2026-03-09
 ### Fixed
 - Estilos inline en SVG de usuario para forzar tamaño 16px
