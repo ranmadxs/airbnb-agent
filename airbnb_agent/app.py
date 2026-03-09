@@ -14,14 +14,18 @@ from dotenv import load_dotenv
 # Cargar variables de entorno
 load_dotenv()
 
-app = Flask(__name__)
+# Configurar rutas para Vercel
+BASE_DIR = Path(__file__).resolve().parent
+app = Flask(__name__, 
+            template_folder=str(BASE_DIR / 'templates'),
+            static_folder=str(BASE_DIR / 'static'))
 
 # Leer versión desde pyproject.toml
-BASE_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 APP_VERSION = "1.0.0"
 
 try:
-    with open(BASE_DIR / "pyproject.toml", "rb") as f:
+    with open(PROJECT_ROOT / "pyproject.toml", "rb") as f:
         pyproject = tomllib.load(f)
         APP_VERSION = pyproject.get("tool", {}).get("poetry", {}).get("version", APP_VERSION)
 except Exception:

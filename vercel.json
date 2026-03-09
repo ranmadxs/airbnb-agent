@@ -1,0 +1,18 @@
+{
+  "builds": [
+    {
+      "src": "airbnb_agent/app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "airbnb_agent/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "airbnb_agent/app.py"
+    }
+  ]
+}
