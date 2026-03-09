@@ -31,7 +31,7 @@ def get_mongo_connection():
             from pymongo import MongoClient
             mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
             mongo_client.admin.command('ping')
-            db = mongo_client["tomi-db"]
+            db = mongo_client["airbnb-db"]
             dias_collection = db["airbnb-dias"]
             # Crear índice único por fecha
             dias_collection.create_index("fecha", unique=True)
