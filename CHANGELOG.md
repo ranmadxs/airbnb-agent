@@ -1,0 +1,158 @@
+# Changelog
+
+Todos los cambios notables de este proyecto serán documentados en este archivo.
+
+## [2.1.0] - 2026-03-09
+### Changed
+- Rediseño completo de la lista de reservas
+- Check-in y Check-out con labels claros arriba de las fechas
+- Flecha más grande entre fechas
+- Diferenciación visual entre reservas y bloqueos
+- Scroll automático a la reserva más cercana al día actual
+- Motivo claro para bloqueos del sistema
+
+## [2.0.1] - 2026-03-09
+### Fixed
+- Bump de versión
+
+## [2.0.0] - 2026-03-09
+### Added
+- Sistema de autenticación con login/logout
+- Variables de entorno AUTH_USERNAME y AUTH_PASSWORD
+- Estadísticas (Total, Próximas, % Ocupación) solo visibles para admin
+- Botón Admin/Salir en header
+- Calendario público para todos los usuarios
+
+## [1.9.3] - 2026-03-09
+### Fixed
+- Versión visible en móvil junto al título
+- Reorganización del header con flexbox
+- Badges de status siempre visibles
+
+## [1.9.1] - 2026-03-09
+### Fixed
+- Campo source agregado a colección dias
+- Días futuros marcados como cache_airbnb antes de sync
+
+## [1.9.0] - 2026-03-09
+### Added
+- MongoDB como fuente principal de datos
+- iCal sincroniza en background sin bloquear
+- Eventos no presentes en iCal se marcan como source: cache_airbnb
+- Badge "Cache" amarillo cuando MongoDB está conectado
+- Puntito amarillo en días que vienen del caché
+- Datos históricos (< hoy) no se modifican
+
+## [1.8.0] - 2026-03-09
+### Added
+- Fallback a MongoDB cuando iCal falla
+- Badge "Cache" en la UI cuando usa datos de respaldo
+- Mejorar lógica de estado MongoDB (ping para verificar conexión)
+- Conectar a MongoDB al inicializar el servicio
+
+## [1.7.4] - 2026-03-09
+### Fixed
+- No marcar días libres como bloqueados
+- Código anterior marcaba incorrectamente días después del checkout
+
+## [1.7.1] - 2026-03-09
+### Fixed
+- Serialización de ObjectId a string para JSON
+- Captura del resultado de bulk_write de eventos
+
+## [1.7.0] - 2026-03-09
+### Changed
+- Refactorización: separar responsabilidades
+- Servicios: airbnb_calendar.py y database.py
+- Sincronización en background con threading
+
+## [1.6.2] - 2026-03-09
+### Fixed
+- Llave única event_start + event_end en airbnb-dias
+
+## [1.6.1] - 2026-03-09
+### Performance
+- Optimizar poblado de días con bulk operations
+
+## [1.6.0] - 2026-03-09
+### Added
+- Colección 'dias' para calendario individual
+- Cada día con llave única (año, mes, día)
+
+## [1.5.2] - 2026-03-09
+### Fixed
+- Usar airbnb-db en lugar de tomi-db
+
+## [1.5.1] - 2026-03-09
+### Added
+- Auditoría user_origin y user_agent en MongoDB
+
+## [1.5.0] - 2026-03-09
+### Added
+- Caché MongoDB para reservaciones
+- Colección airbnb-dias
+
+## [1.4.1] - 2026-03-09
+### Changed
+- Eliminar variable ENABLE_MONGO_DB
+- MongoDB se activa automáticamente si MONGODB_URI está configurado
+
+## [1.4.0] - 2026-03-09
+### Added
+- Badges de estado para iCal y MongoDB
+- Indicadores visuales de conexión en tiempo real
+
+## [1.3.9] - 2026-03-08
+### Fixed
+- Archivos estáticos para Vercel
+
+## [1.3.8] - 2026-03-08
+### Fixed
+- Compatibilidad uv/Vercel en pyproject.toml
+
+## [1.3.7] - 2026-03-08
+### Added
+- Configuración para deploy en Vercel
+
+## [1.3.3] - 2026-03-08
+### Added
+- UI móvil mejorada
+- Franja continua para reservas
+
+## [1.3.1] - 2026-03-08
+### Fixed
+- Entrada con franja azul, sin pelotita
+
+## [1.3.0] - 2026-03-08
+### Changed
+- Rediseño completo de UI móvil
+
+## [1.2.0] - 2026-03-08
+### Added
+- Calendario navegable con flechas
+- Navegación entre meses
+
+## [1.0.7] - 2026-03-08
+### Added
+- Links clickeables en días del calendario
+
+## [1.0.6] - 2026-03-08
+### Changed
+- Estilo Airbnb para el calendario
+
+## [1.0.5] - 2026-03-08
+### Added
+- Links a reservaciones de Airbnb
+
+## [1.0.4] - 2026-03-08
+### Added
+- Versión dinámica desde pyproject.toml
+- Nombre de propiedad desde configuración
+
+## [1.0.3] - 2026-03-08
+### Added
+- Días del calendario con colores según estado
+
+## [1.0.2] - 2026-03-08
+### Changed
+- Versión inicial publicada

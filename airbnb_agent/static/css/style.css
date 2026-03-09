@@ -489,58 +489,128 @@ header {
 
 .reservation-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 12px;
     padding: 16px;
     background: var(--bg-secondary);
     border-radius: 12px;
     border-left: 4px solid var(--airbnb-red);
-    transition: transform 0.2s ease;
+    transition: all 0.2s ease;
+}
+
+.reservation-item.is-blocked {
+    border-left-color: #9ca3af;
+    background: #f9fafb;
 }
 
 .reservation-item:hover {
     transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-.reservation-dates {
+.reservation-type {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+}
+
+.type-badge {
+    font-size: 0.85em;
     font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
 }
 
-.date-arrow {
-    color: var(--airbnb-light);
+.type-badge.reservation {
+    background: rgba(255, 90, 95, 0.15);
+    color: var(--airbnb-red);
 }
 
-.reservation-info {
+.type-badge.blocked {
+    background: rgba(107, 114, 128, 0.15);
+    color: #6b7280;
+}
+
+.nights-badge {
+    font-size: 0.8em;
+    background: var(--airbnb-dark);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+}
+
+.dates-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.date-block {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: center;
     gap: 4px;
 }
 
-.reservation-summary {
-    font-size: 0.9em;
+.date-label {
+    font-size: 0.7em;
+    text-transform: uppercase;
     color: var(--airbnb-light);
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
-.reservation-days {
+.date-value {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--airbnb-dark);
+}
+
+.date-arrow {
+    font-size: 1.8em;
+    color: var(--airbnb-red);
+    font-weight: 300;
+}
+
+.is-blocked .date-arrow {
+    color: #9ca3af;
+}
+
+.blocked-reason {
     font-size: 0.85em;
-    background: var(--airbnb-red);
-    color: white;
-    padding: 4px 10px;
-    border-radius: 20px;
+    color: #6b7280;
+    text-align: center;
+    padding: 8px;
+    background: rgba(107, 114, 128, 0.1);
+    border-radius: 6px;
 }
 
-.reservation-link {
-    font-size: 0.8em;
-    color: #3B82F6;
+.reservation-link-btn {
+    display: block;
+    text-align: center;
+    font-size: 0.9em;
+    color: white;
+    background: var(--airbnb-red);
     text-decoration: none;
-    padding: 4px 10px;
-    background: rgba(59, 130, 246, 0.1);
-    border-radius: 20px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 500;
     transition: all 0.2s ease;
+}
+
+.reservation-link-btn:hover {
+    background: #e04e53;
+    transform: translateY(-1px);
+}
+
+.reservation-item.highlight {
+    animation: highlightPulse 2s ease;
+}
+
+@keyframes highlightPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 95, 0); }
+    50% { box-shadow: 0 0 0 8px rgba(255, 90, 95, 0.3); }
 }
 
 .reservation-link:hover {

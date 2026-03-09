@@ -119,23 +119,41 @@
 
             <!-- Lista de Reservas -->
             <div class="reservations-panel">
-                <h3>📋 Todas las Reservas ({{ events|length }} en el feed)</h3>
-                <div class="reservations-list">
+                <h3>📋 Calendario de Ocupación</h3>
+                <div class="reservations-list" id="reservations-list">
                     {% if events %}
-                        {% for event in events %}
-                            <div class="reservation-item">
-                                <div class="reservation-dates">
-                                    <span class="date-start">{{ event.start[:10] }}</span>
-                                    <span class="date-arrow">→</span>
-                                    <span class="date-end">{{ event.end[:10] }}</span>
-                                </div>
-                                <div class="reservation-info">
-                                    <span class="reservation-summary">{{ event.summary }}</span>
-                                    <span class="reservation-days">{{ event.days }} noches</span>
-                                    {% if event.reservation_url %}
-                                        <a href="{{ event.reservation_url }}" target="_blank" class="reservation-link">Ver reserva ↗</a>
+                        {% for event in events|sort(attribute='start') %}
+                            {% set is_reservation = event.reservation_url %}
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }}" 
+                                 data-start="{{ event.start }}" data-end="{{ event.end }}">
+                                <div class="reservation-type">
+                                    {% if is_reservation %}
+                                        <span class="type-badge reservation">🏠 Reserva</span>
+                                    {% else %}
+                                        <span class="type-badge blocked">🚫 Bloqueo</span>
                                     {% endif %}
+                                    <span class="nights-badge">{{ event.days }} noche{{ 's' if event.days != 1 else '' }}</span>
                                 </div>
+                                <div class="dates-row">
+                                    <div class="date-block">
+                                        <span class="date-label">Check-in</span>
+                                        <span class="date-value">{{ event.start }}</span>
+                                    </div>
+                                    <span class="date-arrow">→</span>
+                                    <div class="date-block">
+                                        <span class="date-label">Check-out</span>
+                                        <span class="date-value">{{ event.end }}</span>
+                                    </div>
+                                </div>
+                                {% if not is_reservation %}
+                                <div class="blocked-reason">
+                                    <span>📌 Bloqueado por propietario en Airbnb</span>
+                                </div>
+                                {% else %}
+                                <a href="{{ event.reservation_url }}" target="_blank" class="reservation-link-btn">
+                                    Ver en Airbnb ↗
+                                </a>
+                                {% endif %}
                             </div>
                         {% endfor %}
                     {% else %}
@@ -380,6 +398,42 @@
         // Cargar status al inicio y cada 30 segundos
         actualizarStatus();
         setInterval(actualizarStatus, 30000);
+        
+        // Scroll a la reserva más cercana al día actual
+        function scrollToClosestReservation() {
+            const list = document.getElementById('reservations-list');
+            const items = list.querySelectorAll('.reservation-item');
+            if (items.length === 0) return;
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            let closestItem = null;
+            let closestDiff = Infinity;
+            
+            items.forEach(item => {
+                const startDate = new Date(item.dataset.start + 'T00:00:00');
+                const endDate = new Date(item.dataset.end + 'T00:00:00');
+                
+                // Si el evento está en curso o es futuro
+                if (endDate >= today) {
+                    const diff = Math.abs(startDate - today);
+                    if (diff < closestDiff) {
+                        closestDiff = diff;
+                        closestItem = item;
+                    }
+                }
+            });
+            
+            if (closestItem) {
+                closestItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                closestItem.classList.add('highlight');
+                setTimeout(() => closestItem.classList.remove('highlight'), 2000);
+            }
+        }
+        
+        // Scroll después de un pequeño delay para que cargue todo
+        setTimeout(scrollToClosestReservation, 500);
     </script>
 </body>
 </html>
