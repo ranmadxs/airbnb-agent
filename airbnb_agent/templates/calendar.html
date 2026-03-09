@@ -28,37 +28,35 @@
 
         <main>
             <!-- Calendario con navegación -->
-            <div class="calendar-navigation">
-                <button class="nav-btn" id="prev-btn" onclick="navegarMes(-1)">
-                    <span class="nav-arrow">←</span>
-                </button>
-                
-                <div class="calendar-card" id="calendar-card">
+            <div class="calendar-card full-width" id="calendar-card">
+                <div class="calendar-header">
+                    <button class="nav-btn" id="prev-btn" onclick="navegarMes(-1)">
+                        <span class="nav-arrow">←</span>
+                    </button>
                     <h3 id="month-title">{{ current.month_name }} {{ current.year }}</h3>
-                    <div class="calendar-grid" id="calendar-grid">
-                        <div class="day-header">Lu</div>
-                        <div class="day-header">Ma</div>
-                        <div class="day-header">Mi</div>
-                        <div class="day-header">Ju</div>
-                        <div class="day-header">Vi</div>
-                        <div class="day-header weekend">Sa</div>
-                        <div class="day-header weekend">Do</div>
-                        {% for day, weekday in current.days %}
-                            {% if day == 0 %}
-                                <div class="day-cell empty"></div>
-                            {% else %}
-                                <div class="day-cell {% if weekday >= 5 %}weekend{% endif %}" 
-                                     data-date="{{ current.year }}-{{ '%02d'|format(current.month) }}-{{ '%02d'|format(day) }}">
-                                    <span class="day-number">{{ day }}</span>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
+                    <button class="nav-btn" id="next-btn" onclick="navegarMes(1)">
+                        <span class="nav-arrow">→</span>
+                    </button>
                 </div>
-                
-                <button class="nav-btn" id="next-btn" onclick="navegarMes(1)">
-                    <span class="nav-arrow">→</span>
-                </button>
+                <div class="calendar-grid" id="calendar-grid">
+                    <div class="day-header">Lu</div>
+                    <div class="day-header">Ma</div>
+                    <div class="day-header">Mi</div>
+                    <div class="day-header">Ju</div>
+                    <div class="day-header">Vi</div>
+                    <div class="day-header weekend">Sa</div>
+                    <div class="day-header weekend">Do</div>
+                    {% for day, weekday in current.days %}
+                        {% if day == 0 %}
+                            <div class="day-cell empty"></div>
+                        {% else %}
+                            <div class="day-cell {% if weekday >= 5 %}weekend{% endif %}" 
+                                 data-date="{{ current.year }}-{{ '%02d'|format(current.month) }}-{{ '%02d'|format(day) }}">
+                                <span class="day-number">{{ day }}</span>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
             </div>
 
             <!-- Leyenda -->
