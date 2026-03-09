@@ -305,27 +305,6 @@
                         checkoutCell.classList.add('checkout-day');
                         checkoutCell.classList.remove('blocked');
                     }
-                    
-                    // Día ANTES del check-in
-                    const dayBefore = new Date(start);
-                    dayBefore.setDate(dayBefore.getDate() - 1);
-                    const beforeStr = formatDate(dayBefore);
-                    if (!diasOcupados.has(beforeStr)) {
-                        const beforeCell = document.querySelector(`[data-date="${beforeStr}"]`);
-                        if (beforeCell) beforeCell.classList.add('blocked');
-                    }
-                    
-                    // Día DESPUÉS del checkout - buscar el primer día libre
-                    let dayAfter = new Date(end);
-                    dayAfter.setDate(dayAfter.getDate() + 1);
-                    while (diasOcupados.has(formatDate(dayAfter))) {
-                        dayAfter.setDate(dayAfter.getDate() + 1);
-                    }
-                    const afterStr = formatDate(dayAfter);
-                    const afterCell = document.querySelector(`[data-date="${afterStr}"]`);
-                    if (afterCell && !afterCell.classList.contains('reserved')) {
-                        afterCell.classList.add('blocked');
-                    }
                 }
             });
             
