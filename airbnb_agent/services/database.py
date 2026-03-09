@@ -124,9 +124,11 @@ class DatabaseService:
                 ))
         
         # 2. Ejecutar bulk eventos
+        eventos_guardados = 0
         try:
             if eventos_ops:
-                self.airbnb_dias.bulk_write(eventos_ops)
+                resultado = self.airbnb_dias.bulk_write(eventos_ops)
+                eventos_guardados = resultado.upserted_count + resultado.modified_count
         except Exception as e:
             print(f"❌ Error bulk eventos: {e}")
             return 0
@@ -194,6 +196,8 @@ class DatabaseService:
                     doc["updated_at"] = doc["updated_at"].isoformat()
                 if "created_at" in doc and doc["created_at"]:
                     doc["created_at"] = doc["created_at"].isoformat()
+                if "airbnb_dia_id" in doc and doc["airbnb_dia_id"]:
+                    doc["airbnb_dia_id"] = str(doc["airbnb_dia_id"])
                 dias.append(doc)
             
             return dias
