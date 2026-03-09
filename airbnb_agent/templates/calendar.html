@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏠 Airbnb Calendar Agent</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo">
+                    <img src="https://www.airbnb.com/favicon.ico" alt="Airbnb" class="airbnb-icon">
+                </div>
+                <div class="title-group">
+                    <h1>Calendario de Reservas</h1>
+                    <p class="subtitle">Posada en el Bosque <span class="version">v{{ version }}</span></p>
+                </div>
+                <div class="stats-badge">
+                    <span class="ocupacion">{{ stats.ocupacion_30 }}%</span>
+                    <span class="ocupacion-label">ocupación</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <span class="stat-value">{{ stats.total_reservations }}</span>
+                        <span class="stat-label">Total Reservas</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔜</div>
+                    <div class="stat-content">
+                        <span class="stat-value">{{ stats.upcoming_reservations }}</span>
+                        <span class="stat-label">Próximas</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🛏️</div>
+                    <div class="stat-content">
+                        <span class="stat-value">{{ stats.reserved_days_30 }}</span>
+                        <span class="stat-label">Días ocupados (30d)</span>
+                    </div>
+                </div>
+                <div class="stat-card highlight">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <span class="stat-value">{{ stats.ocupacion_30 }}%</span>
+                        <span class="stat-label">Ocupación</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendarios -->
+            <div class="calendars-container">
+                <div class="calendar-card">
+                    <h3>{{ current_month.month_name }} {{ current_month.year }}</h3>
+                    <div class="calendar-grid">
+                        <div class="day-header">Lu</div>
+                        <div class="day-header">Ma</div>
+                        <div class="day-header">Mi</div>
+                        <div class="day-header">Ju</div>
+                        <div class="day-header">Vi</div>
+                        <div class="day-header weekend">Sa</div>
+                        <div class="day-header weekend">Do</div>
+                        {% for day, weekday in current_month.days %}
+                            {% if day == 0 %}
+                                <div class="day-cell empty"></div>
+                            {% else %}
+                                <div class="day-cell {% if weekday >= 5 %}weekend{% endif %}" 
+                                     data-date="{{ current_month.year }}-{{ '%02d'|format(current_month.month) }}-{{ '%02d'|format(day) }}">
+                                    <span class="day-number">{{ day }}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="calendar-card">
+                    <h3>{{ next_month.month_name }} {{ next_month.year }}</h3>
+                    <div class="calendar-grid">
+                        <div class="day-header">Lu</div>
+                        <div class="day-header">Ma</div>
+                        <div class="day-header">Mi</div>
+                        <div class="day-header">Ju</div>
+                        <div class="day-header">Vi</div>
+                        <div class="day-header weekend">Sa</div>
+                        <div class="day-header weekend">Do</div>
+                        {% for day, weekday in next_month.days %}
+                            {% if day == 0 %}
+                                <div class="day-cell empty"></div>
+                            {% else %}
+                                <div class="day-cell {% if weekday >= 5 %}weekend{% endif %}"
+                                     data-date="{{ next_month.year }}-{{ '%02d'|format(next_month.month) }}-{{ '%02d'|format(day) }}">
+                                    <span class="day-number">{{ day }}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leyenda -->
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="legend-color available"></span>
+                    <span>Disponible</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color reserved"></span>
+                    <span>Reservado</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color today"></span>
+                    <span>Hoy</span>
+                </div>
+            </div>
+
+            <!-- Lista de Reservas -->
+            <div class="reservations-panel">
+                <h3>📋 Próximas Reservas</h3>
+                <div class="reservations-list">
+                    {% if events %}
+                        {% for event in events %}
+                            <div class="reservation-item">
+                                <div class="reservation-dates">
+                                    <span class="date-start">{{ event.start[:10] }}</span>
+                                    <span class="date-arrow">→</span>
+                                    <span class="date-end">{{ event.end[:10] }}</span>
+                                </div>
+                                <div class="reservation-info">
+                                    <span class="reservation-summary">{{ event.summary }}</span>
+                                    <span class="reservation-days">{{ event.days }} noches</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="no-reservations">
+                            <span>✨ No hay reservas programadas</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>🏠 Airbnb Calendar Agent v{{ version }}</p>
+            <p class="footer-links">
+                <a href="https://airbnb.cl/h/posadaenelbosque" target="_blank" class="footer-link">
+                    <img src="https://www.airbnb.com/favicon.ico" alt="Airbnb" width="16" height="16">
+                    Ver en Airbnb
+                </a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Datos de eventos desde el servidor
+        const events = {{ events | tojson }};
+        
+        // Marcar días reservados en el calendario
+        function markReservedDays() {
+            events.forEach(event => {
+                const start = new Date(event.start);
+                const end = new Date(event.end);
+                
+                let current = new Date(start);
+                while (current < end) {
+                    const dateStr = current.toISOString().split('T')[0];
+                    const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                    if (cell) {
+                        cell.classList.add('reserved');
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+            });
+        }
+        
+        // Marcar el día de hoy
+        function markToday() {
+            const today = new Date().toISOString().split('T')[0];
+            const cell = document.querySelector(`[data-date="${today}"]`);
+            if (cell) {
+                cell.classList.add('today');
+            }
+        }
+        
+        // Inicializar
+        markReservedDays();
+        markToday();
+    </script>
+</body>
+</html>

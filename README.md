@@ -1,53 +1,60 @@
-# Airbnb Management Agent
+# Airbnb Calendar Agent
 
-Automated task scheduling and communication system for Airbnb properties. This agent reads your Airbnb iCal calendar, identifies availability windows, schedules maintenance tasks, and coordinates with providers via WhatsApp using Nanobot.
+Agente visual que muestra el calendario de reservas de tu propiedad Airbnb.
 
-## 🚀 Getting Started
+## 🚀 Inicio Rápido
 
-### 1. Prerequisites
-- **Node.js**: Installed on your system.
-- **Docker**: Used to run Nanobot (the AI core and WhatsApp bridge).
-- **Nanobot**: Must be running as a container named `nanobot`.
+### 1. Instalación
+```bash
+poetry install
+```
 
-### 2. Environment Configuration
-Create a `.env` file in the root directory and configure the following variables:
-
+### 2. Configuración
+Crea un archivo `.env`:
 ```env
-# URL of your Airbnb iCal calendar
-AIRBNB_CALENDAR_URL="your_ical_url_here"
-
-# Your phone number (used for logs and validation reports)
-OWNER_PHONE="56XXXXXXXXX"
-
-# Your WhatsApp JID (used to approve task scheduling via WhatsApp)
-OWNER_JID="56XXXXXXXXX@s.whatsapp.net"
-
-# The provider ID from providers.json that will receive the summary message
-SUMMARY_RECEIVER_ID="tester"
+AIRBNB_CALENDAR_URL="tu_url_ical_de_airbnb"
 ```
 
-### 3. Installation
+### 3. Ejecutar
 ```bash
-npm install
+# Desarrollo
+poetry run python -m airbnb_agent.app
+
+# Producción
+poetry run gunicorn -w 1 --threads 4 -b 0.0.0.0:8000 airbnb_agent.app:app
 ```
 
-### 4. Running the Agent
-```bash
-npm run start
+## 📊 Características
+
+- 📅 Visualización de calendario mensual
+- 🏠 Muestra días reservados y disponibles
+- 📈 Estadísticas de ocupación
+- 📋 Lista de próximas reservas
+- 🎨 Diseño estilo Airbnb
+
+## 📁 Estructura
+
+```
+airbnb-agent/
+├── airbnb_agent/
+│   ├── app.py              # Aplicación Flask
+│   ├── templates/
+│   │   └── calendar.html   # Template del calendario
+│   └── static/
+│       └── css/
+│           └── style.css   # Estilos
+├── .env                    # Configuración
+└── pyproject.toml          # Dependencias
 ```
 
-## 🛠 Project Structure
+## 🔗 API Endpoints
 
-- `src/index.ts`: Main entry point and orchestration loop.
-- `src/calendar.ts`: Fetches and parses Airbnb iCal events to find gaps.
-- `src/planner.ts`: Schedules tasks from `tasks.json` into available slots.
-- `src/liaison.ts`: Handles AI message generation and WhatsApp communication.
-- `tasks.json`: List of pending tasks to be scheduled.
-- `providers.json`: Registry of service providers and their contact info.
+| Endpoint | Descripción |
+|----------|-------------|
+| `/` | Página principal con calendario |
+| `/api/events` | Lista de eventos JSON |
+| `/api/stats` | Estadísticas JSON |
 
-## 🤖 AI Core (Nanobot)
-The system uses **Nanobot** running in a Docker container to:
-1. Generate professional messages using Groq/OpenRouter.
-2. Bridge communication with WhatsApp.
+## 📜 Licencia
 
-Ensure Nanobot is configured with your API keys in `/root/.nanobot/config.json` inside the container.
+MIT
