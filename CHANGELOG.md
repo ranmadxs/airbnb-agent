@@ -2,6 +2,11 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.4.47] - 2026-03-09
+### Fixed
+- Estilos inline en SVG de usuario para forzar tamaño 16px
+- Solución definitiva al avatar gigante en móvil
+
 ## [2.4.46] - 2026-03-09
 ### Fixed
 - Agregar query string de versión al CSS para evitar caché
