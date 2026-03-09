@@ -146,6 +146,9 @@
                                 <div class="reservation-info">
                                     <span class="reservation-summary">{{ event.summary }}</span>
                                     <span class="reservation-days">{{ event.days }} noches</span>
+                                    {% if event.reservation_url %}
+                                        <a href="{{ event.reservation_url }}" target="_blank" class="reservation-link">Ver reserva ↗</a>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}

@@ -48,6 +48,15 @@ def fetch_calendar_events():
                 start = component.get('dtstart')
                 end = component.get('dtend')
                 summary = str(component.get('summary', 'Reservado'))
+                description = str(component.get('description', ''))
+                
+                # Extraer URL de reserva del description
+                reservation_url = None
+                if 'Reservation URL:' in description:
+                    import re
+                    match = re.search(r'Reservation URL:\s*(https://[^\s\\]+)', description)
+                    if match:
+                        reservation_url = match.group(1)
                 
                 if start and end:
                     start_dt = start.dt if hasattr(start, 'dt') else start
@@ -63,7 +72,8 @@ def fetch_calendar_events():
                         'start': start_dt.isoformat(),
                         'end': end_dt.isoformat(),
                         'summary': summary,
-                        'days': (end_dt - start_dt).days
+                        'days': (end_dt - start_dt).days,
+                        'reservation_url': reservation_url
                     })
         
         # Ordenar por fecha de inicio

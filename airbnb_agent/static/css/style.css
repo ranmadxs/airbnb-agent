@@ -372,6 +372,21 @@ header {
     border-radius: 20px;
 }
 
+.reservation-link {
+    font-size: 0.8em;
+    color: #3B82F6;
+    text-decoration: none;
+    padding: 4px 10px;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 20px;
+    transition: all 0.2s ease;
+}
+
+.reservation-link:hover {
+    background: #3B82F6;
+    color: white;
+}
+
 .no-reservations {
     text-align: center;
     padding: 40px;
