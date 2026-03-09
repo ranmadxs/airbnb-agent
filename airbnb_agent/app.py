@@ -17,14 +17,15 @@ load_dotenv()
 # MongoDB configuración
 MONGODB_URI = os.getenv("MONGODB_URI", "")
 mongo_client = None
-dias_collection = None
+airbnb_dias_collection = None
+calendario_collection = None
 
-def get_mongo_connection():
-    """Obtiene la conexión a MongoDB."""
-    global mongo_client, dias_collection
+def get_mongo_collections():
+    """Obtiene las colecciones de MongoDB."""
+    global mongo_client, airbnb_dias_collection, calendario_collection
     
     if not MONGODB_URI:
-        return None
+        return None, None
     
     if mongo_client is None:
         try:
@@ -32,15 +33,26 @@ def get_mongo_connection():
             mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
             mongo_client.admin.command('ping')
             db = mongo_client["airbnb-db"]
-            dias_collection = db["airbnb-dias"]
-            # Crear índice único por fecha
-            dias_collection.create_index("fecha", unique=True)
+            
+            # Colección de eventos/reservas de Airbnb
+            airbnb_dias_collection = db["airbnb-dias"]
+            airbnb_dias_collection.create_index("fecha", unique=True)
+            
+            # Colección de días del calendario (llave: año-mes-día)
+            calendario_collection = db["dias"]
+            calendario_collection.create_index([("anio", 1), ("mes", 1), ("dia", 1)], unique=True)
+            
             print("✅ MongoDB conectado para Airbnb Agent")
         except Exception as e:
             print(f"❌ Error conectando MongoDB: {e}")
-            return None
+            return None, None
     
-    return dias_collection
+    return airbnb_dias_collection, calendario_collection
+
+def get_mongo_connection():
+    """Obtiene la colección airbnb-dias (compatibilidad)."""
+    airbnb_dias, _ = get_mongo_collections()
+    return airbnb_dias
 
 # Estado de conexiones
 calendar_status = {"connected": False, "last_check": None, "events_count": 0}
@@ -104,6 +116,86 @@ def guardar_dia_en_mongodb(fecha: str, estado: str, source: str, event_data: dic
     except Exception as e:
         print(f"❌ Error guardando día {fecha}: {e}")
         return False
+
+def guardar_dia_calendario(anio: int, mes: int, dia: int, airbnb_dia_id=None, estado: str = "disponible", audit: dict = None):
+    """Guarda un día en la colección 'dias' del calendario."""
+    _, calendario = get_mongo_collections()
+    if calendario is None:
+        return False
+    
+    if audit is None:
+        audit = get_audit_info()
+    
+    documento = {
+        "anio": anio,
+        "mes": mes,
+        "dia": dia,
+        "fecha": f"{anio}-{mes:02d}-{dia:02d}",
+        "estado": estado,
+        "updated_at": datetime.utcnow(),
+        "user_origin": audit.get("user_origin"),
+        "user_agent": audit.get("user_agent")
+    }
+    
+    if airbnb_dia_id:
+        documento["airbnb_dia_id"] = airbnb_dia_id
+    
+    try:
+        calendario.update_one(
+            {"anio": anio, "mes": mes, "dia": dia},
+            {"$set": documento, "$setOnInsert": {"created_at": datetime.utcnow()}},
+            upsert=True
+        )
+        return True
+    except Exception as e:
+        print(f"❌ Error guardando día calendario {anio}-{mes}-{dia}: {e}")
+        return False
+
+def poblar_dias_mes(anio: int, mes: int, eventos: list, audit: dict = None):
+    """Puebla la colección 'dias' con los días de un mes, vinculando con airbnb-dias."""
+    import calendar
+    
+    airbnb_dias, calendario = get_mongo_collections()
+    if calendario is None:
+        return 0
+    
+    if audit is None:
+        audit = get_audit_info()
+    
+    # Obtener días del mes
+    _, num_dias = calendar.monthrange(anio, mes)
+    dias_guardados = 0
+    
+    # Crear índice de eventos por fecha para búsqueda rápida
+    eventos_por_fecha = {}
+    for event in eventos:
+        start = datetime.strptime(event["start"], "%Y-%m-%d")
+        end = datetime.strptime(event["end"], "%Y-%m-%d")
+        current = start
+        while current < end:
+            eventos_por_fecha[current.strftime("%Y-%m-%d")] = event
+            current += timedelta(days=1)
+    
+    # Guardar cada día del mes
+    for dia in range(1, num_dias + 1):
+        fecha_str = f"{anio}-{mes:02d}-{dia:02d}"
+        
+        # Buscar si hay evento de airbnb para este día
+        airbnb_dia_id = None
+        estado = "disponible"
+        
+        if fecha_str in eventos_por_fecha:
+            # Buscar el ID del documento en airbnb-dias
+            if airbnb_dias:
+                doc = airbnb_dias.find_one({"fecha": fecha_str}, {"_id": 1, "estado": 1})
+                if doc:
+                    airbnb_dia_id = doc["_id"]
+                    estado = doc.get("estado", "reservado")
+        
+        if guardar_dia_calendario(anio, mes, dia, airbnb_dia_id, estado, audit):
+            dias_guardados += 1
+    
+    return dias_guardados
 
 def obtener_dias_desde_mongodb(fecha_inicio: str = None, fecha_fin: str = None):
     """Obtiene días desde MongoDB en un rango de fechas."""
@@ -348,6 +440,10 @@ def home():
     now = datetime.now()
     current = get_month_calendar(now.year, now.month)
     
+    # Poblar días del mes actual en MongoDB
+    audit = get_audit_info()
+    poblar_dias_mes(now.year, now.month, events, audit)
+    
     return render_template('calendar.html',
                          events=events,
                          stats=stats,
@@ -360,6 +456,11 @@ def api_month():
     """API: Obtener datos de un mes específico."""
     year = request.args.get('year', 2025, type=int)
     month = request.args.get('month', 12, type=int)
+    
+    # Poblar días del mes en MongoDB
+    events = fetch_calendar_from_airbnb()
+    audit = get_audit_info()
+    poblar_dias_mes(year, month, events, audit)
     
     return jsonify(get_month_calendar(year, month))
 
@@ -424,6 +525,41 @@ def api_sync():
         "dias_guardados": result["guardados"],
         "cancelaciones": result["cancelados"]
     })
+
+@app.route('/api/calendario')
+def api_calendario():
+    """API: Días del calendario desde la colección 'dias'."""
+    anio = request.args.get('anio', datetime.now().year, type=int)
+    mes = request.args.get('mes', datetime.now().month, type=int)
+    
+    _, calendario = get_mongo_collections()
+    if calendario is None:
+        return jsonify({"error": "MongoDB no disponible", "dias": []})
+    
+    try:
+        cursor = calendario.find(
+            {"anio": anio, "mes": mes},
+            {"_id": 0}
+        ).sort("dia", 1)
+        
+        dias = []
+        for doc in cursor:
+            if "updated_at" in doc and doc["updated_at"]:
+                doc["updated_at"] = doc["updated_at"].isoformat()
+            if "created_at" in doc and doc["created_at"]:
+                doc["created_at"] = doc["created_at"].isoformat()
+            if "airbnb_dia_id" in doc and doc["airbnb_dia_id"]:
+                doc["airbnb_dia_id"] = str(doc["airbnb_dia_id"])
+            dias.append(doc)
+        
+        return jsonify({
+            "anio": anio,
+            "mes": mes,
+            "total": len(dias),
+            "dias": dias
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "dias": []})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
