@@ -2,6 +2,11 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.8.15] - 2026-03-10
+### Changed
+- Sello finalizada: forzar posición derecha con left:auto
+- Nuevo sello "Próxima Estadía" con ⚠ para reservas upcoming
+
 ## [2.8.14] - 2026-03-10
 ### Changed
 - Sello: posición arriba-derecha, sobresale de la tarjeta
