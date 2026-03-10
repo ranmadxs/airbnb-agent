@@ -390,7 +390,14 @@ class DatabaseService:
                     "source": doc.get("source", "cache_airbnb"),
                     "estado": doc.get("estado", "bloqueado"),
                     "readonly": doc.get("readonly", False),
-                    "checkout": doc.get("checkout")
+                    "checkout": doc.get("checkout"),
+                    "hora_checkin": doc.get("hora_checkin", ""),
+                    "hora_checkout": doc.get("hora_checkout", ""),
+                    "nombre_huesped": doc.get("nombre_huesped", ""),
+                    "adultos": doc.get("adultos", 0),
+                    "ninos": doc.get("ninos", 0),
+                    "mascotas": doc.get("mascotas", 0),
+                    "notas": doc.get("notas", "")
                 })
             
             return eventos
@@ -464,6 +471,13 @@ class DatabaseService:
                 "reservation_url": datos.get('reservation_url'),
                 "source": datos.get('source', 'admin'),
                 "readonly": datos.get('readonly', False),
+                "hora_checkin": datos.get('hora_checkin', ''),
+                "hora_checkout": datos.get('hora_checkout', ''),
+                "nombre_huesped": datos.get('nombre_huesped', ''),
+                "adultos": datos.get('adultos', 0),
+                "ninos": datos.get('ninos', 0),
+                "mascotas": datos.get('mascotas', 0),
+                "notas": datos.get('notas', ''),
                 "updated_at": datetime.utcnow(),
                 "user_origin": audit.get("user_origin", "admin"),
                 "user_agent": audit.get("user_agent", "admin")

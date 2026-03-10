@@ -439,6 +439,42 @@ header {
     font-weight: 600;
 }
 
+/* Globito de huésped en día de check-in */
+.guest-bubble {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #222222;
+    color: white;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 0.65em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    z-index: 10;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.bubble-initial {
+    font-size: 1em;
+    font-weight: 700;
+}
+
+.bubble-count {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.bubble-pets {
+    font-size: 0.75em;
+    opacity: 0.7;
+    color: #fbbf24;
+}
+
 /* Día bloqueado (antes/después de reserva) */
 .day-cell.blocked {
     background: #e5e5e5;
@@ -617,7 +653,6 @@ header {
     position: relative;
     background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
     border-left-color: #9ca3af;
-    overflow: hidden;
 }
 
 
@@ -729,6 +764,56 @@ header {
     color: #9ca3af;
 }
 
+/* Huéspedes y mascotas */
+.guests-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.guest-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.guest-badge.adults {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+}
+
+.guest-badge.children {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.guest-badge.pets {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+/* Notas de la reserva */
+.notes-row {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 8px;
+    border-left: 3px solid #f59e0b;
+}
+
+.note-text {
+    font-size: 0.85em;
+    color: #92400e;
+    font-style: italic;
+}
+
 .blocked-reason {
     font-size: 0.85em;
     color: #6b7280;
@@ -777,7 +862,6 @@ header {
 /* Reservas próximas (check-in futuro) - solo la más cercana */
 .reservation-item.is-upcoming {
     position: relative;
-    overflow: hidden;
 }
 
 .reservation-item.is-upcoming.is-next {
@@ -878,7 +962,6 @@ header {
     position: relative;
     border-left-color: #10b981;
     background: #f0fdf4;
-    overflow: hidden;
 }
 
 .reservation-item.is-in-progress::before {
@@ -1028,38 +1111,45 @@ header {
     background: #fde68a;
 }
 
-.reservation-item.has-checkout::before {
-    content: 'CHECKOUT\A✓';
+/* Sello de checkout - estilo timbre transparente */
+.checkout-stamp {
     position: absolute;
-    top: 50%;
-    right: 12px;
-    transform: translateY(-50%) rotate(-15deg);
-    font-size: 0.5rem;
-    font-weight: 900;
-    letter-spacing: 0.5px;
-    color: rgba(5, 150, 105, 0.7);
-    text-transform: uppercase;
-    white-space: pre-wrap;
+    top: 10px;
+    right: -10px;
+    width: 75px;
+    height: 75px;
+    transform: rotate(-12deg);
     pointer-events: none;
-    z-index: 1;
-    width: 62px;
-    height: 62px;
+    z-index: 100;
+    border: 3px solid #333;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    box-sizing: border-box;
-    border: 2px solid rgba(5, 150, 105, 0.5);
-    border-radius: 50%;
-    text-align: center;
-    line-height: 1.4;
-    box-shadow: 
-        0 0 0 3px rgba(255,255,255,0.8),
-        0 0 0 5px rgba(5, 150, 105, 0.35);
+    gap: 0;
+}
+
+.stamp-text {
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: #333;
+    letter-spacing: 1px;
+    text-transform: uppercase;
     text-shadow: 
-        1px 0 0 rgba(255,255,255,0.3),
-        -1px 0 0 rgba(255,255,255,0.3),
-        0 1px 0 rgba(255,255,255,0.3);
-    font-family: 'Georgia', serif;
+        1px 1px 0 rgba(255,255,255,0.8),
+        -1px -1px 0 rgba(255,255,255,0.8);
+}
+
+.stamp-check {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: #333;
+    line-height: 1;
+    text-shadow: 
+        1px 1px 0 rgba(255,255,255,0.8),
+        -1px -1px 0 rgba(255,255,255,0.8);
 }
 
 
@@ -1150,6 +1240,17 @@ header {
     margin-bottom: 16px;
 }
 
+.form-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.form-group.half {
+    flex: 1;
+    margin-bottom: 0;
+}
+
 .form-group label {
     display: block;
     margin-bottom: 6px;
@@ -1158,16 +1259,31 @@ header {
     font-size: 0.9em;
 }
 
+.form-group label small {
+    font-weight: 400;
+    color: #9ca3af;
+    font-size: 0.85em;
+}
+
 .form-group input[type="text"],
 .form-group input[type="url"],
 .form-group input[type="date"],
-.form-group select {
+.form-group input[type="time"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid #ddd;
     border-radius: 8px;
     font-size: 1em;
     box-sizing: border-box;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
 }
 
 .form-group input:focus,
@@ -1468,6 +1584,14 @@ footer {
         background: #222222 !important;
     }
     
+    /* Globito responsive */
+    .guest-bubble {
+        bottom: 1px;
+        padding: 0px 4px;
+        font-size: 0.55em;
+        border-radius: 8px;
+    }
+    
     .stats-widgets {
         gap: 6px;
         margin-bottom: 12px;
@@ -1631,11 +1755,19 @@ footer {
     }
     
     /* Sello checkout más pequeño en móvil */
-    .reservation-item.has-checkout::before {
-        width: 50px;
-        height: 50px;
-        font-size: 0.4rem;
-        right: 8px;
+    .checkout-stamp {
+        width: 55px;
+        height: 55px;
+        right: 5px;
+        border-width: 2px;
+    }
+    
+    .stamp-text {
+        font-size: 0.45rem;
+    }
+    
+    .stamp-check {
+        font-size: 1.6rem;
     }
     
     /* Overlay de eliminados */
@@ -1695,6 +1827,36 @@ footer {
     .type-badge.blocked {
         background: #e5e7eb !important;
         color: #6b7280 !important;
+    }
+    
+    /* Guests y notas responsive */
+    .guests-row {
+        gap: 8px;
+        margin-top: 6px;
+    }
+    
+    .guest-badge {
+        padding: 3px 8px;
+        font-size: 0.75em;
+    }
+    
+    .notes-row {
+        margin-top: 6px;
+        padding: 6px 10px;
+    }
+    
+    .note-text {
+        font-size: 0.75em;
+    }
+    
+    /* Form row responsive */
+    .form-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .form-group.half {
+        margin-bottom: 0;
     }
     
     footer {

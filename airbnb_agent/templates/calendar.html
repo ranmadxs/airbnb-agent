@@ -128,10 +128,18 @@
                             {% set is_deleted = event.estado == 'eliminado' %}
                             {% set has_checkout = event.checkout %}
                             {% set is_past = event.end <= today %}
+                            {% set is_finished = is_past or has_checkout %}
                             {% set is_in_progress = event.start <= today and event.end > today and not has_checkout %}
                             {% set is_upcoming = event.start > today and is_reservation %}
-                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'has-checkout' if has_checkout else '' }}" 
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }}" 
                                  data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}">
+                                
+                                {% if is_finished and is_reservation %}
+                                <div class="checkout-stamp">
+                                    <span class="stamp-text">FINALIZADA</span>
+                                    <span class="stamp-check">✓</span>
+                                </div>
+                                {% endif %}
                                 
                                 {% if is_upcoming and not is_deleted %}
                                 <div class="upcoming-label-overlay">
@@ -177,6 +185,18 @@
                                         <span class="date-value">{{ event.end }}</span>
                                     </div>
                                 </div>
+                                {% if is_reservation %}
+                                <div class="guests-row">
+                                    <span class="guest-badge adults" title="Adultos">👤 {{ event.adultos or 0 }}</span>
+                                    <span class="guest-badge children" title="Niños">👶 {{ event.ninos or 0 }}</span>
+                                    <span class="guest-badge pets" title="Mascotas">🐾 {{ event.mascotas or 0 }}</span>
+                                </div>
+                                {% endif %}
+                                {% if event.notas %}
+                                <div class="notes-row">
+                                    <span class="note-text">📝 {{ event.notas }}</span>
+                                </div>
+                                {% endif %}
                                 {% if is_deleted %}
                                 <div class="blocked-reason">
                                     <span>📌 {{ event.summary }}</span>
@@ -195,7 +215,7 @@
                                         <svg class="user-icon" viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;min-width:16px;max-width:16px;flex-shrink:0;">
                                             <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                                         </svg>
-                                        <span>{{ event.summary }}</span>
+                                        <span>{% if event.nombre_huesped %}{{ event.nombre_huesped }}{% else %}{{ event.summary }}{% endif %}</span>
                                     </div>
                                     {% endif %}
                                 {% endif %}
@@ -267,14 +287,28 @@
             <form id="reserva-form" onsubmit="guardarReserva(event)">
                 <input type="hidden" id="reserva-id" name="id">
                 
-                <div class="form-group">
-                    <label>Check-in</label>
-                    <input type="date" id="reserva-start" name="event_start" required>
+                <!-- Fechas -->
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>📅 Fecha Check-in</label>
+                        <input type="date" id="reserva-start" name="event_start" required>
+                    </div>
+                    <div class="form-group half">
+                        <label>📅 Fecha Check-out</label>
+                        <input type="date" id="reserva-end" name="event_end" required>
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>Check-out</label>
-                    <input type="date" id="reserva-end" name="event_end" required>
+                <!-- Horas (opcionales) -->
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>🕐 Hora llegada <small>(opcional)</small></label>
+                        <input type="time" id="reserva-hora-checkin" name="hora_checkin">
+                    </div>
+                    <div class="form-group half">
+                        <label>🕐 Hora salida <small>(opcional)</small></label>
+                        <input type="time" id="reserva-hora-checkout" name="hora_checkout">
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -288,6 +322,38 @@
                 <div class="form-group">
                     <label>Descripción</label>
                     <input type="text" id="reserva-summary" name="summary" placeholder="Ej: Reservado por usuarios de Airbnb">
+                </div>
+                
+                <div class="form-group">
+                    <label>👤 Nombre del huésped</label>
+                    <input type="text" id="reserva-huesped" name="nombre_huesped" placeholder="Ej: Juan Pérez">
+                </div>
+                
+                <!-- Huéspedes -->
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>👤 Adultos</label>
+                        <input type="number" id="reserva-adultos" name="adultos" min="0" max="20" value="0">
+                    </div>
+                    <div class="form-group half">
+                        <label>👶 Niños</label>
+                        <input type="number" id="reserva-ninos" name="ninos" min="0" max="20" value="0">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>🐾 Mascotas</label>
+                        <input type="number" id="reserva-mascotas" name="mascotas" min="0" max="10" value="0">
+                    </div>
+                    <div class="form-group half">
+                        <!-- Espacio vacío para alineación -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>📝 Notas (visibles para todos)</label>
+                    <textarea id="reserva-notas" name="notas" rows="2" placeholder="Ej: Llegada tardía, necesita cuna..."></textarea>
                 </div>
                 
                 <div class="form-group">
@@ -495,12 +561,38 @@
                         cell.classList.add('reserved');
                         if (esCache) cell.classList.add('from-cache');
                         
-                        // No crear links - el calendario es solo visual
-                        // La URL de Airbnb está disponible en el modal para admin
-                        
-                        // Primer día = entrada (azul)
+                        // Primer día = entrada (azul) + globito con inicial
                         if (formatDate(current) === formatDate(start)) {
                             cell.classList.add('checkin');
+                            
+                            // Crear globito con inicial y conteo
+                            const nombre = event.nombre_huesped || '';
+                            const adultos = event.adultos || 0;
+                            const ninos = event.ninos || 0;
+                            const mascotas = event.mascotas || 0;
+                            const totalPersonas = adultos + ninos;
+                            
+                            if (nombre || totalPersonas > 0) {
+                                const bubble = document.createElement('div');
+                                bubble.className = 'guest-bubble';
+                                
+                                // Inicial del nombre
+                                const inicial = nombre ? nombre.charAt(0).toUpperCase() : '?';
+                                let contenido = `<span class="bubble-initial">${inicial}</span>`;
+                                
+                                // +N personas (si hay más de 1)
+                                if (totalPersonas > 1) {
+                                    contenido += `<span class="bubble-count">+${totalPersonas - 1}</span>`;
+                                }
+                                
+                                // +M mascotas (más pequeño)
+                                if (mascotas > 0) {
+                                    contenido += `<span class="bubble-pets">+${mascotas}</span>`;
+                                }
+                                
+                                bubble.innerHTML = contenido;
+                                cell.appendChild(bubble);
+                            }
                         }
                     }
                     current.setDate(current.getDate() + 1);
@@ -564,6 +656,13 @@
                     document.getElementById('reserva-summary').value = data.summary || '';
                     document.getElementById('reserva-url').value = data.reservation_url || '';
                     document.getElementById('reserva-readonly').checked = data.readonly;
+                    document.getElementById('reserva-hora-checkin').value = data.hora_checkin || '';
+                    document.getElementById('reserva-hora-checkout').value = data.hora_checkout || '';
+                    document.getElementById('reserva-huesped').value = data.nombre_huesped || '';
+                    document.getElementById('reserva-adultos').value = data.adultos || 0;
+                    document.getElementById('reserva-ninos').value = data.ninos || 0;
+                    document.getElementById('reserva-mascotas').value = data.mascotas || 0;
+                    document.getElementById('reserva-notas').value = data.notas || '';
                     
                     if (data.reservation_url) {
                         const urlLink = document.getElementById('reserva-url-link');
@@ -594,7 +693,14 @@
                 estado: document.getElementById('reserva-estado').value,
                 summary: document.getElementById('reserva-summary').value,
                 reservation_url: document.getElementById('reserva-url').value,
-                readonly: document.getElementById('reserva-readonly').checked
+                readonly: document.getElementById('reserva-readonly').checked,
+                hora_checkin: document.getElementById('reserva-hora-checkin').value,
+                hora_checkout: document.getElementById('reserva-hora-checkout').value,
+                nombre_huesped: document.getElementById('reserva-huesped').value,
+                adultos: parseInt(document.getElementById('reserva-adultos').value) || 0,
+                ninos: parseInt(document.getElementById('reserva-ninos').value) || 0,
+                mascotas: parseInt(document.getElementById('reserva-mascotas').value) || 0,
+                notas: document.getElementById('reserva-notas').value
             };
             
             try {

@@ -2,6 +2,66 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.8.14] - 2026-03-10
+### Changed
+- Sello: posición arriba-derecha, sobresale de la tarjeta
+
+## [2.8.13] - 2026-03-10
+### Changed
+- Sello: fondo transparente, borde negro, texto negro, más grande
+
+## [2.8.12] - 2026-03-10
+### Changed
+- Sello: círculo verde con ✓ y banner rojo diagonal "FINALIZADA"
+
+## [2.8.11] - 2026-03-10
+### Fixed
+- Sello ✓ aparece si: fecha pasó O admin finalizó anticipadamente
+
+## [2.8.10] - 2026-03-10
+### Fixed
+- Quitar overflow:hidden de todos los estados de reserva
+- Sello checkout más grande y visible (z-index: 100)
+
+## [2.8.9] - 2026-03-10
+### Fixed
+- Sello checkout como elemento HTML (no ::before) para compatibilidad
+
+## [2.8.8] - 2026-03-10
+### Fixed
+- Sello checkout visible (quitar overflow:hidden de is-past)
+
+## [2.8.7] - 2026-03-10
+### Fixed
+- Sello checkout con line-height (fix display:flex en ::before)
+
+## [2.8.6] - 2026-03-10
+### Fixed
+- Restaurar sello de checkout ✓ visible en reservas finalizadas
+
+## [2.8.5] - 2026-03-10
+### Added
+- Globito negro en día check-in con inicial del huésped + conteo personas + mascotas
+
+## [2.8.4] - 2026-03-10
+### Fixed
+- Guardar campos huéspedes, mascotas, notas y horas en base de datos
+
+## [2.8.3] - 2026-03-10
+### Fixed
+- Mostrar siempre iconos 👤👶🐾 con cantidades en ticket de reserva
+
+## [2.8.0] - 2026-03-10
+### Added
+- Campos de huéspedes: adultos, niños y mascotas en reservas
+- Campo nombre del huésped
+- Campos hora de llegada y hora de salida (separados de las fechas)
+- Campo de notas visibles para todos en el calendario
+- Iconos en Calendario de Ocupación: 👤 adultos, 👶 niños, 🐾 mascotas
+- Notas con icono 📝 y estilo destacado amarillo
+- Formulario modal actualizado con nuevos campos
+- APIs actualizadas para guardar/obtener nuevos datos
+
 ## [2.4.49] - 2026-03-09
 ### Fixed
 - Botón Admin con fondo rojo en móvil (!important)

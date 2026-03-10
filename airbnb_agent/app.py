@@ -259,7 +259,14 @@ def api_reserva_por_fecha(fecha):
             "summary": reserva.get('summary', ''),
             "reservation_url": reserva.get('reservation_url', ''),
             "readonly": reserva.get('readonly', False),
-            "source": reserva.get('source', '')
+            "source": reserva.get('source', ''),
+            "hora_checkin": reserva.get('hora_checkin', ''),
+            "hora_checkout": reserva.get('hora_checkout', ''),
+            "nombre_huesped": reserva.get('nombre_huesped', ''),
+            "adultos": reserva.get('adultos', 0),
+            "ninos": reserva.get('ninos', 0),
+            "mascotas": reserva.get('mascotas', 0),
+            "notas": reserva.get('notas', '')
         })
     return jsonify({"found": False, "fecha": fecha})
 
@@ -277,7 +284,14 @@ def api_guardar_reserva():
         'summary': data.get('summary', ''),
         'reservation_url': data.get('reservation_url') or None,
         'readonly': data.get('readonly', False),
-        'source': 'admin'
+        'source': 'admin',
+        'hora_checkin': data.get('hora_checkin', ''),
+        'hora_checkout': data.get('hora_checkout', ''),
+        'nombre_huesped': data.get('nombre_huesped', ''),
+        'adultos': data.get('adultos', 0),
+        'ninos': data.get('ninos', 0),
+        'mascotas': data.get('mascotas', 0),
+        'notas': data.get('notas', '')
     }
     
     if datos['event_start'] >= datos['event_end']:
