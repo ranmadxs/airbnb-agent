@@ -104,11 +104,14 @@ class AirbnbCalendarService:
         }
     
     def get_stats(self, events: list = None) -> dict:
-        """Calcula estadísticas del calendario."""
+        """Calcula estadísticas del calendario (solo reservas, no bloqueos)."""
         from datetime import timedelta
         
         if events is None:
             events = self.cached_events
+        
+        # Filtrar solo reservas (no bloqueos ni eliminados)
+        reservas = [e for e in events if e.get('estado') == 'reservado']
         
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         next_30_days = today + timedelta(days=30)
@@ -116,13 +119,15 @@ class AirbnbCalendarService:
         total_reserved_days = 0
         upcoming_reservations = 0
         
-        for event in events:
+        for event in reservas:
             start = datetime.strptime(event['start'], '%Y-%m-%d')
             end = datetime.strptime(event['end'], '%Y-%m-%d')
             
-            if start >= today:
+            # Próximas = check-in en el futuro
+            if start > today:
                 upcoming_reservations += 1
             
+            # Ocupación próximos 30 días
             if start <= next_30_days and end >= today:
                 overlap_start = max(start, today)
                 overlap_end = min(end, next_30_days)
@@ -131,7 +136,7 @@ class AirbnbCalendarService:
         ocupacion = round((total_reserved_days / 30) * 100) if total_reserved_days else 0
         
         return {
-            'total_reservations': len(events),
+            'total_reservations': len(reservas),
             'upcoming_reservations': upcoming_reservations,
             'reserved_days_30': total_reserved_days,
             'ocupacion_30': ocupacion

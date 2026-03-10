@@ -754,6 +754,13 @@ header {
     color: var(--airbnb-dark);
 }
 
+.time-value {
+    font-size: 0.85em;
+    font-weight: 500;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
 .date-arrow {
     font-size: 1.8em;
     color: var(--airbnb-red);

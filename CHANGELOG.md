@@ -2,6 +2,19 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.8.20] - 2026-03-10
+### Fixed
+- Sello "Próxima Estadía" solo en la primera reserva futura (no todas)
+
+## [2.8.19] - 2026-03-10
+### Added
+- Mostrar hora de check-in y check-out con 🕐 en tarjetas de reserva
+
+## [2.8.18] - 2026-03-10
+### Fixed
+- Stats solo cuentan reservas (no bloqueos ni eliminados)
+- Total y Próximas ahora muestran solo reservas reales
+
 ## [2.8.17] - 2026-03-10
 ### Fixed
 - Bloqueos no deben mostrar "en curso" (verde) - solo reservas

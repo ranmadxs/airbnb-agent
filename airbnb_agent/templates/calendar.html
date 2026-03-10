@@ -123,6 +123,7 @@
                 </div>
                 <div class="reservations-list" id="reservations-list">
                     {% if events %}
+                        {% set ns = namespace(found_next=false) %}
                         {% for event in events|sort(attribute='start') %}
                             {% set is_reservation = event.estado == 'reservado' %}
                             {% set is_deleted = event.estado == 'eliminado' %}
@@ -130,8 +131,10 @@
                             {% set is_past = event.end <= today %}
                             {% set is_finished = is_past or has_checkout %}
                             {% set is_in_progress = event.start <= today and event.end > today and not has_checkout and is_reservation %}
-                            {% set is_upcoming = event.start > today and is_reservation %}
-                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }}" 
+                            {% set is_upcoming = event.start > today and is_reservation and not is_deleted %}
+                            {% set is_next = is_upcoming and not ns.found_next %}
+                            {% if is_next %}{% set ns.found_next = true %}{% endif %}
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }}" 
                                  data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}">
                                 
                                 {% if is_finished and is_reservation %}
@@ -141,7 +144,7 @@
                                 </div>
                                 {% endif %}
                                 
-                                {% if is_upcoming and not is_deleted %}
+                                {% if is_next %}
                                 <div class="upcoming-stamp">
                                     <span class="stamp-text">PRÓXIMA<br>ESTADÍA</span>
                                     <span class="stamp-icon">⚠</span>
@@ -176,11 +179,17 @@
                                     <div class="date-block">
                                         <span class="date-label">{% if is_reservation %}Check-in{% else %}Desde{% endif %}</span>
                                         <span class="date-value">{{ event.start }}</span>
+                                        {% if is_reservation and event.hora_checkin %}
+                                        <span class="time-value">🕐 {{ event.hora_checkin }}</span>
+                                        {% endif %}
                                     </div>
                                     <span class="date-arrow">→</span>
                                     <div class="date-block">
                                         <span class="date-label">{% if is_reservation %}Check-out{% else %}Hasta{% endif %}</span>
                                         <span class="date-value">{{ event.end }}</span>
+                                        {% if is_reservation and event.hora_checkout %}
+                                        <span class="time-value">🕐 {{ event.hora_checkout }}</span>
+                                        {% endif %}
                                     </div>
                                 </div>
                                 {% if is_reservation %}
