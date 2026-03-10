@@ -2,6 +2,282 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.27.0] - 2026-03-10
+### Added
+- Nueva API `/api/promedio-anual` que calcula el promedio en el servidor
+- Simplificado JavaScript: ahora solo llama a la API
+
+### Fixed
+- Promedio del año ahora es FIJO basado en la fecha de HOY
+- Incluye: diciembre año anterior + meses cerrados hasta HOY
+- No cambia al navegar entre meses
+- Var. YTD compara el mes VISIBLE vs el promedio fijo
+
+## [2.26.0] - 2026-03-10
+### Fixed
+- Promedio del año ahora es FIJO basado en la fecha de HOY, no el mes visible
+- No importa qué mes navegues, el promedio siempre es el mismo
+- Incluye: diciembre año anterior + meses cerrados hasta HOY
+- Var. YTD compara el mes VISIBLE vs el promedio fijo
+
+## [2.25.9] - 2026-03-10
+### Fixed
+- Corregido API `/api/month` para incluir eventos del mes
+- Ahora devuelve las reservas que tocan cada mes (para calcular promedio anual)
+- El promedio del año ahora se calcula correctamente con los eventos de cada mes
+
+## [2.25.7] - 2026-03-10
+### Fixed
+- Corregido cálculo de ingresos para meses anteriores
+- Ahora usa cálculo proporcional igual que el mes actual
+- Corregido nombre de campo: `extra_valor` en lugar de `precio_extra`
+- Agregado logging para debug de rentabilidad
+
+## [2.25.6] - 2026-03-10
+### Fixed
+- Corregido error "rentabilidadMes is not defined" en consola
+- Actualizado log de debug con variables correctas (roi, margen, promedioROI)
+
+## [2.25.5] - 2026-03-10
+### Changed
+- Renombrado "% del año" a "Var. YTD" (Variación Year-To-Date)
+- Nueva fórmula: (Ingreso mes - Promedio año) / Promedio año × 100
+- Muestra si el mes está por encima (+%) o debajo (-%) del promedio histórico
+- Tooltip detallado con valores comparados
+
+## [2.25.4] - 2026-03-10
+### Fixed
+- Corregido cálculo del promedio del año: ahora excluye el mes actual
+- El promedio se calcula solo con los meses anteriores cerrados
+- Tooltip muestra cantidad de meses usados para el cálculo
+
+## [2.25.3] - 2026-03-10
+### Changed
+- Estrellas ahora se calculan con 50% en lugar de 75%
+- 1⭐ por cada 50% que los ingresos superan a los gastos
+- Ejemplos: 50% sobre = 1⭐, 100% sobre = 2⭐, 150% sobre = 3⭐
+
+## [2.25.2] - 2026-03-10
+### Changed
+- Widget de Rentabilidad ahora muestra DOS métricas:
+  - **ROI**: (Ingresos - Gastos) / Gastos × 100
+  - **Margen**: (Ingresos - Gastos) / Ingresos × 100
+- "Prom. Año" ahora muestra el promedio de ingresos acumulado del año
+- Flecha de tendencia basada en comparación de ROI vs promedio histórico
+
+## [2.25.1] - 2026-03-10
+### Fixed
+- Corregido cálculo de rentabilidad anual con mejor manejo de errores
+- Las llamadas a la API ahora se hacen en paralelo para mayor velocidad
+- Agregada validación de respuestas antes de procesar datos
+- Log de debug para verificar cálculos de rentabilidad
+
+## [2.25.0] - 2026-03-10
+### Added
+- Nuevo widget de Rentabilidad debajo del Total del Mes
+- Muestra rentabilidad porcentual del mes actual
+- Flecha de tendencia: ↑ si supera el promedio del año, ↓ si está por debajo
+- Comparación "vs Promedio año" con diferencia porcentual
+- Porcentaje que representa el mes respecto al balance anual total
+- Carga automática de datos históricos del año para calcular promedios
+
+## [2.24.3] - 2026-03-10
+### Changed
+- Nueva fórmula de estrellas: 1 estrella por cada 75% sobre los gastos
+- Ejemplos: 75% sobre = 1⭐, 150% sobre = 2⭐, 225% sobre = 3⭐
+- Tooltip actualizado para mostrar el porcentaje sobre gastos
+
+## [2.24.2] - 2026-03-10
+### Added
+- Icono "+" en cada widget de gasto para indicar que es clickeable
+- El icono se agranda al pasar el mouse por encima
+- Mejor UX para abrir los modales de gastos
+
+## [2.24.1] - 2026-03-10
+### Fixed
+- Vista móvil: widgets de Ingresos, Gastos y Total ahora se apilan verticalmente
+- Estilos responsivos para los grupos de widgets en pantallas pequeñas
+- Ajustado tamaño de fuentes e iconos para móvil
+
+## [2.24.0] - 2026-03-10
+### Added
+- Nuevo widget "Gastos" en rojo que agrupa Agua, Internet, Gasolina y Aseo
+- Layout 2x2 para gastos (2 filas x 2 columnas)
+- Layout 1x2 para ingresos (1 fila x 2 columnas)
+- Los widgets de gastos son clickeables para abrir sus modales
+- Total de gastos sumado en el header del widget
+- Colores pastel: azul claro para ingresos, rojo claro para gastos
+
+## [2.23.0] - 2026-03-10
+### Added
+- Nuevo contenedor "Ingresos" en azul que agrupa Arriendo y Tinaja
+- El contenedor muestra el total sumado de ambos ingresos
+- Diseño compacto con widgets mini dentro del contenedor
+
+## [2.22.7] - 2026-03-10
+### Fixed
+- Restaurado soporte para checkout + checkin en el mismo día (franja negra + azul)
+- El día de checkout ya no recibe clase 'reserved' para evitar conflictos CSS
+- Agregado !important al CSS de checkin.checkout-day para mantener prioridad
+
+## [2.22.6] - 2026-03-10
+### Fixed
+- Corregido borde redondeado del checkout: ahora se ve la colita negra con borde redondeado al final
+- El CSS de checkout-day ahora tiene prioridad sobre reserved (usando !important)
+- Funciona correctamente para días 9 y 13 de marzo
+
+## [2.22.5] - 2026-03-10
+### Fixed
+- Quitado globito duplicado en día de checkout (el nombre solo aparece en el día de inicio)
+- Las franjas azul/negro siguen mostrándose correctamente cuando checkout + checkin coinciden
+
+## [2.22.4] - 2026-03-10
+### Fixed
+- Corregido bug de franjas: cuando una reserva termina y otra empieza el mismo día ahora se ven AMBAS franjas
+- Franja negra (checkout) a la izquierda + franja azul (checkin) a la derecha en el mismo día
+- Usado ::before para checkout y ::after para checkin cuando coinciden
+- Agregado soporte responsive para el mismo caso
+
+## [2.22.3] - 2026-03-10
+### Fixed
+- Ahora se muestran AMBOS globitos cuando una reserva termina y otra empieza el mismo día
+- El día de checkout muestra el globito de la reserva que termina (apilado con el que empieza)
+- Soporta visualización de checkin + checkout simultáneo en el mismo día
+
+## [2.22.2] - 2026-03-10
+### Fixed
+- Corregido bug visual: el día de checkout ya no muestra globitos de nombre/precio duplicados
+- Ahora el checkout cuenta como día ocupado pero sin mostrar globitos (excepto reservas de 1 día)
+- Arreglado solapamiento de "Franco ign +1" cuando una reserva termina y otra empieza el mismo día
+
+## [2.22.1] - 2026-03-10
+### Fixed
+- Corregido cálculo de estrellas: ahora ratio 2.77x = 2 estrellas (antes daba 1)
+- Fórmula: estrellas = floor(ingresos/gastos), no floor(ratio)-1
+
+## [2.22.0] - 2026-03-10
+### Added
+- Widget de gastos de Aseo (🧹) color violeta
+- Modal para registrar gastos de aseo (limpieza, limpieza profunda)
+- Historial de gastos de aseo por mes
+- Selector de proveedor tipo "aseo" en modal
+- API /api/gastos/aseo (GET, POST)
+- Colección gastos_aseo en MongoDB
+- Proveedores Severina y Hortencia Oyanedel (tipo aseo)
+- Gastos de aseo incluidos en cálculo de Total del Mes
+- Icono 🧹 en calendario para días con gastos de aseo
+
+## [2.20.5] - 2026-03-10
+### Changed
+- Estrellas sin límite máximo (antes máximo 5)
+
+## [2.20.4] - 2026-03-10
+### Added
+- Estrellas ⭐ en widget Total del Mes por cada 100% que ingresos superan gastos
+- 1 estrella = 2x gastos, 2 estrellas = 3x gastos, etc.
+
+## [2.20.2] - 2026-03-10
+### Fixed
+- Globitos de precio y nombres ahora se apilan verticalmente cuando hay múltiples reservas el mismo día
+- Corregido solapamiento visual cuando una reserva termina y otra empieza el mismo día
+
+## [2.20.1] - 2026-03-10
+### Added
+- Iconos de gastos en las casillas del calendario
+- 💧 Agua (izquierda), 📡 Internet (centro), ⛽ Gasolina (derecha)
+- Tooltip muestra tipo de gasto y valor al pasar el mouse
+- Solo visible para admin
+
+## [2.20.0] - 2026-03-10
+### Added
+- Widget "Total del Mes" que suma ingresos (arriendo + tinaja) menos gastos (agua + internet + gasolina)
+- Widget más grande y visible que los demás
+- Colores dinámicos según ratio ingresos/gastos:
+  - 🔵 Azul: ingresos >= 2x gastos (excelente)
+  - 🟢 Verde: ingresos >= 1.5x gastos (bueno)
+  - 🟡 Amarillo: ingresos >= gastos (equilibrado)
+  - 🔴 Rojo: ingresos < gastos (déficit)
+
+## [2.19.2] - 2026-03-10
+### Changed
+- El día de checkout ahora cuenta como día ocupado (no se puede reservar ese día)
+- Cálculo de días incluye checkout: reserva 30/12 al 01/01 = 3 días (30, 31 dic y 01 ene)
+- Proporciones corregidas: el globito en enero muestra 1/3 del precio
+
+## [2.19.1] - 2026-03-10
+### Fixed
+- Corregido cálculo de globitos proporcionales: ahora siempre muestra valor proporcional cuando reserva cruza meses
+- Antes mostraba precio completo en el primer día incluso si cruzaba meses
+
+## [2.19.0] - 2026-03-10
+### Added
+- Widget de gastos de Gasolina (negro petróleo) con icono ⛽
+- Modal para registrar gastos de gasolina (combustible, aceite, mantención)
+- Historial de gastos de gasolina por mes en el modal
+- Selector de proveedor tipo "gasolinera" en modal
+- API /api/gastos/gasolina (GET, POST)
+- Colección gastos_gasolina en MongoDB
+- Proveedor Shell (Gasolina 93 octanos)
+- 11 gastos de gasolina para viajes checkin-checkout
+
+## [2.18.0] - 2026-03-10
+### Changed
+- Ingresos de reservas que cruzan meses ahora se prorratean según días ocupados en cada mes
+- Globitos de precio/extra muestran valor proporcional cuando la reserva viene de mes anterior
+- Globitos proporcionales tienen estilo distintivo (borde punteado, itálica)
+- Tooltip en globitos muestra proporción de días (ej: "Proporcional: 3/7 días")
+
+## [2.17.0] - 2026-03-10
+### Added
+- Widget de gastos de Internet (gris) debajo del de Agua
+- Modal para registrar gastos de internet (razón, nombre, tipo, fecha pago, valor, whatsapp, estado)
+- Historial de gastos de internet por mes en el modal
+- Selector de proveedor tipo "internet" en modal
+- API /api/gastos/internet (GET, POST)
+- Colección gastos_internet en MongoDB
+- Proveedor Starlink (Internet Satelital)
+
+## [2.16.0] - 2026-03-10
+### Added
+- Colección de proveedores en MongoDB
+- Selector de proveedor en modal de gastos de agua
+- API para obtener y guardar proveedores
+- Proveedor Wilson Fuenzalida (H2O terreno costa) con datos bancarios
+- Gasto de agua $50.000 del 15/12/2025
+
+## [2.15.0] - 2026-03-10
+### Added
+- Widget de gastos de Agua con botón + para agregar
+- Modal para registrar gastos de agua (razón, nombre, tipo, fecha pago, valor, whatsapp, estado)
+- Historial de gastos de agua por mes en el modal
+- Colección gastos_agua en MongoDB
+
+## [2.13.0] - 2026-03-10
+### Changed
+- Widgets de ingresos movidos al lado izquierdo del calendario (desktop)
+- Vista mobile: widgets debajo del calendario en fila
+- Corregido cálculo de ocupación (solo reservas, no bloqueos)
+
+## [2.12.0] - 2026-03-10
+### Added
+- Widgets de ingresos mensuales (Arriendo y Tinaja) solo para admin
+- Campos comuna y país en modal de edición
+
+## [2.11.0] - 2026-03-10
+### Added
+- Globito azul debajo del verde para reservas de 1 día
+
+## [2.10.0] - 2026-03-10
+### Added
+- Campo extra con concepto y valor en modal de edición
+- Globito verde para precio, globito azul para extra en calendario (admin)
+- Precio y extra mostrados separados en cards de ocupación
+- Valentina con precio $150.431 + Tinaja $20.000
+
+## [2.9.1] - 2026-03-10
+### Added
+- Globito de precio en calendario (solo admin visible)
+
 ## [2.8.25] - 2026-03-10
 ### Added
 - Mostrar precio en cards con formato $XXX.XXX [CLP]

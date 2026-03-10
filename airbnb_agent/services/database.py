@@ -17,6 +17,7 @@ class DatabaseService:
     def __init__(self):
         self.uri = MONGODB_URI
         self.client = None
+        self.db = None
         self.reservas = None
         self.dias = None
         self.connected = False
@@ -42,9 +43,9 @@ class DatabaseService:
             self.client.admin.command('ping')
             
             if self.reservas is None:
-                db = self.client["airbnb-db"]
-                self.reservas = db["reservas"]
-                self.dias = db["dias"]
+                self.db = self.client["airbnb-db"]
+                self.reservas = self.db["reservas"]
+                self.dias = self.db["dias"]
                 
                 # Crear índices
                 self.reservas.create_index([("event_start", 1), ("event_end", 1)], unique=True)
@@ -398,7 +399,11 @@ class DatabaseService:
                     "ninos": doc.get("ninos", 0),
                     "mascotas": doc.get("mascotas", 0),
                     "notas": doc.get("notas", ""),
-                    "precio": doc.get("precio", 0)
+                    "precio": doc.get("precio", 0),
+                    "extra_concepto": doc.get("extra_concepto", ""),
+                    "extra_valor": doc.get("extra_valor", 0),
+                    "comuna": doc.get("comuna", ""),
+                    "pais": doc.get("pais", "")
                 })
             
             return eventos
@@ -480,6 +485,10 @@ class DatabaseService:
                 "mascotas": datos.get('mascotas', 0),
                 "notas": datos.get('notas', ''),
                 "precio": datos.get('precio', 0),
+                "extra_concepto": datos.get('extra_concepto', ''),
+                "extra_valor": datos.get('extra_valor', 0),
+                "comuna": datos.get('comuna', ''),
+                "pais": datos.get('pais', ''),
                 "updated_at": datetime.utcnow(),
                 "user_origin": audit.get("user_origin", "admin"),
                 "user_agent": audit.get("user_agent", "admin")
@@ -682,6 +691,332 @@ class DatabaseService:
             return {"success": result.modified_count > 0}
         except Exception as e:
             print(f"❌ Error registrando checkout: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # ============================================================
+    # GASTOS DE AGUA
+    # ============================================================
+    
+    def obtener_gastos_agua(self, year: int, month: int) -> list:
+        """Obtiene gastos de agua del mes especificado."""
+        if not self.connect():
+            return []
+        
+        try:
+            # Buscar por año y mes de fecha_pago
+            inicio_mes = f"{year}-{str(month).zfill(2)}-01"
+            if month == 12:
+                fin_mes = f"{year + 1}-01-01"
+            else:
+                fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
+            
+            cursor = self.db.gastos_agua.find({
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+            }).sort('fecha_pago', -1)
+            
+            gastos = []
+            for doc in cursor:
+                gastos.append({
+                    'id': str(doc.get('_id')),
+                    'razon': doc.get('razon', ''),
+                    'nombre': doc.get('nombre', ''),
+                    'tipo': doc.get('tipo', ''),
+                    'fecha_pago': doc.get('fecha_pago', ''),
+                    'fecha_creacion': doc.get('fecha_creacion', ''),
+                    'valor': doc.get('valor', 0),
+                    'descripcion': doc.get('descripcion', ''),
+                    'whatsapp': doc.get('whatsapp', ''),
+                    'pagado': doc.get('pagado', True)
+                })
+            
+            return gastos
+        except Exception as e:
+            print(f"❌ Error obteniendo gastos agua: {e}")
+            return []
+    
+    def guardar_gasto_agua(self, gasto: dict) -> dict:
+        """Guarda un nuevo gasto de agua."""
+        if not self.connect():
+            return {"success": False, "error": "No se pudo conectar a la base de datos"}
+        
+        try:
+            doc = {
+                'razon': gasto.get('razon', ''),
+                'nombre': gasto.get('nombre', ''),
+                'tipo': gasto.get('tipo', 'consumo'),
+                'fecha_pago': gasto.get('fecha_pago', ''),
+                'fecha_creacion': datetime.utcnow().isoformat(),
+                'valor': gasto.get('valor', 0),
+                'descripcion': gasto.get('descripcion', ''),
+                'whatsapp': gasto.get('whatsapp', ''),
+                'pagado': gasto.get('pagado', True),
+                'proveedor_id': gasto.get('proveedor_id', '')
+            }
+            
+            result = self.db.gastos_agua.insert_one(doc)
+            
+            return {"success": result.inserted_id is not None, "id": str(result.inserted_id)}
+        except Exception as e:
+            print(f"❌ Error guardando gasto agua: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # ============================================================
+    # GASTOS DE INTERNET
+    # ============================================================
+    
+    def obtener_gastos_internet(self, year: int, month: int) -> list:
+        """Obtiene gastos de internet del mes especificado."""
+        if not self.connect():
+            return []
+        
+        try:
+            inicio_mes = f"{year}-{str(month).zfill(2)}-01"
+            if month == 12:
+                fin_mes = f"{year + 1}-01-01"
+            else:
+                fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
+            
+            cursor = self.db.gastos_internet.find({
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+            }).sort('fecha_pago', -1)
+            
+            gastos = []
+            for doc in cursor:
+                gastos.append({
+                    'id': str(doc.get('_id')),
+                    'razon': doc.get('razon', ''),
+                    'nombre': doc.get('nombre', ''),
+                    'tipo': doc.get('tipo', ''),
+                    'fecha_pago': doc.get('fecha_pago', ''),
+                    'fecha_creacion': doc.get('fecha_creacion', ''),
+                    'valor': doc.get('valor', 0),
+                    'descripcion': doc.get('descripcion', ''),
+                    'whatsapp': doc.get('whatsapp', ''),
+                    'pagado': doc.get('pagado', True)
+                })
+            
+            return gastos
+        except Exception as e:
+            print(f"❌ Error obteniendo gastos internet: {e}")
+            return []
+    
+    def guardar_gasto_internet(self, gasto: dict) -> dict:
+        """Guarda un nuevo gasto de internet."""
+        if not self.connect():
+            return {"success": False, "error": "No se pudo conectar a la base de datos"}
+        
+        try:
+            doc = {
+                'razon': gasto.get('razon', ''),
+                'nombre': gasto.get('nombre', ''),
+                'tipo': gasto.get('tipo', 'mensualidad'),
+                'fecha_pago': gasto.get('fecha_pago', ''),
+                'fecha_creacion': datetime.utcnow().isoformat(),
+                'valor': gasto.get('valor', 0),
+                'descripcion': gasto.get('descripcion', ''),
+                'whatsapp': gasto.get('whatsapp', ''),
+                'pagado': gasto.get('pagado', True),
+                'proveedor_id': gasto.get('proveedor_id', '')
+            }
+            
+            result = self.db.gastos_internet.insert_one(doc)
+            
+            return {"success": result.inserted_id is not None, "id": str(result.inserted_id)}
+        except Exception as e:
+            print(f"❌ Error guardando gasto internet: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # ============================================================
+    # GASTOS DE GASOLINA
+    # ============================================================
+    
+    def obtener_gastos_gasolina(self, year: int, month: int) -> list:
+        """Obtiene gastos de gasolina del mes especificado."""
+        if not self.connect():
+            return []
+        
+        try:
+            inicio_mes = f"{year}-{str(month).zfill(2)}-01"
+            if month == 12:
+                fin_mes = f"{year + 1}-01-01"
+            else:
+                fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
+            
+            cursor = self.db.gastos_gasolina.find({
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+            }).sort('fecha_pago', -1)
+            
+            gastos = []
+            for doc in cursor:
+                gastos.append({
+                    'id': str(doc.get('_id')),
+                    'razon': doc.get('razon', ''),
+                    'nombre': doc.get('nombre', ''),
+                    'tipo': doc.get('tipo', ''),
+                    'fecha_pago': doc.get('fecha_pago', ''),
+                    'fecha_creacion': doc.get('fecha_creacion', ''),
+                    'valor': doc.get('valor', 0),
+                    'descripcion': doc.get('descripcion', ''),
+                    'whatsapp': doc.get('whatsapp', ''),
+                    'pagado': doc.get('pagado', True)
+                })
+            
+            return gastos
+        except Exception as e:
+            print(f"❌ Error obteniendo gastos gasolina: {e}")
+            return []
+    
+    def guardar_gasto_gasolina(self, gasto: dict) -> dict:
+        """Guarda un nuevo gasto de gasolina."""
+        if not self.connect():
+            return {"success": False, "error": "No se pudo conectar a la base de datos"}
+        
+        try:
+            doc = {
+                'razon': gasto.get('razon', ''),
+                'nombre': gasto.get('nombre', ''),
+                'tipo': gasto.get('tipo', 'combustible'),
+                'fecha_pago': gasto.get('fecha_pago', ''),
+                'fecha_creacion': datetime.utcnow().isoformat(),
+                'valor': gasto.get('valor', 0),
+                'descripcion': gasto.get('descripcion', ''),
+                'whatsapp': gasto.get('whatsapp', ''),
+                'pagado': gasto.get('pagado', True),
+                'proveedor_id': gasto.get('proveedor_id', '')
+            }
+            
+            result = self.db.gastos_gasolina.insert_one(doc)
+            
+            return {"success": result.inserted_id is not None, "id": str(result.inserted_id)}
+        except Exception as e:
+            print(f"❌ Error guardando gasto gasolina: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # ============================================================
+    # GASTOS DE ASEO
+    # ============================================================
+    
+    def obtener_gastos_aseo(self, year: int, month: int) -> list:
+        """Obtiene gastos de aseo del mes especificado."""
+        if not self.connect():
+            return []
+        
+        try:
+            inicio_mes = f"{year}-{str(month).zfill(2)}-01"
+            if month == 12:
+                fin_mes = f"{year + 1}-01-01"
+            else:
+                fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
+            
+            cursor = self.db.gastos_aseo.find({
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+            }).sort('fecha_pago', -1)
+            
+            gastos = []
+            for doc in cursor:
+                gastos.append({
+                    'id': str(doc.get('_id')),
+                    'razon': doc.get('razon', ''),
+                    'nombre': doc.get('nombre', ''),
+                    'tipo': doc.get('tipo', ''),
+                    'fecha_pago': doc.get('fecha_pago', ''),
+                    'fecha_creacion': doc.get('fecha_creacion', ''),
+                    'valor': doc.get('valor', 0),
+                    'descripcion': doc.get('descripcion', ''),
+                    'whatsapp': doc.get('whatsapp', ''),
+                    'pagado': doc.get('pagado', True)
+                })
+            
+            return gastos
+        except Exception as e:
+            print(f"❌ Error obteniendo gastos aseo: {e}")
+            return []
+    
+    def guardar_gasto_aseo(self, gasto: dict) -> dict:
+        """Guarda un nuevo gasto de aseo."""
+        if not self.connect():
+            return {"success": False, "error": "No se pudo conectar a la base de datos"}
+        
+        try:
+            doc = {
+                'razon': gasto.get('razon', ''),
+                'nombre': gasto.get('nombre', ''),
+                'tipo': gasto.get('tipo', 'limpieza'),
+                'fecha_pago': gasto.get('fecha_pago', ''),
+                'fecha_creacion': datetime.utcnow().isoformat(),
+                'valor': gasto.get('valor', 0),
+                'descripcion': gasto.get('descripcion', ''),
+                'whatsapp': gasto.get('whatsapp', ''),
+                'pagado': gasto.get('pagado', True),
+                'proveedor_id': gasto.get('proveedor_id', '')
+            }
+            
+            result = self.db.gastos_aseo.insert_one(doc)
+            
+            return {"success": result.inserted_id is not None, "id": str(result.inserted_id)}
+        except Exception as e:
+            print(f"❌ Error guardando gasto aseo: {e}")
+            return {"success": False, "error": str(e)}
+    
+    # ============================================================
+    # PROVEEDORES
+    # ============================================================
+    
+    def obtener_proveedores(self, tipo: str = None) -> list:
+        """Obtiene lista de proveedores, opcionalmente filtrado por tipo."""
+        if not self.connect():
+            return []
+        
+        try:
+            filtro = {}
+            if tipo:
+                filtro['tipo'] = tipo
+            
+            cursor = self.db.proveedores.find(filtro).sort('nombre', 1)
+            
+            proveedores = []
+            for doc in cursor:
+                proveedores.append({
+                    'id': str(doc.get('_id')),
+                    'nombre': doc.get('nombre', ''),
+                    'servicio': doc.get('servicio', ''),
+                    'tipo': doc.get('tipo', ''),
+                    'banco': doc.get('banco', ''),
+                    'rut': doc.get('rut', ''),
+                    'tipo_cuenta': doc.get('tipo_cuenta', ''),
+                    'numero_cuenta': doc.get('numero_cuenta', ''),
+                    'email': doc.get('email', ''),
+                    'whatsapp': doc.get('whatsapp', '')
+                })
+            
+            return proveedores
+        except Exception as e:
+            print(f"❌ Error obteniendo proveedores: {e}")
+            return []
+    
+    def guardar_proveedor(self, proveedor: dict) -> dict:
+        """Guarda un nuevo proveedor."""
+        if not self.connect():
+            return {"success": False, "error": "No se pudo conectar"}
+        
+        try:
+            doc = {
+                'nombre': proveedor.get('nombre', ''),
+                'servicio': proveedor.get('servicio', ''),
+                'tipo': proveedor.get('tipo', ''),
+                'banco': proveedor.get('banco', ''),
+                'rut': proveedor.get('rut', ''),
+                'tipo_cuenta': proveedor.get('tipo_cuenta', ''),
+                'numero_cuenta': proveedor.get('numero_cuenta', ''),
+                'email': proveedor.get('email', ''),
+                'whatsapp': proveedor.get('whatsapp', ''),
+                'fecha_creacion': datetime.utcnow().isoformat()
+            }
+            
+            result = self.db.proveedores.insert_one(doc)
+            return {"success": True, "id": str(result.inserted_id)}
+        except Exception as e:
+            print(f"❌ Error guardando proveedor: {e}")
             return {"success": False, "error": str(e)}
 
 

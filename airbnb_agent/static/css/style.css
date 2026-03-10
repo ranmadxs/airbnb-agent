@@ -220,6 +220,689 @@ header {
     color: rgba(255,255,255,0.9);
 }
 
+/* Calendar Layout con sidebar */
+.calendar-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+/* Income Widgets Sidebar (Admin) - Lado izquierdo */
+.income-widgets-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 180px;
+}
+
+.income-widget {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    padding: 16px 20px;
+    box-shadow: var(--shadow);
+    border: 2px solid transparent;
+}
+
+/* Grupo de Ingresos/Gastos (contenedores) */
+.income-group {
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: var(--shadow);
+    margin-bottom: 8px;
+}
+
+.income-group.ingresos {
+    background: linear-gradient(135deg, #93C5FD 0%, #60A5FA 100%);
+    border: 2px solid #3B82F6;
+}
+
+.income-group.gastos {
+    background: linear-gradient(135deg, #FCA5A5 0%, #F87171 100%);
+    border: 2px solid #DC2626;
+}
+
+.income-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.4);
+    margin-bottom: 10px;
+}
+
+.income-group-icon {
+    font-size: 1.2em;
+}
+
+.income-group-title {
+    font-size: 1em;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    flex: 1;
+}
+
+.income-group-total {
+    font-size: 1.3em;
+    font-weight: 800;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Layouts de grid */
+.income-group-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.income-group-items.grid-1x2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.income-group-items.grid-2x2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
+}
+
+/* Widget mini de ingresos */
+.income-widget-mini {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 10px;
+    padding: 8px 12px;
+}
+
+.income-widget-mini .income-icon {
+    font-size: 1em;
+}
+
+.income-widget-mini .income-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.income-widget-mini .income-value {
+    font-size: 0.95em;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.income-widget-mini .income-label {
+    font-size: 0.65em;
+    color: rgba(255,255,255,0.9);
+}
+
+/* Widget mini de gastos */
+.expense-widget-mini {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 10px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.expense-widget-mini:hover {
+    background: rgba(255,255,255,0.4);
+}
+
+.expense-widget-mini .expense-icon {
+    font-size: 0.9em;
+}
+
+.expense-widget-mini .expense-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.expense-widget-mini .expense-value {
+    font-size: 0.85em;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.expense-widget-mini .expense-label {
+    font-size: 0.6em;
+    color: rgba(255,255,255,0.9);
+}
+
+.expense-add-icon {
+    font-size: 1em;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.2);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.expense-widget-mini:hover .expense-add-icon {
+    background: rgba(255,255,255,0.4);
+    color: white;
+    transform: scale(1.1);
+}
+
+.income-widget.arriendo {
+    border-color: #059669;
+    background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%);
+}
+
+.income-widget.tinaja {
+    border-color: #2563eb;
+    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+}
+
+.income-widget.agua {
+    border-color: #dc2626;
+    background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+}
+
+.income-widget.internet {
+    border-color: #6b7280;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+}
+
+.income-widget.gasolina {
+    border-color: #1f2937;
+    background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+}
+
+.income-widget.gasolina .income-icon,
+.income-widget.gasolina .income-label {
+    color: #d1d5db;
+}
+
+/* Widget Total del Mes - más grande y visible */
+.income-widget.total-mes {
+    border-width: 3px;
+    padding: 20px 24px;
+    margin-top: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.income-widget.total-mes .income-icon {
+    font-size: 2.2em;
+}
+
+.income-widget.total-mes .income-value {
+    font-size: 1.6em;
+    font-weight: 800;
+}
+
+.income-widget.total-mes .income-label {
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.income-widget.total-mes .income-estrellas {
+    display: block;
+    font-size: 1em;
+    margin-top: 4px;
+    letter-spacing: 2px;
+}
+
+/* Colores del widget Total según ratio ingresos/gastos */
+.income-widget.total-mes.total-azul {
+    border-color: #1d4ed8;
+    background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+}
+
+.income-widget.total-mes.total-azul .income-icon,
+.income-widget.total-mes.total-azul .income-value,
+.income-widget.total-mes.total-azul .income-label {
+    color: white;
+}
+
+.income-widget.total-mes.total-verde {
+    border-color: #059669;
+    background: linear-gradient(135deg, #047857 0%, #059669 100%);
+}
+
+.income-widget.total-mes.total-verde .income-icon,
+.income-widget.total-mes.total-verde .income-value,
+.income-widget.total-mes.total-verde .income-label {
+    color: white;
+}
+
+.income-widget.total-mes.total-amarillo {
+    border-color: #d97706;
+    background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
+}
+
+.income-widget.total-mes.total-amarillo .income-icon,
+.income-widget.total-mes.total-amarillo .income-value,
+.income-widget.total-mes.total-amarillo .income-label {
+    color: white;
+}
+
+.income-widget.total-mes.total-rojo {
+    border-color: #dc2626;
+    background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+}
+
+.income-widget.total-mes.total-rojo .income-icon,
+.income-widget.total-mes.total-rojo .income-value,
+.income-widget.total-mes.total-rojo .income-label {
+    color: white;
+}
+
+/* Widget de Rentabilidad */
+.rentabilidad-widget {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border: 2px solid #94a3b8;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 8px;
+}
+
+.rentabilidad-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+.rentabilidad-icon {
+    font-size: 1em;
+}
+
+.rentabilidad-title {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #475569;
+}
+
+.rentabilidad-metricas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.rentabilidad-metrica {
+    background: rgba(255,255,255,0.5);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+}
+
+.rentabilidad-metrica .metrica-valor {
+    display: block;
+    font-size: 1.2em;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+.rentabilidad-metrica .metrica-label {
+    display: block;
+    font-size: 0.6em;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rentabilidad-flecha {
+    font-size: 1.1em;
+    font-weight: 700;
+    margin-left: auto;
+}
+
+.rentabilidad-flecha.tendencia-up {
+    color: #059669;
+}
+
+.rentabilidad-flecha.tendencia-down {
+    color: #dc2626;
+}
+
+.rentabilidad-flecha.tendencia-neutral {
+    color: #6b7280;
+}
+
+.rentabilidad-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.rentabilidad-stat {
+    background: rgba(255,255,255,0.6);
+    border-radius: 8px;
+    padding: 6px 8px;
+    text-align: center;
+}
+
+.rentabilidad-stat .stat-label {
+    display: block;
+    font-size: 0.6em;
+    color: #64748b;
+    margin-bottom: 2px;
+}
+
+.rentabilidad-stat .stat-value {
+    display: block;
+    font-size: 0.85em;
+    font-weight: 700;
+    color: #334155;
+}
+
+.rentabilidad-stat .stat-value.positive {
+    color: #059669;
+}
+
+.rentabilidad-stat .stat-value.negative {
+    color: #dc2626;
+}
+
+.income-icon {
+    font-size: 1.8em;
+}
+
+.income-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.income-value {
+    font-size: 1.3em;
+    font-weight: 800;
+    color: #1f2937;
+}
+
+.income-widget.arriendo .income-value {
+    color: #059669;
+}
+
+.income-widget.tinaja .income-value {
+    color: #2563eb;
+}
+
+.income-widget.agua .income-value {
+    color: #dc2626;
+}
+
+.income-widget.internet .income-value {
+    color: #4b5563;
+}
+
+.income-widget.gasolina .income-value {
+    color: #fbbf24;
+}
+
+.income-widget.aseo {
+    border-color: #8b5cf6;
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+}
+
+.income-widget.aseo .income-icon,
+.income-widget.aseo .income-label {
+    color: white;
+}
+
+.income-widget.aseo .income-value {
+    color: #fef3c7;
+}
+
+/* Botón + para agregar gastos */
+.add-expense-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #dc2626;
+    background: white;
+    color: #dc2626;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-left: auto;
+}
+
+.add-expense-btn:hover {
+    background: #dc2626;
+    color: white;
+}
+
+.add-expense-btn.internet-btn {
+    border-color: #6b7280;
+    color: #6b7280;
+}
+
+.add-expense-btn.internet-btn:hover {
+    background: #6b7280;
+    color: white;
+}
+
+.add-expense-btn.gasolina-btn {
+    border-color: #fbbf24;
+    color: #fbbf24;
+    background: #1f2937;
+}
+
+.add-expense-btn.gasolina-btn:hover {
+    background: #fbbf24;
+    color: #1f2937;
+}
+
+.add-expense-btn.aseo-btn {
+    border-color: #fef3c7;
+    color: #fef3c7;
+    background: #7c3aed;
+}
+
+.add-expense-btn.aseo-btn:hover {
+    background: #fef3c7;
+    color: #7c3aed;
+}
+
+/* Modal de Agua */
+.modal-agua {
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.agua-historial {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 2px solid #e5e7eb;
+}
+
+.agua-historial h3 {
+    font-size: 1em;
+    margin-bottom: 12px;
+    color: #374151;
+}
+
+.gastos-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.gasto-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border-left: 3px solid #dc2626;
+}
+
+.gasto-item.pendiente {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.gasto-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.gasto-razon {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: #1f2937;
+}
+
+.gasto-fecha {
+    font-size: 0.75em;
+    color: #6b7280;
+}
+
+.gasto-valor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: #dc2626;
+}
+
+.gasto-estado {
+    font-size: 1em;
+}
+
+.gastos-total {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    font-weight: 700;
+}
+
+.total-valor {
+    color: #dc2626;
+    font-size: 1.1em;
+}
+
+.no-data {
+    text-align: center;
+    color: #9ca3af;
+    font-style: italic;
+    padding: 20px;
+}
+
+/* Modal de Internet */
+.modal-internet {
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.internet-historial {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 2px solid #e5e7eb;
+}
+
+.internet-historial h3 {
+    font-size: 1em;
+    margin-bottom: 12px;
+    color: #374151;
+}
+
+.gasto-item.internet-item {
+    border-left-color: #6b7280;
+}
+
+.gasto-item.internet-item.pendiente {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+/* Modal de Gasolina */
+.modal-gasolina {
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.gasolina-historial {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 2px solid #e5e7eb;
+}
+
+.gasolina-historial h3 {
+    font-size: 1em;
+    margin-bottom: 12px;
+    color: #374151;
+}
+
+.gasto-item.gasolina-item {
+    border-left-color: #1f2937;
+}
+
+.gasto-item.gasolina-item.pendiente {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+/* Modal de Aseo */
+.modal-aseo {
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.aseo-historial {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 2px solid #e5e7eb;
+}
+
+.aseo-historial h3 {
+    font-size: 1em;
+    margin-bottom: 12px;
+    color: #374151;
+}
+
+.gasto-item.aseo-item {
+    border-left-color: #8b5cf6;
+}
+
+.gasto-item.aseo-item.pendiente {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.income-label {
+    font-size: 0.75em;
+    color: #6b7280;
+    font-weight: 500;
+}
+
 /* Calendar Navigation */
 .calendar-header {
     display: flex;
@@ -420,16 +1103,17 @@ header {
 }
 
 .day-cell.checkout-day::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: -3px;
-    width: 55%;
-    height: 28px;
-    background: #222222;
-    transform: translateY(-50%);
-    border-radius: 0 14px 14px 0;
-    z-index: 1;
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: -3px !important;
+    width: 55% !important;
+    height: 28px !important;
+    background: #222222 !important;
+    transform: translateY(-50%) !important;
+    border-radius: 0 14px 14px 0 !important;
+    z-index: 1 !important;
+    right: unset !important;
 }
 
 .day-cell.checkout-day .day-number {
@@ -437,6 +1121,34 @@ header {
     z-index: 2;
     color: white;
     font-weight: 600;
+}
+
+/* Día con checkout E inicio al mismo tiempo (termina una, empieza otra) */
+.day-cell.checkin.checkout-day::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: -3px !important;
+    width: 45% !important;
+    height: 28px !important;
+    background: #222222 !important;
+    transform: translateY(-50%) !important;
+    border-radius: 0 14px 14px 0 !important;
+    z-index: 1 !important;
+}
+
+.day-cell.checkin.checkout-day::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: auto !important;
+    height: 28px !important;
+    z-index: 1 !important;
+    border-radius: 14px 0 0 14px !important;
+    left: 55% !important;
+    right: -2px !important;
+    background: #3B82F6 !important;
 }
 
 /* Globito de huésped en día de check-in */
@@ -462,7 +1174,86 @@ header {
 .bubble-initial {
     font-size: 0.9em;
     letter-spacing: -0.5px;
+}
+
+/* Globito de precio en calendario (solo admin) - verde */
+.price-bubble {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: #059669;
+    color: white;
+    border-radius: 6px;
+    padding: 1px 4px;
+    font-size: 0.5em;
     font-weight: 700;
+    z-index: 11;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Globito proporcional (indica que viene de mes anterior) */
+.price-bubble.proporcional {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    border: 1px dashed rgba(255,255,255,0.5);
+    font-style: italic;
+}
+
+.extra-bubble.proporcional {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border: 1px dashed rgba(255,255,255,0.5);
+    font-style: italic;
+}
+
+/* Iconos de gastos en el calendario */
+.gasto-icon {
+    position: absolute;
+    bottom: 2px;
+    font-size: 0.6em;
+    cursor: help;
+    opacity: 0.9;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+}
+
+.gasto-icon.gasto-agua {
+    left: 2px;
+}
+
+.gasto-icon.gasto-internet {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.gasto-icon.gasto-gasolina {
+    right: 2px;
+}
+
+.gasto-icon.gasto-aseo {
+    right: 14px;
+}
+
+/* Globito de extra en calendario (solo admin) - azul */
+.extra-bubble {
+    position: absolute;
+    top: 2px;
+    left: calc(100% + 4px);
+    background: #2563eb;
+    color: white;
+    border-radius: 6px;
+    padding: 1px 4px;
+    font-size: 0.45em;
+    font-weight: 700;
+    z-index: 11;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    cursor: help;
+}
+
+/* Globito azul debajo del verde (reservas de 1 día) */
+.extra-bubble.extra-bubble-below {
+    top: 16px;
+    left: auto;
+    right: 2px;
 }
 
 .bubble-count {
@@ -815,18 +1606,31 @@ header {
 /* Precio de la reserva */
 .price-row {
     margin-top: 8px;
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
 }
 
 .price-value {
     display: inline-block;
-    font-size: 1.1em;
+    font-size: 0.95em;
     font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 16px;
+}
+
+.price-main {
     color: #059669;
     background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    padding: 6px 14px;
-    border-radius: 20px;
     border: 1px solid #10b981;
+}
+
+.price-extra {
+    color: #2563eb;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border: 1px solid #3b82f6;
+    font-size: 0.85em;
 }
 
 /* Notas de la reserva */
@@ -1644,13 +2448,33 @@ footer {
         background: #3B82F6 !important;
     }
     
-    .day-cell.checkout-day::after {
+    .day-cell.checkout-day::after,
+    .day-cell.reserved.checkout-day::after,
+    .day-cell.blocked.checkout-day::after {
         height: 22px !important;
         left: -3px !important;
         right: auto !important;
         width: 55% !important;
         border-radius: 0 11px 11px 0 !important;
         background: #222222 !important;
+    }
+    
+    /* Día con checkout E inicio al mismo tiempo (responsive) */
+    .day-cell.checkin.checkout-day::before {
+        height: 22px !important;
+        left: -3px !important;
+        width: 45% !important;
+        border-radius: 0 11px 11px 0 !important;
+        background: #222222 !important;
+    }
+    
+    .day-cell.checkin.checkout-day::after {
+        height: 22px !important;
+        left: 55% !important;
+        right: -3px !important;
+        width: auto !important;
+        border-radius: 11px 0 0 11px !important;
+        background: #3B82F6 !important;
     }
     
     /* Globito responsive */
@@ -1678,6 +2502,119 @@ footer {
     
     .widget-label {
         font-size: 0.65em;
+    }
+    
+    .calendar-layout {
+        flex-direction: column;
+    }
+    
+    .income-widgets-sidebar {
+        flex-direction: column;
+        width: 100%;
+        min-width: auto;
+        order: 1;
+        margin-top: 16px;
+        gap: 10px;
+    }
+    
+    /* Grupos de ingresos/gastos en móvil */
+    .income-group {
+        padding: 10px;
+        border-radius: 12px;
+    }
+    
+    .income-group-header {
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .income-group-title {
+        font-size: 0.9em;
+    }
+    
+    .income-group-total {
+        font-size: 1.1em;
+    }
+    
+    .income-group-items.grid-1x2 {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+    
+    .income-group-items.grid-2x2 {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+    
+    .income-widget-mini,
+    .expense-widget-mini {
+        padding: 6px 8px;
+        border-radius: 8px;
+    }
+    
+    .income-widget-mini .income-value,
+    .expense-widget-mini .expense-value {
+        font-size: 0.8em;
+    }
+    
+    .income-widget-mini .income-label,
+    .expense-widget-mini .expense-label {
+        font-size: 0.55em;
+    }
+    
+    .income-widget-mini .income-icon,
+    .expense-widget-mini .expense-icon {
+        font-size: 0.85em;
+    }
+    
+    .income-widget {
+        padding: 10px 14px;
+        border-radius: 12px;
+        flex: 1;
+        max-width: none;
+    }
+    
+    .income-icon {
+        font-size: 1.3em;
+    }
+    
+    .income-value {
+        font-size: 1.1em;
+    }
+    
+    .income-label {
+        font-size: 0.65em;
+    }
+    
+    /* Widget Total del Mes en móvil */
+    .income-widget.total-mes {
+        padding: 12px 16px;
+    }
+    
+    .income-widget.total-mes .income-value {
+        font-size: 1.3em;
+    }
+    
+    /* Widget Rentabilidad en móvil */
+    .rentabilidad-widget {
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    .rentabilidad-valor {
+        font-size: 1.2em;
+    }
+    
+    .rentabilidad-flecha {
+        font-size: 1.1em;
+    }
+    
+    .rentabilidad-stat .stat-label {
+        font-size: 0.55em;
+    }
+    
+    .rentabilidad-stat .stat-value {
+        font-size: 0.75em;
     }
     
     .legend {

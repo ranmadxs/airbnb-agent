@@ -7,7 +7,7 @@ import calendar
 import tomllib
 import secrets
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from dotenv import load_dotenv
@@ -59,15 +59,40 @@ def get_audit_info() -> dict:
         return {"user_origin": "system", "user_agent": "system"}
 
 
-def get_month_calendar(year: int, month: int) -> dict:
+def get_month_calendar(year: int, month: int, include_events: bool = False) -> dict:
     """Genera datos del calendario para un mes."""
     cal = calendar.Calendar(firstweekday=0)
-    return {
+    result = {
         'year': year,
         'month': month,
         'month_name': MESES_ES[month],
         'days': list(cal.itermonthdays2(year, month))
     }
+    
+    # Incluir eventos si se solicita
+    if include_events:
+        inicio_mes = date(year, month, 1)
+        if month == 12:
+            fin_mes = date(year + 1, 1, 1)
+        else:
+            fin_mes = date(year, month + 1, 1)
+        
+        # Obtener todos los eventos y filtrar los que tocan este mes
+        all_events = db_service.obtener_eventos_formato_ical()
+        events_mes = []
+        for ev in all_events:
+            try:
+                # Los campos son 'start' y 'end', no 'event_start' y 'event_end'
+                ev_start = date.fromisoformat(ev.get('start', ''))
+                ev_end = date.fromisoformat(ev.get('end', ''))
+                # El evento toca este mes si: empieza antes del fin del mes Y termina después del inicio
+                if ev_start < fin_mes and ev_end >= inicio_mes:
+                    events_mes.append(ev)
+            except:
+                pass
+        result['events'] = events_mes
+    
+    return result
 
 
 def login_required(f):
@@ -148,10 +173,69 @@ def home():
 
 @app.route('/api/month')
 def api_month():
-    """API: Datos de un mes específico."""
+    """API: Datos de un mes específico con eventos."""
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
-    return jsonify(get_month_calendar(year, month))
+    return jsonify(get_month_calendar(year, month, include_events=True))
+
+
+@app.route('/api/promedio-anual')
+def api_promedio_anual():
+    """API: Calcula el promedio de ingresos de meses cerrados (dic anterior + meses hasta hoy)."""
+    hoy = date.today()
+    anio_hoy = hoy.year
+    mes_hoy = hoy.month
+    
+    # Obtener todos los eventos
+    all_events = db_service.obtener_eventos_formato_ical()
+    
+    # Meses a calcular: diciembre año anterior + meses cerrados del año actual
+    meses_cerrados = [{'mes': 12, 'anio': anio_hoy - 1}]
+    for m in range(1, mes_hoy):
+        meses_cerrados.append({'mes': m, 'anio': anio_hoy})
+    
+    resultados = []
+    
+    for mc in meses_cerrados:
+        mes = mc['mes']
+        anio = mc['anio']
+        
+        inicio_mes = date(anio, mes, 1)
+        fin_mes = date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
+        
+        ingresos = 0
+        for ev in all_events:
+            try:
+                if ev.get('is_blocked') or ev.get('deleted'):
+                    continue
+                    
+                ev_start = date.fromisoformat(ev.get('start', ''))
+                ev_end = date.fromisoformat(ev.get('end', ''))
+                
+                if ev_start < fin_mes and ev_end >= inicio_mes:
+                    dias_totales = max(1, (ev_end - ev_start).days + 1)
+                    overlap_start = max(ev_start, inicio_mes)
+                    overlap_end = min(ev_end, fin_mes - timedelta(days=1))
+                    dias_en_mes = max(0, (overlap_end - overlap_start).days + 1)
+                    
+                    proporcion = dias_en_mes / dias_totales
+                    precio = ev.get('precio', 0) or 0
+                    extra = ev.get('extra_valor', 0) or 0
+                    ingresos += round((precio + extra) * proporcion)
+            except:
+                pass
+        
+        resultados.append({'mes': mes, 'anio': anio, 'ingresos': ingresos})
+    
+    total_ingresos = sum(r['ingresos'] for r in resultados)
+    promedio = total_ingresos / len(resultados) if resultados else 0
+    
+    return jsonify({
+        'meses_cerrados': resultados,
+        'total_ingresos': total_ingresos,
+        'promedio': round(promedio),
+        'cantidad_meses': len(resultados)
+    })
 
 
 @app.route('/api/events')
@@ -267,7 +351,11 @@ def api_reserva_por_fecha(fecha):
             "ninos": reserva.get('ninos', 0),
             "mascotas": reserva.get('mascotas', 0),
             "notas": reserva.get('notas', ''),
-            "precio": reserva.get('precio', 0)
+            "precio": reserva.get('precio', 0),
+            "extra_concepto": reserva.get('extra_concepto', ''),
+            "extra_valor": reserva.get('extra_valor', 0),
+            "comuna": reserva.get('comuna', ''),
+            "pais": reserva.get('pais', '')
         })
     return jsonify({"found": False, "fecha": fecha})
 
@@ -293,7 +381,11 @@ def api_guardar_reserva():
         'ninos': data.get('ninos', 0),
         'mascotas': data.get('mascotas', 0),
         'notas': data.get('notas', ''),
-        'precio': data.get('precio', 0)
+        'precio': data.get('precio', 0),
+        'extra_concepto': data.get('extra_concepto', ''),
+        'extra_valor': data.get('extra_valor', 0),
+        'comuna': data.get('comuna', ''),
+        'pais': data.get('pais', '')
     }
     
     if datos['event_start'] >= datos['event_end']:
@@ -371,6 +463,167 @@ def admin_reserva():
                          property_name=PROPERTY_NAME,
                          error=error,
                          success=success)
+
+
+# ============================================================
+# API GASTOS DE AGUA
+# ============================================================
+
+@app.route('/api/gastos/agua', methods=['GET'])
+@login_required
+def obtener_gastos_agua():
+    """Obtiene gastos de agua del mes especificado."""
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    
+    gastos = db_service.obtener_gastos_agua(year, month)
+    return jsonify({"gastos": gastos})
+
+@app.route('/api/gastos/agua', methods=['POST'])
+@login_required
+def guardar_gasto_agua():
+    """Guarda un nuevo gasto de agua."""
+    data = request.get_json()
+    
+    gasto = {
+        'razon': data.get('razon', ''),
+        'nombre': data.get('nombre', ''),
+        'tipo': data.get('tipo', 'consumo'),
+        'fecha_pago': data.get('fecha_pago', ''),
+        'valor': data.get('valor', 0),
+        'descripcion': data.get('descripcion', ''),
+        'whatsapp': data.get('whatsapp', ''),
+        'pagado': data.get('pagado', True),
+        'proveedor_id': data.get('proveedor_id', '')
+    }
+    
+    resultado = db_service.guardar_gasto_agua(gasto)
+    return jsonify(resultado)
+
+# ============================================================
+# API GASTOS DE INTERNET
+# ============================================================
+
+@app.route('/api/gastos/internet', methods=['GET'])
+@login_required
+def obtener_gastos_internet():
+    """Obtiene gastos de internet del mes especificado."""
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    
+    gastos = db_service.obtener_gastos_internet(year, month)
+    return jsonify({"gastos": gastos})
+
+@app.route('/api/gastos/internet', methods=['POST'])
+@login_required
+def guardar_gasto_internet():
+    """Guarda un nuevo gasto de internet."""
+    data = request.get_json()
+    
+    gasto = {
+        'razon': data.get('razon', ''),
+        'nombre': data.get('nombre', ''),
+        'tipo': data.get('tipo', 'mensualidad'),
+        'fecha_pago': data.get('fecha_pago', ''),
+        'valor': data.get('valor', 0),
+        'descripcion': data.get('descripcion', ''),
+        'whatsapp': data.get('whatsapp', ''),
+        'pagado': data.get('pagado', True),
+        'proveedor_id': data.get('proveedor_id', '')
+    }
+    
+    resultado = db_service.guardar_gasto_internet(gasto)
+    return jsonify(resultado)
+
+# ============================================================
+# API GASTOS DE GASOLINA
+# ============================================================
+
+@app.route('/api/gastos/gasolina', methods=['GET'])
+@login_required
+def obtener_gastos_gasolina():
+    """Obtiene gastos de gasolina del mes especificado."""
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    
+    gastos = db_service.obtener_gastos_gasolina(year, month)
+    return jsonify({"gastos": gastos})
+
+@app.route('/api/gastos/gasolina', methods=['POST'])
+@login_required
+def guardar_gasto_gasolina():
+    """Guarda un nuevo gasto de gasolina."""
+    data = request.get_json()
+    
+    gasto = {
+        'razon': data.get('razon', ''),
+        'nombre': data.get('nombre', ''),
+        'tipo': data.get('tipo', 'combustible'),
+        'fecha_pago': data.get('fecha_pago', ''),
+        'valor': data.get('valor', 0),
+        'descripcion': data.get('descripcion', ''),
+        'whatsapp': data.get('whatsapp', ''),
+        'pagado': data.get('pagado', True),
+        'proveedor_id': data.get('proveedor_id', '')
+    }
+    
+    resultado = db_service.guardar_gasto_gasolina(gasto)
+    return jsonify(resultado)
+
+# ============================================================
+# API GASTOS DE ASEO
+# ============================================================
+
+@app.route('/api/gastos/aseo', methods=['GET'])
+@login_required
+def obtener_gastos_aseo():
+    """Obtiene gastos de aseo del mes especificado."""
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    
+    gastos = db_service.obtener_gastos_aseo(year, month)
+    return jsonify({"gastos": gastos})
+
+@app.route('/api/gastos/aseo', methods=['POST'])
+@login_required
+def guardar_gasto_aseo():
+    """Guarda un nuevo gasto de aseo."""
+    data = request.get_json()
+    
+    gasto = {
+        'razon': data.get('razon', ''),
+        'nombre': data.get('nombre', ''),
+        'tipo': data.get('tipo', 'limpieza'),
+        'fecha_pago': data.get('fecha_pago', ''),
+        'valor': data.get('valor', 0),
+        'descripcion': data.get('descripcion', ''),
+        'whatsapp': data.get('whatsapp', ''),
+        'pagado': data.get('pagado', True),
+        'proveedor_id': data.get('proveedor_id', '')
+    }
+    
+    resultado = db_service.guardar_gasto_aseo(gasto)
+    return jsonify(resultado)
+
+# ============================================================
+# API PROVEEDORES
+# ============================================================
+
+@app.route('/api/proveedores', methods=['GET'])
+@login_required
+def obtener_proveedores():
+    """Obtiene lista de proveedores."""
+    tipo = request.args.get('tipo', None)
+    proveedores = db_service.obtener_proveedores(tipo)
+    return jsonify({"proveedores": proveedores})
+
+@app.route('/api/proveedores', methods=['POST'])
+@login_required
+def guardar_proveedor():
+    """Guarda un nuevo proveedor."""
+    data = request.get_json()
+    resultado = db_service.guardar_proveedor(data)
+    return jsonify(resultado)
 
 
 if __name__ == '__main__':

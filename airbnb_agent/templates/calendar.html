@@ -27,6 +27,118 @@
         </header>
 
         <main>
+            <div class="calendar-layout">
+            
+            <!-- Widgets de Ingresos (solo admin) - Lado izquierdo -->
+            {% if is_logged_in %}
+            <div class="income-widgets-sidebar">
+                <!-- Widget de Ingresos (1x2) -->
+                <div class="income-group ingresos">
+                    <div class="income-group-header">
+                        <span class="income-group-icon">💵</span>
+                        <span class="income-group-title">Ingresos</span>
+                        <span class="income-group-total" id="income-total">+$0</span>
+                    </div>
+                    <div class="income-group-items grid-1x2">
+                        <div class="income-widget-mini arriendo">
+                            <div class="income-icon">🏠</div>
+                            <div class="income-content">
+                                <span class="income-value" id="income-arriendo">+$0</span>
+                                <span class="income-label">Arriendo</span>
+                            </div>
+                        </div>
+                        <div class="income-widget-mini tinaja">
+                            <div class="income-icon">🛁</div>
+                            <div class="income-content">
+                                <span class="income-value" id="income-tinaja">+$0</span>
+                                <span class="income-label">Tinaja</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Widget de Gastos (2x2) -->
+                <div class="income-group gastos">
+                    <div class="income-group-header">
+                        <span class="income-group-icon">📉</span>
+                        <span class="income-group-title">Gastos</span>
+                        <span class="income-group-total" id="expense-total">-$0</span>
+                    </div>
+                    <div class="income-group-items grid-2x2">
+                        <div class="expense-widget-mini agua" onclick="abrirModalAgua()">
+                            <div class="expense-icon">💧</div>
+                            <div class="expense-content">
+                                <span class="expense-value" id="expense-agua">-$0</span>
+                                <span class="expense-label">Agua</span>
+                            </div>
+                            <span class="expense-add-icon">+</span>
+                        </div>
+                        <div class="expense-widget-mini internet" onclick="abrirModalInternet()">
+                            <div class="expense-icon">📡</div>
+                            <div class="expense-content">
+                                <span class="expense-value" id="expense-internet">-$0</span>
+                                <span class="expense-label">Internet</span>
+                            </div>
+                            <span class="expense-add-icon">+</span>
+                        </div>
+                        <div class="expense-widget-mini gasolina" onclick="abrirModalGasolina()">
+                            <div class="expense-icon">⛽</div>
+                            <div class="expense-content">
+                                <span class="expense-value" id="expense-gasolina">-$0</span>
+                                <span class="expense-label">Gasolina</span>
+                            </div>
+                            <span class="expense-add-icon">+</span>
+                        </div>
+                        <div class="expense-widget-mini aseo" onclick="abrirModalAseo()">
+                            <div class="expense-icon">🧹</div>
+                            <div class="expense-content">
+                                <span class="expense-value" id="expense-aseo">-$0</span>
+                                <span class="expense-label">Aseo</span>
+                            </div>
+                            <span class="expense-add-icon">+</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="income-widget total-mes" id="widget-total-mes">
+                    <div class="income-icon">💰</div>
+                    <div class="income-content">
+                        <span class="income-value" id="total-mes-valor">$0</span>
+                        <span class="income-label">Total del Mes</span>
+                        <span class="income-estrellas" id="total-mes-estrellas"></span>
+                    </div>
+                </div>
+                
+                <!-- Widget de Rentabilidad -->
+                <div class="rentabilidad-widget" id="widget-rentabilidad">
+                    <div class="rentabilidad-header">
+                        <span class="rentabilidad-icon">📊</span>
+                        <span class="rentabilidad-title">Rentabilidad</span>
+                        <span class="rentabilidad-flecha" id="rentabilidad-tendencia">→</span>
+                    </div>
+                    <div class="rentabilidad-metricas">
+                        <div class="rentabilidad-metrica">
+                            <span class="metrica-valor" id="rentabilidad-roi">0%</span>
+                            <span class="metrica-label">ROI</span>
+                        </div>
+                        <div class="rentabilidad-metrica">
+                            <span class="metrica-valor" id="rentabilidad-margen">0%</span>
+                            <span class="metrica-label">Margen</span>
+                        </div>
+                    </div>
+                    <div class="rentabilidad-stats">
+                        <div class="rentabilidad-stat">
+                            <span class="stat-label">Prom. Año</span>
+                            <span class="stat-value" id="rentabilidad-promedio-anio">--</span>
+                        </div>
+                        <div class="rentabilidad-stat">
+                            <span class="stat-label">Var. YTD</span>
+                            <span class="stat-value" id="rentabilidad-var-ytd">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <!-- Calendario con navegación -->
             <div class="calendar-card full-width" id="calendar-card">
                 <div class="calendar-header">
@@ -59,6 +171,8 @@
                 </div>
             </div>
 
+            </div><!-- fin calendar-layout -->
+            
             <!-- Leyenda -->
             <div class="legend">
                 <div class="legend-item">
@@ -82,7 +196,7 @@
                     <span>Hoy</span>
                 </div>
             </div>
-
+            
             <!-- Stats Widgets (solo para admin) -->
             {% if is_logged_in %}
             <div class="stats-widgets">
@@ -99,6 +213,7 @@
                     <span class="widget-label">Ocupación</span>
                 </div>
             </div>
+            
             {% endif %}
 
             <!-- Lista de Reservas -->
@@ -198,9 +313,14 @@
                                     <span class="guest-badge children" title="Niños">👶 {{ event.ninos or 0 }}</span>
                                     <span class="guest-badge pets" title="Mascotas"><span class="pet-icon">🐾</span> {{ event.mascotas or 0 }}</span>
                                 </div>
-                                {% if event.precio %}
+                                {% if event.precio or event.extra_valor %}
                                 <div class="price-row">
-                                    <span class="price-value">${{ "{:,.0f}".format(event.precio).replace(",", ".") }} [CLP]</span>
+                                    {% if event.precio %}
+                                    <span class="price-value price-main">💰 ${{ "{:,.0f}".format(event.precio).replace(",", ".") }}</span>
+                                    {% endif %}
+                                    {% if event.extra_valor %}
+                                    <span class="price-value price-extra" title="{{ event.extra_concepto or 'Extra' }}">➕ {{ event.extra_concepto or 'Extra' }}: ${{ "{:,.0f}".format(event.extra_valor).replace(",", ".") }}</span>
+                                    {% endif %}
                                 </div>
                                 {% endif %}
                                 {% endif %}
@@ -341,6 +461,17 @@
                     <input type="text" id="reserva-huesped" name="nombre_huesped" placeholder="Ej: Juan Pérez">
                 </div>
                 
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>📍 Comuna</label>
+                        <input type="text" id="reserva-comuna" name="comuna" placeholder="Ej: Santiago">
+                    </div>
+                    <div class="form-group half">
+                        <label>🌎 País</label>
+                        <input type="text" id="reserva-pais" name="pais" placeholder="Ej: Chile">
+                    </div>
+                </div>
+                
                 <!-- Huéspedes -->
                 <div class="form-row">
                     <div class="form-group half">
@@ -373,6 +504,17 @@
                     <input type="number" id="reserva-precio" name="precio" min="0" placeholder="Ej: 150000">
                 </div>
                 
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>➕ Extra concepto</label>
+                        <input type="text" id="reserva-extra-concepto" name="extra_concepto" placeholder="Ej: Tinaja">
+                    </div>
+                    <div class="form-group half">
+                        <label>➕ Extra valor (CLP)</label>
+                        <input type="number" id="reserva-extra-valor" name="extra_valor" min="0" placeholder="Ej: 20000">
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label>URL de reserva (Airbnb)</label>
                     <div class="url-group">
@@ -397,6 +539,333 @@
         </div>
     </div>
 
+    <!-- Modal de Gastos de Agua -->
+    <div id="agua-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content modal-agua">
+            <div class="modal-header">
+                <h2>💧 Gastos de Agua</h2>
+                <button type="button" class="modal-close" onclick="cerrarModalAgua()">&times;</button>
+            </div>
+            
+            <form onsubmit="guardarGastoAgua(event)">
+                <div class="form-group">
+                    <label>Proveedor</label>
+                    <select id="agua-proveedor" name="proveedor_id" onchange="seleccionarProveedor()">
+                        <option value="">-- Seleccionar proveedor --</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Razón</label>
+                        <input type="text" id="agua-razon" name="razon" placeholder="Ej: Factura mensual">
+                    </div>
+                    <div class="form-group half">
+                        <label>Nombre</label>
+                        <input type="text" id="agua-nombre" name="nombre" placeholder="Ej: Aguas Andinas">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Tipo</label>
+                        <select id="agua-tipo" name="tipo">
+                            <option value="consumo">Consumo</option>
+                            <option value="mantención">Mantención</option>
+                            <option value="reparación">Reparación</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group half">
+                        <label>Fecha de Pago</label>
+                        <input type="date" id="agua-fecha-pago" name="fecha_pago">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Valor (CLP)</label>
+                        <input type="number" id="agua-valor" name="valor" min="0" placeholder="Ej: 25000" required>
+                    </div>
+                    <div class="form-group half">
+                        <label>WhatsApp</label>
+                        <input type="text" id="agua-whatsapp" name="whatsapp" placeholder="Ej: +56912345678">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="agua-descripcion" name="descripcion" rows="2" placeholder="Detalles adicionales..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="agua-pagado" name="pagado" checked>
+                        Pagado
+                    </label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalAgua()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Gasto</button>
+                </div>
+            </form>
+            
+            <!-- Historial de gastos del mes -->
+            <div class="agua-historial">
+                <h3>📋 Historial del Mes</h3>
+                <div id="agua-historial-lista">
+                    <p class="no-data">No hay gastos registrados este mes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Gastos de Internet -->
+    <div id="internet-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content modal-internet">
+            <div class="modal-header">
+                <h2>📡 Gastos de Internet</h2>
+                <button type="button" class="modal-close" onclick="cerrarModalInternet()">&times;</button>
+            </div>
+            
+            <form onsubmit="guardarGastoInternet(event)">
+                <div class="form-group">
+                    <label>Proveedor</label>
+                    <select id="internet-proveedor" name="proveedor_id" onchange="seleccionarProveedorInternet()">
+                        <option value="">-- Seleccionar proveedor --</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Razón</label>
+                        <input type="text" id="internet-razon" name="razon" placeholder="Ej: Mensualidad">
+                    </div>
+                    <div class="form-group half">
+                        <label>Nombre</label>
+                        <input type="text" id="internet-nombre" name="nombre" placeholder="Ej: Starlink">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Tipo</label>
+                        <select id="internet-tipo" name="tipo">
+                            <option value="mensualidad">Mensualidad</option>
+                            <option value="instalación">Instalación</option>
+                            <option value="equipos">Equipos</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group half">
+                        <label>Fecha de Pago</label>
+                        <input type="date" id="internet-fecha-pago" name="fecha_pago">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Valor (CLP)</label>
+                        <input type="number" id="internet-valor" name="valor" min="0" placeholder="Ej: 45000" required>
+                    </div>
+                    <div class="form-group half">
+                        <label>WhatsApp</label>
+                        <input type="text" id="internet-whatsapp" name="whatsapp" placeholder="Ej: +56912345678">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="internet-descripcion" name="descripcion" rows="2" placeholder="Detalles adicionales..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="internet-pagado" name="pagado" checked>
+                        Pagado
+                    </label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalInternet()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Gasto</button>
+                </div>
+            </form>
+            
+            <!-- Historial de gastos del mes -->
+            <div class="internet-historial">
+                <h3>📋 Historial del Mes</h3>
+                <div id="internet-historial-lista">
+                    <p class="no-data">No hay gastos registrados este mes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Gastos de Gasolina -->
+    <div id="gasolina-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content modal-gasolina">
+            <div class="modal-header">
+                <h2>⛽ Gastos de Gasolina</h2>
+                <button type="button" class="modal-close" onclick="cerrarModalGasolina()">&times;</button>
+            </div>
+            
+            <form onsubmit="guardarGastoGasolina(event)">
+                <div class="form-group">
+                    <label>Proveedor</label>
+                    <select id="gasolina-proveedor" name="proveedor_id" onchange="seleccionarProveedorGasolina()">
+                        <option value="">-- Seleccionar proveedor --</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Razón</label>
+                        <input type="text" id="gasolina-razon" name="razon" placeholder="Ej: Viaje checkin">
+                    </div>
+                    <div class="form-group half">
+                        <label>Nombre</label>
+                        <input type="text" id="gasolina-nombre" name="nombre" placeholder="Ej: Shell">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Tipo</label>
+                        <select id="gasolina-tipo" name="tipo">
+                            <option value="combustible">Combustible</option>
+                            <option value="aceite">Aceite</option>
+                            <option value="mantención">Mantención</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group half">
+                        <label>Fecha de Pago</label>
+                        <input type="date" id="gasolina-fecha-pago" name="fecha_pago">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Valor (CLP)</label>
+                        <input type="number" id="gasolina-valor" name="valor" min="0" placeholder="Ej: 35000" required>
+                    </div>
+                    <div class="form-group half">
+                        <label>WhatsApp</label>
+                        <input type="text" id="gasolina-whatsapp" name="whatsapp" placeholder="Ej: +56912345678">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="gasolina-descripcion" name="descripcion" rows="2" placeholder="Detalles adicionales..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="gasolina-pagado" name="pagado" checked>
+                        Pagado
+                    </label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalGasolina()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Gasto</button>
+                </div>
+            </form>
+            
+            <!-- Historial de gastos del mes -->
+            <div class="gasolina-historial">
+                <h3>📋 Historial del Mes</h3>
+                <div id="gasolina-historial-lista">
+                    <p class="no-data">No hay gastos registrados este mes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Gastos de Aseo -->
+    <div id="aseo-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content modal-aseo">
+            <div class="modal-header">
+                <h2>🧹 Gastos de Aseo</h2>
+                <button type="button" class="modal-close" onclick="cerrarModalAseo()">&times;</button>
+            </div>
+            
+            <form onsubmit="guardarGastoAseo(event)">
+                <div class="form-group">
+                    <label>Proveedor</label>
+                    <select id="aseo-proveedor" name="proveedor_id" onchange="seleccionarProveedorAseo()">
+                        <option value="">-- Seleccionar proveedor --</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Razón</label>
+                        <input type="text" id="aseo-razon" name="razon" placeholder="Ej: Limpieza mensual">
+                    </div>
+                    <div class="form-group half">
+                        <label>Nombre</label>
+                        <input type="text" id="aseo-nombre" name="nombre" placeholder="Ej: Severina">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Tipo</label>
+                        <select id="aseo-tipo" name="tipo">
+                            <option value="limpieza">Limpieza</option>
+                            <option value="profunda">Limpieza Profunda</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group half">
+                        <label>Fecha de Pago</label>
+                        <input type="date" id="aseo-fecha-pago" name="fecha_pago">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Valor (CLP)</label>
+                        <input type="number" id="aseo-valor" name="valor" min="0" placeholder="Ej: 50000" required>
+                    </div>
+                    <div class="form-group half">
+                        <label>WhatsApp</label>
+                        <input type="text" id="aseo-whatsapp" name="whatsapp" placeholder="Ej: +56912345678">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="aseo-descripcion" name="descripcion" rows="2" placeholder="Detalles adicionales..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="aseo-pagado" name="pagado" checked>
+                        Pagado
+                    </label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalAseo()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Gasto</button>
+                </div>
+            </form>
+            
+            <!-- Historial de gastos del mes -->
+            <div class="aseo-historial">
+                <h3>📋 Historial del Mes</h3>
+                <div id="aseo-historial-lista">
+                    <p class="no-data">No hay gastos registrados este mes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Datos de eventos desde el servidor
         const events = {{ events | tojson }};
@@ -408,6 +877,12 @@
         let currentMonth = {{ current.month }};
         const minYear = 2025, minMonth = 12;
         const maxYear = 2027, maxMonth = 12;
+        
+        // Variables para almacenar gastos del mes (para marcar en calendario)
+        let gastosAguaMes = [];
+        let gastosInternetMes = [];
+        let gastosGasolinaMes = [];
+        let gastosAseoMes = [];
         
         // Navegar entre meses
         async function navegarMes(delta) {
@@ -443,6 +918,15 @@
                 renderizarMes(data);
                 marcarDias();
                 filtrarReservasPorMes(year, month);
+                if (isAdmin) {
+                    await cargarGastosAguaMes();
+                    await cargarGastosInternetMes();
+                    await cargarGastosGasolinaMes();
+                    await cargarGastosAseoMes();
+                    calcularTotalMes();
+                    marcarDiasConGastos();
+                    await calcularRentabilidad();
+                }
             } catch (e) {
                 console.error('Error cargando mes:', e);
             }
@@ -502,6 +986,8 @@
             let totalReservas = 0;
             let proximas = 0;
             let diasOcupados = 0;
+            let ingresoArriendo = 0;
+            let ingresoTinaja = 0;
             
             // Solo considerar reservas (no bloqueos)
             const reservas = events.filter(e => e.estado === 'reservado');
@@ -522,20 +1008,31 @@
                         proximas++;
                     }
                     
-                    // Calcular días ocupados en este mes
-                    const overlapStart = new Date(Math.max(start, inicioMes));
-                    const overlapEnd = new Date(Math.min(end, finMes));
-                    overlapEnd.setDate(overlapEnd.getDate() + 1); // Incluir día final
+                    // Calcular días TOTALES de la reserva (incluyendo día de checkout)
+                    // El checkout también cuenta como día ocupado
+                    const diasTotales = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
                     
-                    const dias = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
-                    diasOcupados += dias;
+                    // Calcular días ocupados en ESTE mes (end + 1 día para incluir checkout)
+                    const endInclusive = new Date(end.getTime() + 86400000);
+                    const overlapStart = new Date(Math.max(start, inicioMes));
+                    const overlapEnd = new Date(Math.min(endInclusive, new Date(finMes.getTime() + 86400000)));
+                    const diasEnEsteMes = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
+                    diasOcupados += diasEnEsteMes;
+                    
+                    // Calcular proporción de ingresos según días en este mes
+                    const proporcion = diasEnEsteMes / diasTotales;
+                    const precioProporcion = Math.round((event.precio || 0) * proporcion);
+                    const extraProporcion = Math.round((event.extra_valor || 0) * proporcion);
+                    
+                    ingresoArriendo += precioProporcion;
+                    ingresoTinaja += extraProporcion;
                 }
             });
             
             // Ocupación = días ocupados / días del mes * 100
             const ocupacion = Math.min(100, Math.round((diasOcupados / diasEnMes) * 100));
             
-            // Actualizar widgets
+            // Actualizar widgets de stats
             const statTotal = document.getElementById('stat-total');
             const statProximas = document.getElementById('stat-proximas');
             const statOcupacion = document.getElementById('stat-ocupacion');
@@ -543,6 +1040,18 @@
             if (statTotal) statTotal.textContent = totalReservas;
             if (statProximas) statProximas.textContent = proximas;
             if (statOcupacion) statOcupacion.textContent = ocupacion + '%';
+            
+            // Actualizar widgets de ingresos
+            const incomeArriendo = document.getElementById('income-arriendo');
+            const incomeTinaja = document.getElementById('income-tinaja');
+            const incomeTotal = document.getElementById('income-total');
+            
+            if (incomeArriendo) incomeArriendo.textContent = '+$' + ingresoArriendo.toLocaleString('es-CL');
+            if (incomeTinaja) incomeTinaja.textContent = '+$' + ingresoTinaja.toLocaleString('es-CL');
+            
+            // Total de ingresos (arriendo + tinaja)
+            const totalIngresos = ingresoArriendo + ingresoTinaja;
+            if (incomeTotal) incomeTotal.textContent = '+$' + totalIngresos.toLocaleString('es-CL');
         }
         
         // Renderizar calendario
@@ -587,12 +1096,12 @@
         
         // Marcar días reservados
         function marcarDias() {
-            // Crear set de todas las fechas ocupadas
+            // Crear set de todas las fechas ocupadas (incluyendo día de checkout)
             const diasOcupados = new Set();
             events.forEach(event => {
                 let current = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
-                while (current < end) {
+                while (current <= end) {
                     diasOcupados.add(formatDate(current));
                     current.setDate(current.getDate() + 1);
                 }
@@ -628,17 +1137,57 @@
                 const reservationUrl = event.reservation_url;
                 const esCache = event.source === 'cache_airbnb';
                 
+                // Calcular mes actual visible
+                const inicioMesVisible = new Date(currentYear, currentMonth - 1, 1);
+                const finMesVisible = new Date(currentYear, currentMonth, 0);
+                
+                // Calcular días totales de la reserva (incluyendo día de checkout)
+                const diasTotales = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+                
+                // Calcular días en el mes visible (end + 1 día para incluir checkout)
+                const endInclusive = new Date(end.getTime() + 86400000);
+                const overlapStart = new Date(Math.max(start, inicioMesVisible));
+                const overlapEnd = new Date(Math.min(endInclusive, new Date(finMesVisible.getTime() + 86400000)));
+                const diasEnEsteMes = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
+                
+                // Calcular proporción para este mes
+                const proporcion = diasEnEsteMes / diasTotales;
+                const precioProporcion = Math.round((event.precio || 0) * proporcion);
+                const extraProporcion = Math.round((event.extra_valor || 0) * proporcion);
+                
+                // Determinar si la reserva empieza en este mes o viene de antes
+                const empiezaEnEsteMes = start >= inicioMesVisible && start <= finMesVisible;
+                let globitoPuesto = false;
+                
                 let current = new Date(start);
-                while (current < end) {
+                while (current <= end) {
                     const dateStr = formatDate(current);
                     const cell = document.querySelector(`[data-date="${dateStr}"]`);
                     if (cell) {
-                        cell.classList.add('reserved');
-                        if (esCache) cell.classList.add('from-cache');
+                        const esPrimerDiaReserva = formatDate(current) === formatDate(start);
+                        const esUltimoDiaReserva = formatDate(current) === formatDate(end);
                         
-                        // Primer día = entrada (azul) + globito con inicial
-                        if (formatDate(current) === formatDate(start)) {
-                            cell.classList.add('checkin');
+                        // El día de checkout NO recibe clase 'reserved' (solo 'checkout-day')
+                        // para que se muestre la colita negra redondeada
+                        if (!esUltimoDiaReserva) {
+                            cell.classList.add('reserved');
+                        }
+                        if (esCache) cell.classList.add('from-cache');
+                        const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
+                        
+                        // Mostrar globitos en: primer día de reserva O primer día del mes si viene de antes
+                        // NO mostrar en día de checkout (las franjas se manejan con CSS)
+                        const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
+                        
+                        if (mostrarGlobitos) {
+                            // Marcar checkin solo si es el primer día real de la reserva
+                            if (esPrimerDiaReserva) {
+                                cell.classList.add('checkin');
+                            }
+                            
+                            // Contar cuántos globitos ya hay en este día para apilarlos
+                            const existingGuestBubbles = cell.querySelectorAll('.guest-bubble').length;
+                            const existingPriceBubbles = cell.querySelectorAll('.price-bubble').length;
                             
                             // Crear globito con inicial y conteo
                             const nombre = event.nombre_huesped || '';
@@ -650,6 +1199,11 @@
                             if (nombre || totalPersonas > 0) {
                                 const bubble = document.createElement('div');
                                 bubble.className = 'guest-bubble';
+                                
+                                // Apilar si ya hay otros globitos de huéspedes
+                                if (existingGuestBubbles > 0) {
+                                    bubble.style.bottom = (28 + existingGuestBubbles * 16) + 'px';
+                                }
                                 
                                 // Primeras 10 letras del nombre (primera mayúscula, resto minúscula)
                                 const nombreCorto = nombre ? nombre.substring(0, 10) : '?';
@@ -669,6 +1223,54 @@
                                 bubble.innerHTML = contenido;
                                 cell.appendChild(bubble);
                             }
+                            
+                            // Globito de precio (solo admin) - verde con valor proporcional
+                            // Siempre usar proporción si la reserva cruza meses
+                            const esProporcional = diasEnEsteMes < diasTotales;
+                            const precioMostrar = esProporcional ? precioProporcion : (event.precio || 0);
+                            if (isAdmin && precioMostrar > 0) {
+                                const priceBubble = document.createElement('div');
+                                priceBubble.className = 'price-bubble';
+                                if (esProporcional) {
+                                    priceBubble.classList.add('proporcional');
+                                }
+                                
+                                // Apilar si ya hay otros globitos de precio
+                                if (existingPriceBubbles > 0) {
+                                    priceBubble.style.top = (2 + existingPriceBubbles * 14) + 'px';
+                                }
+                                
+                                const precioFormateado = precioMostrar.toLocaleString('es-CL');
+                                priceBubble.innerHTML = `$${precioFormateado}`;
+                                priceBubble.title = esProporcional ? `Proporcional: ${diasEnEsteMes}/${diasTotales} días` : 'Precio total';
+                                cell.appendChild(priceBubble);
+                            }
+                            
+                            // Globito de extra (solo admin) - azul con valor proporcional
+                            const extraMostrar = esProporcional ? extraProporcion : (event.extra_valor || 0);
+                            const extraConcepto = event.extra_concepto || '';
+                            if (isAdmin && extraMostrar > 0) {
+                                const extraBubble = document.createElement('div');
+                                // Si reserva es de 1 día, poner debajo del verde
+                                const duracionDias = Math.round((end - start) / (1000 * 60 * 60 * 24));
+                                extraBubble.className = duracionDias === 1 ? 'extra-bubble extra-bubble-below' : 'extra-bubble';
+                                if (esProporcional) {
+                                    extraBubble.classList.add('proporcional');
+                                }
+                                
+                                // Apilar extras también
+                                const existingExtraBubbles = cell.querySelectorAll('.extra-bubble').length;
+                                if (existingExtraBubbles > 0) {
+                                    extraBubble.style.top = (2 + existingExtraBubbles * 14) + 'px';
+                                }
+                                
+                                const extraFormateado = extraMostrar.toLocaleString('es-CL');
+                                extraBubble.innerHTML = `$${extraFormateado}`;
+                                extraBubble.title = esProporcional ? `Proporcional: ${diasEnEsteMes}/${diasTotales} días - ${extraConcepto}` : extraConcepto;
+                                cell.appendChild(extraBubble);
+                            }
+                            
+                            globitoPuesto = true;
                         }
                     }
                     current.setDate(current.getDate() + 1);
@@ -740,6 +1342,10 @@
                     document.getElementById('reserva-mascotas').value = data.mascotas || 0;
                     document.getElementById('reserva-notas').value = data.notas || '';
                     document.getElementById('reserva-precio').value = data.precio || '';
+                    document.getElementById('reserva-extra-concepto').value = data.extra_concepto || '';
+                    document.getElementById('reserva-extra-valor').value = data.extra_valor || '';
+                    document.getElementById('reserva-comuna').value = data.comuna || '';
+                    document.getElementById('reserva-pais').value = data.pais || '';
                     
                     if (data.reservation_url) {
                         const urlLink = document.getElementById('reserva-url-link');
@@ -778,7 +1384,11 @@
                 ninos: parseInt(document.getElementById('reserva-ninos').value) || 0,
                 mascotas: parseInt(document.getElementById('reserva-mascotas').value) || 0,
                 notas: document.getElementById('reserva-notas').value,
-                precio: parseInt(document.getElementById('reserva-precio').value) || 0
+                precio: parseInt(document.getElementById('reserva-precio').value) || 0,
+                extra_concepto: document.getElementById('reserva-extra-concepto').value,
+                extra_valor: parseInt(document.getElementById('reserva-extra-valor').value) || 0,
+                comuna: document.getElementById('reserva-comuna').value,
+                pais: document.getElementById('reserva-pais').value
             };
             
             try {
@@ -831,9 +1441,964 @@
             if (e.target.id === 'reserva-modal') cerrarModal();
         });
         
+        // ============================================================
+        // MODAL DE GASTOS DE AGUA
+        // ============================================================
+        
+        let gastosAgua = [];
+        let proveedoresAgua = [];
+        
+        async function abrirModalAgua() {
+            const modal = document.getElementById('agua-modal');
+            
+            // Cargar proveedores
+            await cargarProveedores();
+            
+            // Limpiar formulario
+            document.getElementById('agua-proveedor').value = '';
+            document.getElementById('agua-razon').value = '';
+            document.getElementById('agua-nombre').value = '';
+            document.getElementById('agua-tipo').value = 'consumo';
+            document.getElementById('agua-fecha-pago').value = new Date().toISOString().split('T')[0];
+            document.getElementById('agua-valor').value = '';
+            document.getElementById('agua-whatsapp').value = '';
+            document.getElementById('agua-descripcion').value = '';
+            document.getElementById('agua-pagado').checked = true;
+            
+            // Cargar historial del mes
+            await cargarHistorialAgua();
+            
+            modal.style.display = 'flex';
+        }
+        
+        async function cargarProveedores() {
+            try {
+                const res = await fetch('/api/proveedores?tipo=agua');
+                if (!res.ok) {
+                    console.error('Error API proveedores:', res.status, res.statusText);
+                    return;
+                }
+                const data = await res.json();
+                console.log('Proveedores cargados:', data);
+                proveedoresAgua = data.proveedores || [];
+                
+                const select = document.getElementById('agua-proveedor');
+                select.innerHTML = '<option value="">-- Seleccionar proveedor --</option>';
+                
+                proveedoresAgua.forEach(p => {
+                    select.innerHTML += `<option value="${p.id}">${p.nombre} - ${p.servicio}</option>`;
+                });
+            } catch (err) {
+                console.error('Error cargando proveedores:', err);
+            }
+        }
+        
+        function seleccionarProveedor() {
+            const proveedorId = document.getElementById('agua-proveedor').value;
+            const proveedor = proveedoresAgua.find(p => p.id === proveedorId);
+            
+            if (proveedor) {
+                document.getElementById('agua-nombre').value = proveedor.nombre;
+                document.getElementById('agua-whatsapp').value = proveedor.whatsapp;
+                document.getElementById('agua-descripcion').value = proveedor.servicio;
+            }
+        }
+        
+        function cerrarModalAgua() {
+            document.getElementById('agua-modal').style.display = 'none';
+        }
+        
+        async function cargarHistorialAgua() {
+            try {
+                console.log('Cargando historial agua:', currentYear, currentMonth);
+                const res = await fetch(`/api/gastos/agua?year=${currentYear}&month=${currentMonth}`);
+                if (!res.ok) {
+                    console.error('Error API gastos agua:', res.status, res.statusText);
+                    return;
+                }
+                const data = await res.json();
+                console.log('Gastos agua cargados:', data);
+                gastosAgua = data.gastos || [];
+                
+                const lista = document.getElementById('agua-historial-lista');
+                
+                if (gastosAgua.length === 0) {
+                    lista.innerHTML = '<p class="no-data">No hay gastos registrados este mes</p>';
+                } else {
+                    let html = '<div class="gastos-lista">';
+                    let total = 0;
+                    
+                    gastosAgua.forEach(g => {
+                        total += g.valor || 0;
+                        const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
+                        const estado = g.pagado ? '✅' : '⏳';
+                        
+                        html += `
+                            <div class="gasto-item ${g.pagado ? 'pagado' : 'pendiente'}">
+                                <div class="gasto-info">
+                                    <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                    <span class="gasto-fecha">${fechaPago}</span>
+                                </div>
+                                <div class="gasto-valor">
+                                    <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
+                                    <span class="gasto-estado">${estado}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div>
+                        <div class="gastos-total">
+                            <span>Total:</span>
+                            <span class="total-valor">-$${total.toLocaleString('es-CL')}</span>
+                        </div>`;
+                    
+                    lista.innerHTML = html;
+                }
+                
+                // Actualizar widget
+                const totalMes = gastosAgua.reduce((sum, g) => sum + (g.valor || 0), 0);
+                const expenseAgua = document.getElementById('expense-agua');
+                if (expenseAgua) expenseAgua.textContent = '-$' + totalMes.toLocaleString('es-CL');
+                
+            } catch (err) {
+                console.error('Error cargando historial agua:', err);
+            }
+        }
+        
+        async function guardarGastoAgua(e) {
+            e.preventDefault();
+            
+            const data = {
+                razon: document.getElementById('agua-razon').value,
+                nombre: document.getElementById('agua-nombre').value,
+                tipo: document.getElementById('agua-tipo').value,
+                fecha_pago: document.getElementById('agua-fecha-pago').value,
+                valor: parseInt(document.getElementById('agua-valor').value) || 0,
+                whatsapp: document.getElementById('agua-whatsapp').value,
+                descripcion: document.getElementById('agua-descripcion').value,
+                pagado: document.getElementById('agua-pagado').checked,
+                proveedor_id: document.getElementById('agua-proveedor').value
+            };
+            
+            try {
+                const res = await fetch('/api/gastos/agua', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    await cargarHistorialAgua();
+                    // Limpiar formulario
+                    document.getElementById('agua-razon').value = '';
+                    document.getElementById('agua-valor').value = '';
+                    document.getElementById('agua-descripcion').value = '';
+                    alert('Gasto guardado correctamente');
+                } else {
+                    alert('Error: ' + (result.error || 'No se pudo guardar'));
+                }
+            } catch (err) {
+                alert('Error de conexión');
+            }
+        }
+        
+        // Cerrar modal agua clickeando fuera
+        document.getElementById('agua-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'agua-modal') cerrarModalAgua();
+        });
+        
+        // ============================================================
+        // MODAL DE GASTOS DE INTERNET
+        // ============================================================
+        
+        let gastosInternet = [];
+        let proveedoresInternet = [];
+        
+        async function abrirModalInternet() {
+            const modal = document.getElementById('internet-modal');
+            
+            // Cargar proveedores
+            await cargarProveedoresInternet();
+            
+            // Limpiar formulario
+            document.getElementById('internet-proveedor').value = '';
+            document.getElementById('internet-razon').value = '';
+            document.getElementById('internet-nombre').value = '';
+            document.getElementById('internet-tipo').value = 'mensualidad';
+            document.getElementById('internet-fecha-pago').value = new Date().toISOString().split('T')[0];
+            document.getElementById('internet-valor').value = '';
+            document.getElementById('internet-whatsapp').value = '';
+            document.getElementById('internet-descripcion').value = '';
+            document.getElementById('internet-pagado').checked = true;
+            
+            // Cargar historial del mes
+            await cargarHistorialInternet();
+            
+            modal.style.display = 'flex';
+        }
+        
+        function cerrarModalInternet() {
+            document.getElementById('internet-modal').style.display = 'none';
+        }
+        
+        async function cargarProveedoresInternet() {
+            try {
+                const res = await fetch('/api/proveedores?tipo=internet');
+                if (!res.ok) return;
+                const data = await res.json();
+                proveedoresInternet = data.proveedores || [];
+                
+                const select = document.getElementById('internet-proveedor');
+                select.innerHTML = '<option value="">-- Seleccionar proveedor --</option>';
+                
+                proveedoresInternet.forEach(p => {
+                    select.innerHTML += `<option value="${p.id}">${p.nombre} - ${p.servicio}</option>`;
+                });
+            } catch (err) {
+                console.error('Error cargando proveedores internet:', err);
+            }
+        }
+        
+        function seleccionarProveedorInternet() {
+            const proveedorId = document.getElementById('internet-proveedor').value;
+            const proveedor = proveedoresInternet.find(p => p.id === proveedorId);
+            
+            if (proveedor) {
+                document.getElementById('internet-nombre').value = proveedor.nombre;
+                document.getElementById('internet-whatsapp').value = proveedor.whatsapp;
+                document.getElementById('internet-descripcion').value = proveedor.servicio;
+            }
+        }
+        
+        async function cargarHistorialInternet() {
+            try {
+                const res = await fetch(`/api/gastos/internet?year=${currentYear}&month=${currentMonth}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                gastosInternet = data.gastos || [];
+                
+                const lista = document.getElementById('internet-historial-lista');
+                
+                if (gastosInternet.length === 0) {
+                    lista.innerHTML = '<p class="no-data">No hay gastos registrados este mes</p>';
+                } else {
+                    let html = '<div class="gastos-lista">';
+                    let total = 0;
+                    
+                    gastosInternet.forEach(g => {
+                        total += g.valor || 0;
+                        const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
+                        const estado = g.pagado ? '✅' : '⏳';
+                        
+                        html += `
+                            <div class="gasto-item internet-item ${g.pagado ? 'pagado' : 'pendiente'}">
+                                <div class="gasto-info">
+                                    <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                    <span class="gasto-fecha">${fechaPago}</span>
+                                </div>
+                                <div class="gasto-valor">
+                                    <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
+                                    <span class="gasto-estado">${estado}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div>
+                        <div class="gastos-total">
+                            <span>Total:</span>
+                            <span class="total-valor">-$${total.toLocaleString('es-CL')}</span>
+                        </div>`;
+                    
+                    lista.innerHTML = html;
+                }
+                
+                // Actualizar widget
+                const totalMes = gastosInternet.reduce((sum, g) => sum + (g.valor || 0), 0);
+                const expenseInternet = document.getElementById('expense-internet');
+                if (expenseInternet) expenseInternet.textContent = '-$' + totalMes.toLocaleString('es-CL');
+                
+            } catch (err) {
+                console.error('Error cargando historial internet:', err);
+            }
+        }
+        
+        async function guardarGastoInternet(e) {
+            e.preventDefault();
+            
+            const data = {
+                razon: document.getElementById('internet-razon').value,
+                nombre: document.getElementById('internet-nombre').value,
+                tipo: document.getElementById('internet-tipo').value,
+                fecha_pago: document.getElementById('internet-fecha-pago').value,
+                valor: parseInt(document.getElementById('internet-valor').value) || 0,
+                whatsapp: document.getElementById('internet-whatsapp').value,
+                descripcion: document.getElementById('internet-descripcion').value,
+                pagado: document.getElementById('internet-pagado').checked,
+                proveedor_id: document.getElementById('internet-proveedor').value
+            };
+            
+            try {
+                const res = await fetch('/api/gastos/internet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    await cargarHistorialInternet();
+                    document.getElementById('internet-razon').value = '';
+                    document.getElementById('internet-valor').value = '';
+                    document.getElementById('internet-descripcion').value = '';
+                    alert('Gasto guardado correctamente');
+                } else {
+                    alert('Error: ' + (result.error || 'No se pudo guardar'));
+                }
+            } catch (err) {
+                alert('Error de conexión');
+            }
+        }
+        
+        // Cerrar modal internet clickeando fuera
+        document.getElementById('internet-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'internet-modal') cerrarModalInternet();
+        });
+        
+        // ============================================================
+        // MODAL DE GASTOS DE GASOLINA
+        // ============================================================
+        
+        let gastosGasolina = [];
+        let proveedoresGasolina = [];
+        
+        async function abrirModalGasolina() {
+            const modal = document.getElementById('gasolina-modal');
+            
+            await cargarProveedoresGasolina();
+            
+            document.getElementById('gasolina-proveedor').value = '';
+            document.getElementById('gasolina-razon').value = '';
+            document.getElementById('gasolina-nombre').value = '';
+            document.getElementById('gasolina-tipo').value = 'combustible';
+            document.getElementById('gasolina-fecha-pago').value = new Date().toISOString().split('T')[0];
+            document.getElementById('gasolina-valor').value = '';
+            document.getElementById('gasolina-whatsapp').value = '';
+            document.getElementById('gasolina-descripcion').value = '';
+            document.getElementById('gasolina-pagado').checked = true;
+            
+            await cargarHistorialGasolina();
+            
+            modal.style.display = 'flex';
+        }
+        
+        function cerrarModalGasolina() {
+            document.getElementById('gasolina-modal').style.display = 'none';
+        }
+        
+        async function cargarProveedoresGasolina() {
+            try {
+                const res = await fetch('/api/proveedores?tipo=gasolinera');
+                if (!res.ok) return;
+                const data = await res.json();
+                proveedoresGasolina = data.proveedores || [];
+                
+                const select = document.getElementById('gasolina-proveedor');
+                select.innerHTML = '<option value="">-- Seleccionar proveedor --</option>';
+                
+                proveedoresGasolina.forEach(p => {
+                    select.innerHTML += `<option value="${p.id}">${p.nombre} - ${p.servicio}</option>`;
+                });
+            } catch (err) {
+                console.error('Error cargando proveedores gasolina:', err);
+            }
+        }
+        
+        function seleccionarProveedorGasolina() {
+            const proveedorId = document.getElementById('gasolina-proveedor').value;
+            const proveedor = proveedoresGasolina.find(p => p.id === proveedorId);
+            
+            if (proveedor) {
+                document.getElementById('gasolina-nombre').value = proveedor.nombre;
+                document.getElementById('gasolina-whatsapp').value = proveedor.whatsapp;
+                document.getElementById('gasolina-descripcion').value = proveedor.servicio;
+            }
+        }
+        
+        async function cargarHistorialGasolina() {
+            try {
+                const res = await fetch(`/api/gastos/gasolina?year=${currentYear}&month=${currentMonth}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                gastosGasolina = data.gastos || [];
+                
+                const lista = document.getElementById('gasolina-historial-lista');
+                
+                if (gastosGasolina.length === 0) {
+                    lista.innerHTML = '<p class="no-data">No hay gastos registrados este mes</p>';
+                } else {
+                    let html = '<div class="gastos-lista">';
+                    let total = 0;
+                    
+                    gastosGasolina.forEach(g => {
+                        total += g.valor || 0;
+                        const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
+                        const estado = g.pagado ? '✅' : '⏳';
+                        
+                        html += `
+                            <div class="gasto-item gasolina-item ${g.pagado ? 'pagado' : 'pendiente'}">
+                                <div class="gasto-info">
+                                    <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                    <span class="gasto-fecha">${fechaPago}</span>
+                                </div>
+                                <div class="gasto-valor">
+                                    <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
+                                    <span class="gasto-estado">${estado}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div>
+                        <div class="gastos-total">
+                            <span>Total:</span>
+                            <span class="total-valor">-$${total.toLocaleString('es-CL')}</span>
+                        </div>`;
+                    
+                    lista.innerHTML = html;
+                }
+                
+                const totalMes = gastosGasolina.reduce((sum, g) => sum + (g.valor || 0), 0);
+                const expenseGasolina = document.getElementById('expense-gasolina');
+                if (expenseGasolina) expenseGasolina.textContent = '-$' + totalMes.toLocaleString('es-CL');
+                
+            } catch (err) {
+                console.error('Error cargando historial gasolina:', err);
+            }
+        }
+        
+        async function guardarGastoGasolina(e) {
+            e.preventDefault();
+            
+            const data = {
+                razon: document.getElementById('gasolina-razon').value,
+                nombre: document.getElementById('gasolina-nombre').value,
+                tipo: document.getElementById('gasolina-tipo').value,
+                fecha_pago: document.getElementById('gasolina-fecha-pago').value,
+                valor: parseInt(document.getElementById('gasolina-valor').value) || 0,
+                whatsapp: document.getElementById('gasolina-whatsapp').value,
+                descripcion: document.getElementById('gasolina-descripcion').value,
+                pagado: document.getElementById('gasolina-pagado').checked,
+                proveedor_id: document.getElementById('gasolina-proveedor').value
+            };
+            
+            try {
+                const res = await fetch('/api/gastos/gasolina', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    await cargarHistorialGasolina();
+                    document.getElementById('gasolina-razon').value = '';
+                    document.getElementById('gasolina-valor').value = '';
+                    document.getElementById('gasolina-descripcion').value = '';
+                    alert('Gasto guardado correctamente');
+                } else {
+                    alert('Error: ' + (result.error || 'No se pudo guardar'));
+                }
+            } catch (err) {
+                alert('Error de conexión');
+            }
+        }
+        
+        // Cerrar modal gasolina clickeando fuera
+        document.getElementById('gasolina-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'gasolina-modal') cerrarModalGasolina();
+        });
+        
+        // ============================================================
+        // MODAL DE GASTOS DE ASEO
+        // ============================================================
+        
+        let gastosAseo = [];
+        let proveedoresAseo = [];
+        
+        async function abrirModalAseo() {
+            const modal = document.getElementById('aseo-modal');
+            
+            await cargarProveedoresAseo();
+            
+            document.getElementById('aseo-proveedor').value = '';
+            document.getElementById('aseo-razon').value = '';
+            document.getElementById('aseo-nombre').value = '';
+            document.getElementById('aseo-tipo').value = 'limpieza';
+            document.getElementById('aseo-fecha-pago').value = new Date().toISOString().split('T')[0];
+            document.getElementById('aseo-valor').value = '';
+            document.getElementById('aseo-whatsapp').value = '';
+            document.getElementById('aseo-descripcion').value = '';
+            document.getElementById('aseo-pagado').checked = true;
+            
+            await cargarHistorialAseo();
+            
+            modal.style.display = 'flex';
+        }
+        
+        function cerrarModalAseo() {
+            document.getElementById('aseo-modal').style.display = 'none';
+        }
+        
+        async function cargarProveedoresAseo() {
+            try {
+                const res = await fetch('/api/proveedores?tipo=aseo');
+                if (!res.ok) return;
+                const data = await res.json();
+                proveedoresAseo = data.proveedores || [];
+                
+                const select = document.getElementById('aseo-proveedor');
+                select.innerHTML = '<option value="">-- Seleccionar proveedor --</option>';
+                
+                proveedoresAseo.forEach(p => {
+                    select.innerHTML += `<option value="${p.id}">${p.nombre} - ${p.servicio}</option>`;
+                });
+            } catch (err) {
+                console.error('Error cargando proveedores aseo:', err);
+            }
+        }
+        
+        function seleccionarProveedorAseo() {
+            const proveedorId = document.getElementById('aseo-proveedor').value;
+            const proveedor = proveedoresAseo.find(p => p.id === proveedorId);
+            
+            if (proveedor) {
+                document.getElementById('aseo-nombre').value = proveedor.nombre;
+                document.getElementById('aseo-whatsapp').value = proveedor.whatsapp;
+                document.getElementById('aseo-descripcion').value = proveedor.servicio;
+            }
+        }
+        
+        async function cargarHistorialAseo() {
+            try {
+                const res = await fetch(`/api/gastos/aseo?year=${currentYear}&month=${currentMonth}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                gastosAseo = data.gastos || [];
+                
+                const lista = document.getElementById('aseo-historial-lista');
+                
+                if (gastosAseo.length === 0) {
+                    lista.innerHTML = '<p class="no-data">No hay gastos registrados este mes</p>';
+                } else {
+                    let html = '<div class="gastos-lista">';
+                    let total = 0;
+                    
+                    gastosAseo.forEach(g => {
+                        total += g.valor || 0;
+                        const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
+                        const estado = g.pagado ? '✅' : '⏳';
+                        
+                        html += `
+                            <div class="gasto-item aseo-item ${g.pagado ? 'pagado' : 'pendiente'}">
+                                <div class="gasto-info">
+                                    <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                    <span class="gasto-fecha">${fechaPago}</span>
+                                </div>
+                                <div class="gasto-valor">
+                                    <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
+                                    <span class="gasto-estado">${estado}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div>
+                        <div class="gastos-total">
+                            <span>Total:</span>
+                            <span class="total-valor">-$${total.toLocaleString('es-CL')}</span>
+                        </div>`;
+                    
+                    lista.innerHTML = html;
+                }
+                
+                const totalMes = gastosAseo.reduce((sum, g) => sum + (g.valor || 0), 0);
+                const expenseAseo = document.getElementById('expense-aseo');
+                if (expenseAseo) expenseAseo.textContent = '-$' + totalMes.toLocaleString('es-CL');
+                
+            } catch (err) {
+                console.error('Error cargando historial aseo:', err);
+            }
+        }
+        
+        async function guardarGastoAseo(e) {
+            e.preventDefault();
+            
+            const data = {
+                razon: document.getElementById('aseo-razon').value,
+                nombre: document.getElementById('aseo-nombre').value,
+                tipo: document.getElementById('aseo-tipo').value,
+                fecha_pago: document.getElementById('aseo-fecha-pago').value,
+                valor: parseInt(document.getElementById('aseo-valor').value) || 0,
+                whatsapp: document.getElementById('aseo-whatsapp').value,
+                descripcion: document.getElementById('aseo-descripcion').value,
+                pagado: document.getElementById('aseo-pagado').checked,
+                proveedor_id: document.getElementById('aseo-proveedor').value
+            };
+            
+            try {
+                const res = await fetch('/api/gastos/aseo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    await cargarHistorialAseo();
+                    document.getElementById('aseo-razon').value = '';
+                    document.getElementById('aseo-valor').value = '';
+                    document.getElementById('aseo-descripcion').value = '';
+                    alert('Gasto guardado correctamente');
+                } else {
+                    alert('Error: ' + (result.error || 'No se pudo guardar'));
+                }
+            } catch (err) {
+                alert('Error de conexión');
+            }
+        }
+        
+        // Cerrar modal aseo clickeando fuera
+        document.getElementById('aseo-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'aseo-modal') cerrarModalAseo();
+        });
+        
+        // Cargar gastos de agua del mes actual para el widget
+        async function cargarGastosAguaMes() {
+            try {
+                console.log('Cargando gastos agua mes:', currentYear, currentMonth);
+                const res = await fetch(`/api/gastos/agua?year=${currentYear}&month=${currentMonth}`);
+                if (!res.ok) {
+                    console.error('Error API gastos agua widget:', res.status, res.statusText);
+                    return;
+                }
+                const data = await res.json();
+                console.log('Gastos agua widget:', data);
+                gastosAguaMes = data.gastos || [];
+                
+                const totalMes = gastosAguaMes.reduce((sum, g) => sum + (g.valor || 0), 0);
+                console.log('Total gastos agua:', totalMes);
+                const expenseAgua = document.getElementById('expense-agua');
+                if (expenseAgua) expenseAgua.textContent = '-$' + totalMes.toLocaleString('es-CL');
+            } catch (err) {
+                console.error('Error cargando gastos agua:', err);
+            }
+        }
+        
+        // Cargar gastos de internet del mes actual para el widget
+        async function cargarGastosInternetMes() {
+            try {
+                console.log('Cargando gastos internet mes:', currentYear, currentMonth);
+                const res = await fetch(`/api/gastos/internet?year=${currentYear}&month=${currentMonth}`);
+                if (!res.ok) {
+                    console.error('Error API gastos internet widget:', res.status, res.statusText);
+                    return;
+                }
+                const data = await res.json();
+                console.log('Gastos internet cargados widget:', data);
+                gastosInternetMes = data.gastos || [];
+                const totalMes = gastosInternetMes.reduce((sum, g) => sum + (g.valor || 0), 0);
+                console.log('Total gastos internet:', totalMes);
+                const expenseInternet = document.getElementById('expense-internet');
+                if (expenseInternet) expenseInternet.textContent = '-$' + totalMes.toLocaleString('es-CL');
+            } catch (err) {
+                console.error('Error cargando gastos internet:', err);
+            }
+        }
+        
+        // Cargar gastos de gasolina del mes actual para el widget
+        async function cargarGastosGasolinaMes() {
+            try {
+                console.log('Cargando gastos gasolina mes:', currentYear, currentMonth);
+                const res = await fetch(`/api/gastos/gasolina?year=${currentYear}&month=${currentMonth}`);
+                if (!res.ok) {
+                    console.error('Error API gastos gasolina widget:', res.status, res.statusText);
+                    return;
+                }
+                const data = await res.json();
+                console.log('Gastos gasolina cargados widget:', data);
+                gastosGasolinaMes = data.gastos || [];
+                const totalMes = gastosGasolinaMes.reduce((sum, g) => sum + (g.valor || 0), 0);
+                console.log('Total gastos gasolina:', totalMes);
+                const expenseGasolina = document.getElementById('expense-gasolina');
+                if (expenseGasolina) expenseGasolina.textContent = '-$' + totalMes.toLocaleString('es-CL');
+            } catch (err) {
+                console.error('Error cargando gastos gasolina:', err);
+            }
+        }
+        
+        // Cargar gastos de aseo del mes actual para el widget
+        async function cargarGastosAseoMes() {
+            try {
+                console.log('Cargando gastos aseo mes:', currentYear, currentMonth);
+                const res = await fetch(`/api/gastos/aseo?year=${currentYear}&month=${currentMonth}`);
+                if (!res.ok) {
+                    console.error('Error API gastos aseo widget:', res.status, res.statusText);
+                    return;
+                }
+                const data = await res.json();
+                console.log('Gastos aseo cargados widget:', data);
+                gastosAseoMes = data.gastos || [];
+                const totalMes = gastosAseoMes.reduce((sum, g) => sum + (g.valor || 0), 0);
+                console.log('Total gastos aseo:', totalMes);
+                const expenseAseo = document.getElementById('expense-aseo');
+                if (expenseAseo) expenseAseo.textContent = '-$' + totalMes.toLocaleString('es-CL');
+            } catch (err) {
+                console.error('Error cargando gastos aseo:', err);
+            }
+        }
+        
+        // Marcar días con gastos en el calendario
+        function marcarDiasConGastos() {
+            // Limpiar marcas anteriores
+            document.querySelectorAll('.gasto-icon').forEach(el => el.remove());
+            
+            // Función para agregar icono a un día
+            const agregarIconoGasto = (fecha, icono, tipo, valor) => {
+                const cell = document.querySelector(`[data-date="${fecha}"]`);
+                if (cell) {
+                    const iconEl = document.createElement('span');
+                    iconEl.className = `gasto-icon gasto-${tipo}`;
+                    iconEl.textContent = icono;
+                    iconEl.title = `${tipo}: $${valor.toLocaleString('es-CL')}`;
+                    cell.appendChild(iconEl);
+                }
+            };
+            
+            // Marcar gastos de agua
+            gastosAguaMes.forEach(g => {
+                if (g.fecha_pago) agregarIconoGasto(g.fecha_pago, '💧', 'agua', g.valor || 0);
+            });
+            
+            // Marcar gastos de internet
+            gastosInternetMes.forEach(g => {
+                if (g.fecha_pago) agregarIconoGasto(g.fecha_pago, '📡', 'internet', g.valor || 0);
+            });
+            
+            // Marcar gastos de gasolina
+            gastosGasolinaMes.forEach(g => {
+                if (g.fecha_pago) agregarIconoGasto(g.fecha_pago, '⛽', 'gasolina', g.valor || 0);
+            });
+            
+            // Marcar gastos de aseo
+            gastosAseoMes.forEach(g => {
+                if (g.fecha_pago) agregarIconoGasto(g.fecha_pago, '🧹', 'aseo', g.valor || 0);
+            });
+        }
+        
+        // Calcular total del mes (ingresos - gastos) y colorear widget
+        function calcularTotalMes() {
+            // Obtener valores de los widgets
+            const getValor = (id) => {
+                const el = document.getElementById(id);
+                if (!el) return 0;
+                const text = el.textContent.replace(/[^0-9-]/g, '');
+                return parseInt(text) || 0;
+            };
+            
+            const ingresoArriendo = getValor('income-arriendo');
+            const ingresoTinaja = getValor('income-tinaja');
+            const gastoAgua = Math.abs(getValor('expense-agua'));
+            const gastoInternet = Math.abs(getValor('expense-internet'));
+            const gastoGasolina = Math.abs(getValor('expense-gasolina'));
+            const gastoAseo = Math.abs(getValor('expense-aseo'));
+            
+            const totalIngresos = ingresoArriendo + ingresoTinaja;
+            const totalGastos = gastoAgua + gastoInternet + gastoGasolina + gastoAseo;
+            const balance = totalIngresos - totalGastos;
+            
+            console.log('Total mes:', { totalIngresos, totalGastos, balance });
+            
+            // Actualizar total de gastos en el widget de gastos
+            const expenseTotalEl = document.getElementById('expense-total');
+            if (expenseTotalEl) {
+                expenseTotalEl.textContent = '-$' + totalGastos.toLocaleString('es-CL');
+            }
+            
+            // Actualizar valor
+            const valorEl = document.getElementById('total-mes-valor');
+            const widgetEl = document.getElementById('widget-total-mes');
+            const estrellasEl = document.getElementById('total-mes-estrellas');
+            
+            if (valorEl) {
+                const signo = balance >= 0 ? '+' : '';
+                valorEl.textContent = signo + '$' + balance.toLocaleString('es-CL');
+            }
+            
+            // Calcular estrellas (1 por cada 50% sobre los gastos)
+            // ratio 1.5 = 1 estrella (50% sobre), ratio 2.0 = 2 estrellas (100% sobre), etc.
+            let estrellas = 0;
+            if (totalGastos > 0) {
+                const ratio = totalIngresos / totalGastos;
+                const porcentajeSobre = (ratio - 1) * 100; // % por encima de los gastos
+                estrellas = Math.max(0, Math.floor(porcentajeSobre / 50));
+            } else if (totalIngresos > 0) {
+                // Sin gastos = calcular basado en ingresos (1 estrella por cada 50k)
+                estrellas = Math.floor(totalIngresos / 50000);
+            }
+            
+            // Mostrar estrellas (sin máximo)
+            if (estrellasEl) {
+                estrellasEl.textContent = '⭐'.repeat(estrellas);
+                const porcentaje = totalGastos > 0 ? Math.round((totalIngresos / totalGastos - 1) * 100) : 0;
+                estrellasEl.title = estrellas > 0 ? `${porcentaje}% sobre gastos (1⭐ cada 50%)` : '';
+            }
+            
+            // Determinar color según relación ingresos/gastos
+            if (widgetEl) {
+                // Remover clases de color anteriores
+                widgetEl.classList.remove('total-azul', 'total-verde', 'total-amarillo', 'total-rojo');
+                
+                if (totalGastos === 0) {
+                    // Sin gastos, siempre azul si hay ingresos
+                    widgetEl.classList.add(totalIngresos > 0 ? 'total-azul' : 'total-amarillo');
+                } else {
+                    const ratio = totalIngresos / totalGastos;
+                    
+                    if (ratio >= 2) {
+                        // Ingresos >= 2x gastos → Azul
+                        widgetEl.classList.add('total-azul');
+                    } else if (ratio >= 1.5) {
+                        // Ingresos >= 1.5x gastos → Verde
+                        widgetEl.classList.add('total-verde');
+                    } else if (ratio >= 1) {
+                        // Ingresos >= gastos → Amarillo
+                        widgetEl.classList.add('total-amarillo');
+                    } else {
+                        // Ingresos < gastos → Rojo
+                        widgetEl.classList.add('total-rojo');
+                    }
+                }
+            }
+        }
+        
+        // Calcular rentabilidad y comparación anual (usa API /api/promedio-anual)
+        async function calcularRentabilidad() {
+            try {
+                const getValor = (id) => {
+                    const el = document.getElementById(id);
+                    if (!el) return 0;
+                    const text = el.textContent.replace(/[^0-9-]/g, '');
+                    return parseInt(text) || 0;
+                };
+                
+                // Datos del mes VISIBLE (puede cambiar al navegar)
+                const ingresosMes = getValor('income-arriendo') + getValor('income-tinaja');
+                const gastosMes = Math.abs(getValor('expense-agua')) + Math.abs(getValor('expense-internet')) + 
+                                 Math.abs(getValor('expense-gasolina')) + Math.abs(getValor('expense-aseo'));
+                
+                // ROI del mes visible
+                let roi = 0;
+                if (gastosMes > 0) {
+                    roi = ((ingresosMes - gastosMes) / gastosMes) * 100;
+                } else if (ingresosMes > 0) {
+                    roi = 100;
+                }
+                
+                // Margen del mes visible
+                let margen = 0;
+                if (ingresosMes > 0) {
+                    margen = ((ingresosMes - gastosMes) / ingresosMes) * 100;
+                } else if (gastosMes > 0) {
+                    margen = -100;
+                }
+                
+                // Actualizar ROI
+                const roiEl = document.getElementById('rentabilidad-roi');
+                if (roiEl) {
+                    roiEl.textContent = (roi >= 0 ? '+' : '') + Math.round(roi) + '%';
+                    roiEl.style.color = roi >= 0 ? '#059669' : '#dc2626';
+                }
+                
+                // Actualizar Margen
+                const margenEl = document.getElementById('rentabilidad-margen');
+                if (margenEl) {
+                    margenEl.textContent = (margen >= 0 ? '+' : '') + Math.round(margen) + '%';
+                    margenEl.style.color = margen >= 0 ? '#059669' : '#dc2626';
+                }
+                
+                // Obtener promedio anual desde la API (FIJO basado en fecha de HOY)
+                const res = await fetch('/api/promedio-anual');
+                const data = await res.json();
+                
+                const promedioIngresos = data.promedio || 0;
+                const cantidadMeses = data.cantidad_meses || 0;
+                
+                // Actualizar flecha de tendencia
+                const flechaEl = document.getElementById('rentabilidad-tendencia');
+                if (flechaEl) {
+                    flechaEl.classList.remove('tendencia-up', 'tendencia-down', 'tendencia-neutral');
+                    if (cantidadMeses === 0) {
+                        flechaEl.textContent = '→';
+                        flechaEl.classList.add('tendencia-neutral');
+                    } else if (ingresosMes > promedioIngresos) {
+                        flechaEl.textContent = '↑';
+                        flechaEl.classList.add('tendencia-up');
+                    } else if (ingresosMes < promedioIngresos) {
+                        flechaEl.textContent = '↓';
+                        flechaEl.classList.add('tendencia-down');
+                    } else {
+                        flechaEl.textContent = '→';
+                        flechaEl.classList.add('tendencia-neutral');
+                    }
+                }
+                
+                // Actualizar Promedio del Año (FIJO)
+                const promedioAnioEl = document.getElementById('rentabilidad-promedio-anio');
+                if (promedioAnioEl) {
+                    if (cantidadMeses === 0) {
+                        promedioAnioEl.textContent = 'N/A';
+                        promedioAnioEl.title = 'Sin datos de meses cerrados';
+                    } else {
+                        promedioAnioEl.textContent = '$' + Math.round(promedioIngresos / 1000) + 'k';
+                        promedioAnioEl.title = `Promedio de ${cantidadMeses} meses: $${promedioIngresos.toLocaleString('es-CL')}`;
+                    }
+                }
+                
+                // Actualizar Var. YTD (variación del mes visible vs promedio fijo)
+                const varYtdEl = document.getElementById('rentabilidad-var-ytd');
+                if (varYtdEl) {
+                    if (cantidadMeses === 0 || promedioIngresos === 0) {
+                        varYtdEl.textContent = 'N/A';
+                        varYtdEl.className = 'stat-value';
+                    } else {
+                        const variacion = ((ingresosMes - promedioIngresos) / promedioIngresos) * 100;
+                        varYtdEl.textContent = (variacion >= 0 ? '+' : '') + Math.round(variacion) + '%';
+                        varYtdEl.className = 'stat-value ' + (variacion >= 0 ? 'positive' : 'negative');
+                        varYtdEl.title = `Mes: $${ingresosMes.toLocaleString('es-CL')} vs Promedio: $${promedioIngresos.toLocaleString('es-CL')}`;
+                    }
+                }
+            } catch (e) {
+                console.error('Error calculando rentabilidad:', e);
+            }
+        }
+        
         // Inicializar
         marcarDias();
         filtrarReservasPorMes(currentYear, currentMonth);
+        if (isAdmin) {
+            (async () => {
+                await cargarGastosAguaMes();
+                await cargarGastosInternetMes();
+                await cargarGastosGasolinaMes();
+                await cargarGastosAseoMes();
+                calcularTotalMes();
+                marcarDiasConGastos();
+                await calcularRentabilidad();
+            })();
+        }
         
         // ============================================================
         // FILTROS DE RESERVAS
