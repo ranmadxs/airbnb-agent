@@ -2,6 +2,10 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.8.16] - 2026-03-10
+### Fixed
+- Sello finalizada: forzar posición con !important en top/right/left
+
 ## [2.8.15] - 2026-03-10
 ### Changed
 - Sello finalizada: forzar posición derecha con left:auto
