@@ -129,7 +129,7 @@
                             {% set has_checkout = event.checkout %}
                             {% set is_past = event.end <= today %}
                             {% set is_finished = is_past or has_checkout %}
-                            {% set is_in_progress = event.start <= today and event.end > today and not has_checkout %}
+                            {% set is_in_progress = event.start <= today and event.end > today and not has_checkout and is_reservation %}
                             {% set is_upcoming = event.start > today and is_reservation %}
                             <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }}" 
                                  data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}">
