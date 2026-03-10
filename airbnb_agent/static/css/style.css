@@ -460,7 +460,8 @@ header {
 }
 
 .bubble-initial {
-    font-size: 1em;
+    font-size: 0.9em;
+    letter-spacing: -0.5px;
     font-weight: 700;
 }
 
@@ -804,6 +805,11 @@ header {
 .guest-badge.pets {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
+}
+
+.pet-icon {
+    font-size: 1.3em;
+    line-height: 1;
 }
 
 /* Notas de la reserva */

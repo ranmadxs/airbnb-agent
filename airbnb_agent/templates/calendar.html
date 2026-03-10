@@ -87,15 +87,15 @@
             {% if is_logged_in %}
             <div class="stats-widgets">
                 <div class="stat-widget">
-                    <span class="widget-value">{{ stats.total_reservations }}</span>
-                    <span class="widget-label">Total</span>
+                    <span class="widget-value" id="stat-total">0</span>
+                    <span class="widget-label">Total Mes</span>
                 </div>
                 <div class="stat-widget">
-                    <span class="widget-value">{{ stats.upcoming_reservations }}</span>
+                    <span class="widget-value" id="stat-proximas">0</span>
                     <span class="widget-label">Próximas</span>
                 </div>
                 <div class="stat-widget highlight">
-                    <span class="widget-value">{{ stats.ocupacion_30 }}%</span>
+                    <span class="widget-value" id="stat-ocupacion">0%</span>
                     <span class="widget-label">Ocupación</span>
                 </div>
             </div>
@@ -196,7 +196,7 @@
                                 <div class="guests-row">
                                     <span class="guest-badge adults" title="Adultos">👤 {{ event.adultos or 0 }}</span>
                                     <span class="guest-badge children" title="Niños">👶 {{ event.ninos or 0 }}</span>
-                                    <span class="guest-badge pets" title="Mascotas">🐾 {{ event.mascotas or 0 }}</span>
+                                    <span class="guest-badge pets" title="Mascotas"><span class="pet-icon">🐾</span> {{ event.mascotas or 0 }}</span>
                                 </div>
                                 {% endif %}
                                 {% if event.notas %}
@@ -475,6 +475,64 @@
             
             // Re-aplicar filtros considerando el mes
             aplicarFiltros();
+            
+            // Calcular stats del mes
+            calcularStatsMes(year, month);
+        }
+        
+        // Calcular estadísticas del mes
+        function calcularStatsMes(year, month) {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            
+            const inicioMes = new Date(year, month - 1, 1);
+            const finMes = new Date(year, month, 0);
+            const diasEnMes = finMes.getDate();
+            
+            let totalReservas = 0;
+            let proximas = 0;
+            let diasOcupados = 0;
+            
+            // Solo considerar reservas (no bloqueos)
+            const reservas = events.filter(e => e.estado === 'reservado');
+            
+            reservas.forEach(event => {
+                const start = new Date(event.start + 'T00:00:00');
+                const end = new Date(event.end + 'T00:00:00');
+                const hasCheckout = event.checkout;
+                
+                // Verificar si la reserva toca este mes
+                const tocaMes = start <= finMes && end >= inicioMes;
+                
+                if (tocaMes) {
+                    totalReservas++;
+                    
+                    // Próximas = no han finalizado (no tienen checkout y end > hoy)
+                    if (!hasCheckout && end > hoy) {
+                        proximas++;
+                    }
+                    
+                    // Calcular días ocupados en este mes
+                    const overlapStart = new Date(Math.max(start, inicioMes));
+                    const overlapEnd = new Date(Math.min(end, finMes));
+                    overlapEnd.setDate(overlapEnd.getDate() + 1); // Incluir día final
+                    
+                    const dias = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
+                    diasOcupados += dias;
+                }
+            });
+            
+            // Ocupación = días ocupados / días del mes * 100
+            const ocupacion = Math.min(100, Math.round((diasOcupados / diasEnMes) * 100));
+            
+            // Actualizar widgets
+            const statTotal = document.getElementById('stat-total');
+            const statProximas = document.getElementById('stat-proximas');
+            const statOcupacion = document.getElementById('stat-ocupacion');
+            
+            if (statTotal) statTotal.textContent = totalReservas;
+            if (statProximas) statProximas.textContent = proximas;
+            if (statOcupacion) statOcupacion.textContent = ocupacion + '%';
         }
         
         // Renderizar calendario
@@ -583,9 +641,10 @@
                                 const bubble = document.createElement('div');
                                 bubble.className = 'guest-bubble';
                                 
-                                // Inicial del nombre
-                                const inicial = nombre ? nombre.charAt(0).toUpperCase() : '?';
-                                let contenido = `<span class="bubble-initial">${inicial}</span>`;
+                                // Primeras 10 letras del nombre (primera mayúscula, resto minúscula)
+                                const nombreCorto = nombre ? nombre.substring(0, 10) : '?';
+                                const nombreFormateado = nombreCorto.charAt(0).toUpperCase() + nombreCorto.slice(1).toLowerCase();
+                                let contenido = `<span class="bubble-initial">${nombreFormateado}</span>`;
                                 
                                 // +N personas (si hay más de 1)
                                 if (totalPersonas > 1) {

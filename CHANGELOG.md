@@ -2,6 +2,12 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.8.23] - 2026-03-10
+### Changed
+- Globito muestra 10 letras (Primera mayúscula, resto minúscula)
+- Huella de mascotas 🐾 más grande en cards
+- Stats calculados dinámicamente por mes visible
+
 ## [2.8.20] - 2026-03-10
 ### Fixed
 - Sello "Próxima Estadía" solo en la primera reserva futura (no todas)
