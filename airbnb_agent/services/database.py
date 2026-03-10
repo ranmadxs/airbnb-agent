@@ -397,7 +397,8 @@ class DatabaseService:
                     "adultos": doc.get("adultos", 0),
                     "ninos": doc.get("ninos", 0),
                     "mascotas": doc.get("mascotas", 0),
-                    "notas": doc.get("notas", "")
+                    "notas": doc.get("notas", ""),
+                    "precio": doc.get("precio", 0)
                 })
             
             return eventos
@@ -478,6 +479,7 @@ class DatabaseService:
                 "ninos": datos.get('ninos', 0),
                 "mascotas": datos.get('mascotas', 0),
                 "notas": datos.get('notas', ''),
+                "precio": datos.get('precio', 0),
                 "updated_at": datetime.utcnow(),
                 "user_origin": audit.get("user_origin", "admin"),
                 "user_agent": audit.get("user_agent", "admin")

@@ -2,6 +2,14 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.8.25] - 2026-03-10
+### Added
+- Mostrar precio en cards con formato $XXX.XXX [CLP]
+
+## [2.8.24] - 2026-03-10
+### Added
+- Campo precio (CLP) en modal de edición de reservas
+
 ## [2.8.23] - 2026-03-10
 ### Changed
 - Globito muestra 10 letras (Primera mayúscula, resto minúscula)

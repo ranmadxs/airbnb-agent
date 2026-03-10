@@ -198,6 +198,11 @@
                                     <span class="guest-badge children" title="Niños">👶 {{ event.ninos or 0 }}</span>
                                     <span class="guest-badge pets" title="Mascotas"><span class="pet-icon">🐾</span> {{ event.mascotas or 0 }}</span>
                                 </div>
+                                {% if event.precio %}
+                                <div class="price-row">
+                                    <span class="price-value">${{ "{:,.0f}".format(event.precio).replace(",", ".") }} [CLP]</span>
+                                </div>
+                                {% endif %}
                                 {% endif %}
                                 {% if event.notas %}
                                 <div class="notes-row">
@@ -361,6 +366,11 @@
                 <div class="form-group">
                     <label>📝 Notas (visibles para todos)</label>
                     <textarea id="reserva-notas" name="notas" rows="2" placeholder="Ej: Llegada tardía, necesita cuna..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>💰 Precio (CLP)</label>
+                    <input type="number" id="reserva-precio" name="precio" min="0" placeholder="Ej: 150000">
                 </div>
                 
                 <div class="form-group">
@@ -729,6 +739,7 @@
                     document.getElementById('reserva-ninos').value = data.ninos || 0;
                     document.getElementById('reserva-mascotas').value = data.mascotas || 0;
                     document.getElementById('reserva-notas').value = data.notas || '';
+                    document.getElementById('reserva-precio').value = data.precio || '';
                     
                     if (data.reservation_url) {
                         const urlLink = document.getElementById('reserva-url-link');
@@ -766,7 +777,8 @@
                 adultos: parseInt(document.getElementById('reserva-adultos').value) || 0,
                 ninos: parseInt(document.getElementById('reserva-ninos').value) || 0,
                 mascotas: parseInt(document.getElementById('reserva-mascotas').value) || 0,
-                notas: document.getElementById('reserva-notas').value
+                notas: document.getElementById('reserva-notas').value,
+                precio: parseInt(document.getElementById('reserva-precio').value) || 0
             };
             
             try {

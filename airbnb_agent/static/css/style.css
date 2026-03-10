@@ -812,6 +812,23 @@ header {
     line-height: 1;
 }
 
+/* Precio de la reserva */
+.price-row {
+    margin-top: 8px;
+    text-align: center;
+}
+
+.price-value {
+    display: inline-block;
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #059669;
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid #10b981;
+}
+
 /* Notas de la reserva */
 .notes-row {
     margin-top: 8px;

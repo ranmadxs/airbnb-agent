@@ -266,7 +266,8 @@ def api_reserva_por_fecha(fecha):
             "adultos": reserva.get('adultos', 0),
             "ninos": reserva.get('ninos', 0),
             "mascotas": reserva.get('mascotas', 0),
-            "notas": reserva.get('notas', '')
+            "notas": reserva.get('notas', ''),
+            "precio": reserva.get('precio', 0)
         })
     return jsonify({"found": False, "fecha": fecha})
 
@@ -291,7 +292,8 @@ def api_guardar_reserva():
         'adultos': data.get('adultos', 0),
         'ninos': data.get('ninos', 0),
         'mascotas': data.get('mascotas', 0),
-        'notas': data.get('notas', '')
+        'notas': data.get('notas', ''),
+        'precio': data.get('precio', 0)
     }
     
     if datos['event_start'] >= datos['event_end']:
