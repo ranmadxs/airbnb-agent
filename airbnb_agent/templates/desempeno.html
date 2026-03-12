@@ -23,8 +23,11 @@
         .desempeno-filtro input { width: 16px; height: 16px; cursor: pointer; }
         .desempeno-chart { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
         .desempeno-chart-years { font-size: 0.85em; color: #767676; margin-bottom: 16px; }
-        .desempeno-chart-container { display: flex; flex-direction: column; gap: 0; }
-        .desempeno-bars { display: flex; flex-direction: column; gap: 12px; }
+        .desempeno-total-acum { margin-left: 12px; font-weight: 700; color: #059669; }
+        .desempeno-chart-container { display: flex; flex-direction: column; gap: 0; position: relative; }
+        .desempeno-chart-grid { position: absolute; left: 48px; right: 82px; top: 0; bottom: 0; pointer-events: none; z-index: 0; }
+        .desempeno-chart-grid svg { width: 100%; height: 100%; display: block; }
+        .desempeno-bars { display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 1; }
         .desempeno-bar-row { display: flex; align-items: center; gap: 12px; min-height: 32px; transition: transform 0.25s ease, min-height 0.25s ease; }
         .desempeno-bar-row.mes-actual { transform: scale(1.3); transform-origin: left center; min-height: 42px; background: linear-gradient(90deg, rgba(29,78,216,0.08), transparent); border-radius: 8px; padding: 4px 8px; margin: 0 -8px; }
         .desempeno-bar-row.mes-actual .desempeno-bar-track { height: 36px; }
@@ -121,8 +124,9 @@
             </div>
             <div class="desempeno-chart-content hidden" id="desempeno-chart-content">
             <div class="desempeno-error hidden" id="desempeno-error"></div>
-            <div class="desempeno-chart-years"><span id="chart-years">2026</span> — Max: <span id="y-max">$1.2 M CLP</span></div>
+            <div class="desempeno-chart-years"><span id="chart-years">2026</span> — Max: <span id="y-max">$1.2 M CLP</span><span class="desempeno-total-acum" id="chart-total-acum"></span></div>
             <div class="desempeno-chart-container">
+                <div class="desempeno-chart-grid" id="chart-grid"></div>
                 <div class="desempeno-bars" id="chart-bars"></div>
             </div>
             <div class="desempeno-nav">
@@ -287,19 +291,34 @@
                 mesesData.find(m => m.mes === mes && m.anio === anio)
             ).filter(Boolean);
             const maxVal = Math.max(1, ...mesesFiltrados.map(m => getTotalMes(m)));
+            const maxScale = maxVal + 100000;
+            const nRows = Math.max(1, mesesFiltrados.length);
             const barsEl = document.getElementById('chart-bars');
+            const gridEl = document.getElementById('chart-grid');
             const yearsEl = document.getElementById('chart-years');
             const yMaxEl = document.getElementById('y-max');
             const aniosUnicos = [...new Set(mesesMostrar.map(x => x.anio))];
             yearsEl.textContent = aniosUnicos.length > 1 ? aniosUnicos.join('–') : currentYear;
-            yMaxEl.textContent = formatShort(maxVal) + ' CLP';
+            yMaxEl.textContent = formatShort(maxScale) + ' CLP';
+            const totalAcumEl = document.getElementById('chart-total-acum');
+            if (totalAcumEl) {
+                if (sinGastos()) {
+                    const totalAcum = mesesFiltrados.reduce((s, m) => s + (m.total_ingresos || 0), 0);
+                    const totalStr = totalAcum >= 1000000 ? `$${(totalAcum/1000000).toFixed(1)} M` : `$${totalAcum.toLocaleString('es-CL')}`;
+                    totalAcumEl.textContent = '| Total acumulado: ' + totalStr + ' CLP';
+                    totalAcumEl.style.display = '';
+                } else {
+                    totalAcumEl.textContent = '';
+                    totalAcumEl.style.display = 'none';
+                }
+            }
 
             const segs = getSegmentosBarra();
             barsEl.innerHTML = mesesFiltrados.map((m) => {
                 const esMesActual = m.mes === selectedMonth && m.anio === currentYear;
                 const claseActual = esMesActual ? ' desempeno-bar-row mes-actual' : ' desempeno-bar-row';
                 const total = getTotalMes(m);
-                const pctDelMax = maxVal > 0 ? (total / maxVal) * 100 : 0;
+                const pctDelMax = maxScale > 0 ? (total / maxScale) * 100 : 0;
                 const valorMostrar = sinGastos() ? (m.total_ingresos || 0) : ((m.total_ingresos || 0) - (m.total_gastos || 0));
                 const valorClase = valorMostrar < 0 ? 'desempeno-bar-total negativo' : 'desempeno-bar-total';
                 const valorStr = Math.abs(valorMostrar) >= 1000000 ? `$${(valorMostrar/1000000).toFixed(1)} M` : `$${valorMostrar.toLocaleString('es-CL')}`;
@@ -319,6 +338,28 @@
                     </div>
                 `;
             }).join('');
+
+            const toX = (clp) => (clp / maxScale) * 100;
+            const toY = (row) => (row / nRows) * 100;
+            const vLines = [];
+            for (let x = 100000; x < maxScale; x += 100000) {
+                const xp = toX(x);
+                vLines.push(`<line x1="${xp}" y1="0" x2="${xp}" y2="100" stroke="#d1d5db" stroke-width="0.3" stroke-dasharray="2 2"/>`);
+            }
+            const hLines = [];
+            for (let y = 1; y < nRows; y++) {
+                const yp = toY(y);
+                hLines.push(`<line x1="0" y1="${yp}" x2="100" y2="${yp}" stroke="#d1d5db" stroke-width="0.3" stroke-dasharray="2 2"/>`);
+            }
+            const axes = `<line x1="0" y1="0" x2="0" y2="100" stroke="#9ca3af" stroke-width="0.5"/>
+                <line x1="0" y1="100" x2="100" y2="100" stroke="#9ca3af" stroke-width="0.5"/>`;
+            if (gridEl) {
+                gridEl.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                    ${vLines.join('')}
+                    ${hLines.join('')}
+                    ${axes}
+                </svg>`;
+            }
         }
 
         function actualizarCard() {
