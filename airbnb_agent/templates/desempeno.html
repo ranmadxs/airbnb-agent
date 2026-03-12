@@ -22,18 +22,15 @@
         .desempeno-filtro { display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: #484848; cursor: pointer; }
         .desempeno-filtro input { width: 16px; height: 16px; cursor: pointer; }
         .desempeno-chart { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
-        .desempeno-chart-years { font-size: 0.85em; color: #767676; margin-bottom: 16px; }
+        .desempeno-chart-years { font-size: 0.72em; color: #767676; margin-bottom: 16px; }
         .desempeno-total-acum { margin-left: 12px; font-weight: 700; color: #059669; }
         .desempeno-chart-container { display: flex; flex-direction: column; gap: 0; position: relative; }
-        .desempeno-chart-grid { position: absolute; left: 48px; right: 82px; top: 0; bottom: 0; pointer-events: none; z-index: 0; }
+        .desempeno-chart-grid { position: absolute; left: 40px; right: 82px; top: 0; bottom: 0; pointer-events: none; z-index: 0; }
         .desempeno-chart-grid svg { width: 100%; height: 100%; display: block; }
         .desempeno-bars { display: flex; flex-direction: column; gap: 12px; position: relative; z-index: 1; }
         .desempeno-bar-row { display: flex; align-items: center; gap: 12px; min-height: 32px; transition: transform 0.25s ease, min-height 0.25s ease; }
-        .desempeno-bar-row.mes-actual { transform: scale(1.3); transform-origin: left center; min-height: 42px; background: linear-gradient(90deg, rgba(29,78,216,0.08), transparent); border-radius: 8px; padding: 4px 8px; margin: 0 -8px; }
-        .desempeno-bar-row.mes-actual .desempeno-bar-track { height: 36px; }
-        .desempeno-bar-row.mes-actual .desempeno-bar-label { font-size: 1em; font-weight: 700; }
-        .desempeno-bar-row.mes-actual .desempeno-bar-total { font-size: 0.95em; }
-        .desempeno-bar-label { font-size: 0.85em; color: #222; font-weight: 600; min-width: 36px; flex-shrink: 0; }
+        .desempeno-bar-row.mes-actual { background: linear-gradient(90deg, rgba(0,0,0,0.06), transparent); border-radius: 8px; padding: 4px 8px; margin: 0 -8px; }
+        .desempeno-bar-label { font-size: 0.68em; color: #222; font-weight: 600; min-width: 28px; flex-shrink: 0; }
         .desempeno-bar-total { font-size: 0.8em; font-weight: 700; color: #374151; min-width: 70px; text-align: right; flex-shrink: 0; }
         .desempeno-bar-total.negativo { color: #dc2626; }
         .desempeno-bar-track { flex: 1; min-width: 40px; height: 28px; background: #f3f4f6; border-radius: 6px; overflow: hidden; display: flex; position: relative; }
@@ -56,6 +53,8 @@
         .desempeno-card.hidden { display: none !important; }
         .desempeno-leyenda { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 12px; font-size: 0.7em; color: #767676; }
         .desempeno-leyenda-item { display: flex; align-items: center; gap: 4px; }
+        .desempeno-leyenda-click { cursor: pointer; }
+        .desempeno-leyenda-click:hover { text-decoration: underline; }
         .desempeno-leyenda-dot { width: 10px; height: 10px; border-radius: 4px; }
         .desempeno-leyenda-dot.leyenda-ingreso { box-shadow: inset 0 0 0 2px #3B82F6; }
         .desempeno-leyenda-dot.leyenda-gasto { box-shadow: inset 0 0 0 2px #991b1b; }
@@ -94,8 +93,21 @@
         @media (max-width: 480px) {
             .desempeno-bar-row { min-height: 28px; gap: 8px; }
             .desempeno-bar-track { height: 24px; }
-            .desempeno-bar-label { min-width: 32px; font-size: 0.8em; }
+            .desempeno-bar-label { min-width: 24px; font-size: 0.62em; }
         }
+        .desempeno-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .desempeno-modal-overlay.visible { display: flex; }
+        .desempeno-modal { background: white; border-radius: 16px; padding: 24px; max-width: 560px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .desempeno-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .desempeno-modal-title { font-size: 1.1em; font-weight: 700; color: #222; margin: 0; }
+        .desempeno-modal-close { width: 32px; height: 32px; border: none; background: #f3f4f6; border-radius: 50%; cursor: pointer; font-size: 1.2em; color: #6b7280; display: flex; align-items: center; justify-content: center; }
+        .desempeno-modal-close:hover { background: #e5e7eb; color: #222; }
+        .desempeno-scatter-svg { width: 100%; height: 280px; display: block; }
+        .desempeno-scatter-leyenda { display: flex; gap: 16px; margin-top: 12px; font-size: 0.8em; flex-wrap: wrap; }
+        .desempeno-scatter-leyenda span { display: flex; align-items: center; gap: 4px; }
+        .desempeno-scatter-leyenda .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .desempeno-chart-link { margin-left: 8px; font-size: 0.85em; text-decoration: none; color: #1d4ed8; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: #eff6ff; }
+        .desempeno-chart-link:hover { background: #dbeafe; color: #1e40af; }
     </style>
 </head>
 <body>
@@ -124,7 +136,7 @@
             </div>
             <div class="desempeno-chart-content hidden" id="desempeno-chart-content">
             <div class="desempeno-error hidden" id="desempeno-error"></div>
-            <div class="desempeno-chart-years"><span id="chart-years">2026</span> — Max: <span id="y-max">$1.2 M CLP</span><span class="desempeno-total-acum" id="chart-total-acum"></span></div>
+            <div class="desempeno-chart-years"><span id="chart-years">2026</span> — <span id="chart-label">Ingreso Neto Acumulado</span>: <span id="y-max">$1.2 M CLP</span><span class="desempeno-total-acum" id="chart-total-acum"></span></div>
             <div class="desempeno-chart-container">
                 <div class="desempeno-chart-grid" id="chart-grid"></div>
                 <div class="desempeno-bars" id="chart-bars"></div>
@@ -135,8 +147,8 @@
                 <button type="button" class="desempeno-nav-btn" id="nav-next">→</button>
             </div>
             <div class="desempeno-leyenda">
-                <span class="desempeno-leyenda-item"><span class="desempeno-leyenda-dot leyenda-ingreso" style="background:linear-gradient(135deg,#dbeafe,#93c5fd)"></span>Ingresos</span>
-                <span class="desempeno-leyenda-item"><span class="desempeno-leyenda-dot leyenda-gasto" style="background:linear-gradient(135deg,#fee2e2,#fca5a5)"></span>Egresos</span>
+                <span class="desempeno-leyenda-item desempeno-leyenda-click" id="leyenda-ingresos" title="Ver gráfico de dispersión"><span class="desempeno-leyenda-dot leyenda-ingreso" style="background:linear-gradient(135deg,#dbeafe,#93c5fd)"></span>Ingresos</span>
+                <span class="desempeno-leyenda-item desempeno-leyenda-click" id="leyenda-egresos" title="Ver gráfico de dispersión"><span class="desempeno-leyenda-dot leyenda-gasto" style="background:linear-gradient(135deg,#fee2e2,#fca5a5)"></span>Egresos</span>
             </div>
             </div>
         </div>
@@ -156,7 +168,10 @@
             <hr class="desempeno-divider">
             <div class="desempeno-line">
                 <span class="desempeno-line-label" style="font-weight: 700;">Total (CLP)</span>
-                <span class="desempeno-line-value" id="valor-total">$0 CLP</span>
+                <span style="display:flex;align-items:center;gap:4px">
+                    <span class="desempeno-line-value" id="valor-total">$0 CLP</span>
+                    <a href="#" class="desempeno-chart-link" id="link-grafico-neto" title="Ver gráfico pagos vs mes">📊 Ver gráfico</a>
+                </span>
             </div>
             <div class="desempeno-desglose">
                 <div class="desempeno-desglose-header" id="toggle-desglose">
@@ -184,6 +199,53 @@
         </div>
     </div>
 
+    <div class="desempeno-modal-overlay" id="modal-ingresos">
+        <div class="desempeno-modal">
+            <div class="desempeno-modal-header">
+                <h3 class="desempeno-modal-title">Ingresos por mes (arriendo + tinaja)</h3>
+                <button type="button" class="desempeno-modal-close" id="modal-ingresos-close">×</button>
+            </div>
+            <div id="scatter-chart-container"></div>
+            <div class="desempeno-scatter-leyenda" id="scatter-leyenda">
+                <span><span class="dot" style="background:#059669"></span>Arriendo</span>
+                <span><span class="dot" style="background:#3B82F6"></span>Tinaja</span>
+                <span><span class="dot" style="background:#d4af37"></span>Total</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="desempeno-modal-overlay" id="modal-egresos">
+        <div class="desempeno-modal">
+            <div class="desempeno-modal-header">
+                <h3 class="desempeno-modal-title">Egresos por mes</h3>
+                <button type="button" class="desempeno-modal-close" id="modal-egresos-close">×</button>
+            </div>
+            <div id="scatter-chart-egresos-container"></div>
+            <div class="desempeno-scatter-leyenda" id="scatter-leyenda-egresos">
+                <span><span class="dot" style="background:#0ea5e9"></span>Agua</span>
+                <span><span class="dot" style="background:#3B82F6"></span>Internet</span>
+                <span><span class="dot" style="background:#f59e0b"></span>Gasolina</span>
+                <span><span class="dot" style="background:#8b5cf6"></span>Aseo</span>
+                <span><span class="dot" style="background:#dc2626"></span>Total</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="desempeno-modal-overlay" id="modal-neto">
+        <div class="desempeno-modal">
+            <div class="desempeno-modal-header">
+                <h3 class="desempeno-modal-title">Pagos vs mes (ingreso, gastos, neto)</h3>
+                <button type="button" class="desempeno-modal-close" id="modal-neto-close">×</button>
+            </div>
+            <div id="scatter-chart-neto-container"></div>
+            <div class="desempeno-scatter-leyenda" id="scatter-leyenda-neto">
+                <span><span class="dot" style="background:#111"></span>Ingreso</span>
+                <span><span class="dot" style="background:#dc2626"></span>Gastos</span>
+                <span><span class="dot" style="background:#d4af37"></span>Ingreso − Gastos</span>
+            </div>
+        </div>
+    </div>
+
     <script>
         const MESES_ABREV = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
         const MESES_FULL = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -191,6 +253,9 @@
         let currentYear = {{ current_year }};
         let selectedMonth = {{ current_month }};
         let mesesData = [];
+        let chartDataForModal = { meses: [], maxScale: 0, labels: [] };
+        let chartDataForModalEgresos = { meses: [], maxScale: 0, labels: [] };
+        let chartDataForModalNeto = { meses: [], maxYPos: 0, maxYNeg: 0, labels: [] };
 
         function poblarSelectorAnio() {
             const select = document.getElementById('selector-anio');
@@ -255,6 +320,11 @@
             if (val >= 1000) return `$${(val/1000).toFixed(0)} k`;
             return `$${val}`;
         }
+        function formatMillones(val) {
+            const v = Math.abs(val);
+            if (v >= 1000000) return (val < 0 ? '-' : '') + '$' + (v/1000000).toFixed(3).replace('.', ',') + ' M';
+            return (val < 0 ? '-' : '') + '$' + Math.abs(val).toLocaleString('es-CL');
+        }
 
         const SEG_BARRA_INGRESO = { key: 'total_ingresos', clase: 'ingreso' };
         const SEG_BARRA_EGRESO = { key: 'total_gastos', clase: 'egreso' };
@@ -299,18 +369,20 @@
             const yMaxEl = document.getElementById('y-max');
             const aniosUnicos = [...new Set(mesesMostrar.map(x => x.anio))];
             yearsEl.textContent = aniosUnicos.length > 1 ? aniosUnicos.join('–') : currentYear;
-            yMaxEl.textContent = formatShort(maxScale) + ' CLP';
+            const chartLabelEl = document.getElementById('chart-label');
             const totalAcumEl = document.getElementById('chart-total-acum');
-            if (totalAcumEl) {
-                if (sinGastos()) {
-                    const totalAcum = mesesFiltrados.reduce((s, m) => s + (m.total_ingresos || 0), 0);
-                    const totalStr = totalAcum >= 1000000 ? `$${(totalAcum/1000000).toFixed(1)} M` : `$${totalAcum.toLocaleString('es-CL')}`;
-                    totalAcumEl.textContent = '| Total acumulado: ' + totalStr + ' CLP';
-                    totalAcumEl.style.display = '';
-                } else {
-                    totalAcumEl.textContent = '';
-                    totalAcumEl.style.display = 'none';
-                }
+            if (sinGastos()) {
+                const totalIng = mesesFiltrados.reduce((s, m) => s + (m.total_ingresos || 0), 0);
+                const totalStr = formatMillones(totalIng);
+                if (chartLabelEl) chartLabelEl.textContent = 'Total Ingresos Acumulado';
+                yMaxEl.textContent = totalStr + ' CLP';
+                if (totalAcumEl) { totalAcumEl.textContent = ''; totalAcumEl.style.display = 'none'; }
+            } else {
+                const totalNeto = mesesFiltrados.reduce((s, m) => s + ((m.total_ingresos || 0) - (m.total_gastos || 0)), 0);
+                const totalStr = formatMillones(totalNeto);
+                if (chartLabelEl) chartLabelEl.textContent = 'Ingreso Neto Acumulado';
+                yMaxEl.textContent = totalStr + ' CLP';
+                if (totalAcumEl) { totalAcumEl.textContent = ''; totalAcumEl.style.display = 'none'; }
             }
 
             const segs = getSegmentosBarra();
@@ -360,6 +432,239 @@
                     ${axes}
                 </svg>`;
             }
+            const mesesParaScatter = mesesMostrar.map(({ mes, anio }) => {
+                const d = mesesData.find(m => m.mes === mes && m.anio === anio);
+                return { mes, anio, arriendo: d ? (d.arriendo || 0) : 0, tinaja: d ? (d.tinaja || 0) : 0 };
+            });
+            chartDataForModal = { meses: mesesParaScatter, maxScale, labels: mesesParaScatter.map(m =>
+                aniosUnicos.length > 1 ? `${MESES_ABREV[m.mes]}'${String(m.anio).slice(-2)}` : MESES_ABREV[m.mes]
+            ) };
+            const mesesParaEgresos = mesesMostrar.map(({ mes, anio }) => {
+                const d = mesesData.find(m => m.mes === mes && m.anio === anio);
+                return { mes, anio, agua: d ? (d.agua || 0) : 0, internet: d ? (d.internet || 0) : 0, gasolina: d ? (d.gasolina || 0) : 0, aseo: d ? (d.aseo || 0) : 0 };
+            });
+            const maxGastos = Math.max(1, ...mesesParaEgresos.map(m => (m.agua||0)+(m.internet||0)+(m.gasolina||0)+(m.aseo||0)));
+            chartDataForModalEgresos = { meses: mesesParaEgresos, maxScale: maxGastos + 100000, labels: mesesParaEgresos.map(m =>
+                aniosUnicos.length > 1 ? `${MESES_ABREV[m.mes]}'${String(m.anio).slice(-2)}` : MESES_ABREV[m.mes]
+            ) };
+            const mesesParaNeto = mesesMostrar.map(({ mes, anio }) => {
+                const d = mesesData.find(m => m.mes === mes && m.anio === anio);
+                const ing = d ? (d.total_ingresos || 0) : 0;
+                const gas = d ? (d.total_gastos || 0) : 0;
+                return { mes, anio, ingreso: ing, gastos: gas, neto: ing - gas };
+            });
+            const maxIng = Math.max(1, ...mesesParaNeto.map(m => m.ingreso));
+            const maxGas = Math.max(1, ...mesesParaNeto.map(m => m.gastos));
+            chartDataForModalNeto = { meses: mesesParaNeto, maxYPos: maxIng + 50000, maxYNeg: maxGas + 50000, labels: mesesParaNeto.map(m =>
+                aniosUnicos.length > 1 ? `${MESES_ABREV[m.mes]}'${String(m.anio).slice(-2)}` : MESES_ABREV[m.mes]
+            ) };
+        }
+
+        function renderScatterChart() {
+            const { meses, maxScale, labels } = chartDataForModal;
+            const container = document.getElementById('scatter-chart-container');
+            if (!meses.length || !container) return;
+            const arriendo = meses.map(m => m.arriendo || 0);
+            const tinaja = meses.map(m => m.tinaja || 0);
+            const total = meses.map(m => (m.arriendo || 0) + (m.tinaja || 0));
+            const acumArriendo = arriendo.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const acumTinaja = tinaja.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const acumTotal = total.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const maxY = Math.max(maxScale, ...total, 1);
+            const pad = { left: 52, right: 16, top: 16, bottom: 32 };
+            const w = 480, h = 240;
+            const chartW = w - pad.left - pad.right;
+            const chartH = h - pad.top - pad.bottom;
+            const toX = (i) => pad.left + (i / Math.max(1, meses.length - 1)) * chartW;
+            const toY = (v) => pad.top + chartH - (v / maxY) * chartH;
+            const pts = (arr) => arr.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
+            const fmtPesos = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(1)} M` : v >= 1000 ? `$${(v/1000).toFixed(0)} k` : `$${v}`;
+            const circles = (arr, color, acum, nombre) => arr.map((v, i) => {
+                const acumVal = acum[i] ?? 0;
+                const tit = `${labels[i]}: ${nombre} acumulado ${fmtPesos(acumVal)} CLP`;
+                return `<circle cx="${toX(i)}" cy="${toY(v)}" r="6" fill="${color}" stroke="white" stroke-width="2"><title>${tit}</title></circle>`;
+            }).join('');
+            const grid = [];
+            for (let x = 0; x <= meses.length - 1; x++) {
+                const xp = toX(x);
+                grid.push(`<line x1="${xp}" y1="${pad.top}" x2="${xp}" y2="${pad.top + chartH}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
+            }
+            for (let y = 0; y <= 5; y++) {
+                const v = (y / 5) * maxY;
+                const yp = toY(v);
+                grid.push(`<line x1="${pad.left}" y1="${yp}" x2="${pad.left + chartW}" y2="${yp}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
+            }
+            const labelsY = [];
+            for (let y = 0; y <= 5; y++) {
+                const v = (y / 5) * maxY;
+                const yp = toY(v);
+                labelsY.push(`<text x="${pad.left - 6}" y="${yp + 4}" text-anchor="end" font-size="9" fill="#6b7280">${fmtPesos(v)}</text>`);
+            }
+            const axisY = `<line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>
+                <line x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>`;
+            const labelsX = labels.map((l, i) => `<text x="${toX(i)}" y="${h - 4}" text-anchor="middle" font-size="10" fill="#6b7280">${l}</text>`).join('');
+            const svg = `<svg class="desempeno-scatter-svg" viewBox="0 0 ${w} ${h}">
+                ${grid.join('')}
+                ${axisY}
+                ${labelsY.join('')}
+                <polyline points="${pts(arriendo)}" fill="none" stroke="#059669" stroke-width="2.5"/>
+                ${circles(arriendo, '#059669', acumArriendo, 'Arriendo')}
+                <polyline points="${pts(tinaja)}" fill="none" stroke="#3B82F6" stroke-width="2.5"/>
+                ${circles(tinaja, '#3B82F6', acumTinaja, 'Tinaja')}
+                <polyline points="${pts(total)}" fill="none" stroke="#d4af37" stroke-width="2.5"/>
+                ${circles(total, '#d4af37', acumTotal, 'Total')}
+                ${labelsX}
+            </svg>`;
+            container.innerHTML = svg;
+        }
+
+        function abrirModalIngresos() {
+            renderScatterChart();
+            document.getElementById('modal-ingresos').classList.add('visible');
+        }
+
+        function renderScatterChartEgresos() {
+            const { meses, maxScale, labels } = chartDataForModalEgresos;
+            const container = document.getElementById('scatter-chart-egresos-container');
+            if (!meses.length || !container) return;
+            const agua = meses.map(m => m.agua || 0);
+            const internet = meses.map(m => m.internet || 0);
+            const gasolina = meses.map(m => m.gasolina || 0);
+            const aseo = meses.map(m => m.aseo || 0);
+            const total = meses.map(m => (m.agua||0)+(m.internet||0)+(m.gasolina||0)+(m.aseo||0));
+            const acumAgua = agua.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const acumInternet = internet.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const acumGasolina = gasolina.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const acumAseo = aseo.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const acumTotal = total.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const maxY = Math.max(maxScale, ...total, 1);
+            const pad = { left: 52, right: 16, top: 16, bottom: 32 };
+            const w = 480, h = 240;
+            const chartW = w - pad.left - pad.right;
+            const chartH = h - pad.top - pad.bottom;
+            const toX = (i) => pad.left + (i / Math.max(1, meses.length - 1)) * chartW;
+            const toY = (v) => pad.top + chartH - (v / maxY) * chartH;
+            const pts = (arr) => arr.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
+            const fmtPesos = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(1)} M` : v >= 1000 ? `$${(v/1000).toFixed(0)} k` : `$${v}`;
+            const circles = (arr, color, acum, nombre) => arr.map((v, i) => {
+                const acumVal = acum[i] ?? 0;
+                const tit = `${labels[i]}: ${nombre} acumulado ${fmtPesos(acumVal)} CLP`;
+                return `<circle cx="${toX(i)}" cy="${toY(v)}" r="6" fill="${color}" stroke="white" stroke-width="2"><title>${tit}</title></circle>`;
+            }).join('');
+            const grid = [];
+            for (let x = 0; x <= meses.length - 1; x++) {
+                const xp = toX(x);
+                grid.push(`<line x1="${xp}" y1="${pad.top}" x2="${xp}" y2="${pad.top + chartH}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
+            }
+            for (let y = 0; y <= 5; y++) {
+                const v = (y / 5) * maxY;
+                const yp = toY(v);
+                grid.push(`<line x1="${pad.left}" y1="${yp}" x2="${pad.left + chartW}" y2="${yp}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
+            }
+            const labelsY = [];
+            for (let y = 0; y <= 5; y++) {
+                const v = (y / 5) * maxY;
+                const yp = toY(v);
+                labelsY.push(`<text x="${pad.left - 6}" y="${yp + 4}" text-anchor="end" font-size="9" fill="#6b7280">${fmtPesos(v)}</text>`);
+            }
+            const axisY = `<line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>
+                <line x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>`;
+            const labelsX = labels.map((l, i) => `<text x="${toX(i)}" y="${h - 4}" text-anchor="middle" font-size="10" fill="#6b7280">${l}</text>`).join('');
+            const series = [
+                { arr: agua, color: '#0ea5e9', acum: acumAgua, nombre: 'Agua' },
+                { arr: internet, color: '#3B82F6', acum: acumInternet, nombre: 'Internet' },
+                { arr: gasolina, color: '#f59e0b', acum: acumGasolina, nombre: 'Gasolina' },
+                { arr: aseo, color: '#8b5cf6', acum: acumAseo, nombre: 'Aseo' },
+                { arr: total, color: '#dc2626', acum: acumTotal, nombre: 'Total' }
+            ];
+            const polylines = series.map(s => `<polyline points="${pts(s.arr)}" fill="none" stroke="${s.color}" stroke-width="2.5"/>`).join('');
+            const circlesHtml = series.map(s => circles(s.arr, s.color, s.acum, s.nombre)).join('');
+            const svg = `<svg class="desempeno-scatter-svg" viewBox="0 0 ${w} ${h}">
+                ${grid.join('')}
+                ${axisY}
+                ${labelsY.join('')}
+                ${polylines}
+                ${circlesHtml}
+                ${labelsX}
+            </svg>`;
+            container.innerHTML = svg;
+        }
+
+        function abrirModalEgresos() {
+            renderScatterChartEgresos();
+            document.getElementById('modal-egresos').classList.add('visible');
+        }
+
+        function renderScatterChartNeto() {
+            const { meses, maxYPos, maxYNeg, labels } = chartDataForModalNeto;
+            const container = document.getElementById('scatter-chart-neto-container');
+            if (!meses.length || !container) return;
+            const ingreso = meses.map(m => m.ingreso || 0);
+            const gastos = meses.map(m => -(m.gastos || 0));
+            const neto = meses.map(m => (m.ingreso || 0) - (m.gastos || 0));
+            const pad = { left: 52, right: 16, top: 20, bottom: 32 };
+            const w = 480, h = 260;
+            const chartW = w - pad.left - pad.right;
+            const chartH = h - pad.top - pad.bottom;
+            const zeroY = pad.top + chartH * (maxYNeg / (maxYPos + maxYNeg));
+            const toX = (i) => pad.left + (i / Math.max(1, meses.length - 1)) * chartW;
+            const toY = (v) => {
+                if (v >= 0) return zeroY - (v / maxYPos) * (zeroY - pad.top);
+                return zeroY + (Math.abs(v) / maxYNeg) * (pad.top + chartH - zeroY);
+            };
+            const pts = (arr) => arr.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
+            const fmtPesos = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(1)} M` : v >= 1000 ? `$${(v/1000).toFixed(0)} k` : `$${v}`;
+            const circles = (arr, color, nombre) => arr.map((v, i) => {
+                const tit = `${labels[i]}: ${nombre} ${v >= 0 ? fmtPesos(v) : '-' + fmtPesos(-v)} CLP`;
+                return `<circle cx="${toX(i)}" cy="${toY(v)}" r="6" fill="${color}" stroke="white" stroke-width="2"><title>${tit}</title></circle>`;
+            }).join('');
+            const grid = [];
+            for (let x = 0; x <= meses.length - 1; x++) {
+                const xp = toX(x);
+                grid.push(`<line x1="${xp}" y1="${pad.top}" x2="${xp}" y2="${pad.top + chartH}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
+            }
+            grid.push(`<line x1="${pad.left}" y1="${zeroY}" x2="${pad.left + chartW}" y2="${zeroY}" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4 4"/>`);
+            for (let y = 1; y <= 4; y++) {
+                const vPos = (y / 4) * maxYPos;
+                const ypPos = toY(vPos);
+                if (ypPos > pad.top) grid.push(`<line x1="${pad.left}" y1="${ypPos}" x2="${pad.left + chartW}" y2="${ypPos}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
+            }
+            for (let y = 1; y <= 4; y++) {
+                const vNeg = -(y / 4) * maxYNeg;
+                const ypNeg = toY(vNeg);
+                if (ypNeg < pad.top + chartH) grid.push(`<line x1="${pad.left}" y1="${ypNeg}" x2="${pad.left + chartW}" y2="${ypNeg}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
+            }
+            const labelsY = [];
+            labelsY.push(`<text x="${pad.left - 6}" y="${zeroY + 4}" text-anchor="end" font-size="9" fill="#6b7280">$0</text>`);
+            for (let y = 1; y <= 4; y++) {
+                const v = (y / 4) * maxYPos;
+                labelsY.push(`<text x="${pad.left - 6}" y="${toY(v) + 4}" text-anchor="end" font-size="9" fill="#6b7280">${fmtPesos(v)}</text>`);
+            }
+            for (let y = 1; y <= 4; y++) {
+                const v = -(y / 4) * maxYNeg;
+                labelsY.push(`<text x="${pad.left - 6}" y="${toY(v) + 4}" text-anchor="end" font-size="9" fill="#6b7280">-${fmtPesos(-v)}</text>`);
+            }
+            const axisY = `<line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>
+                <line x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>`;
+            const labelsX = labels.map((l, i) => `<text x="${toX(i)}" y="${h - 4}" text-anchor="middle" font-size="10" fill="#6b7280">${l}</text>`).join('');
+            const svg = `<svg class="desempeno-scatter-svg" viewBox="0 0 ${w} ${h}">
+                ${grid.join('')}
+                ${axisY}
+                ${labelsY.join('')}
+                <polyline points="${pts(ingreso)}" fill="none" stroke="#111" stroke-width="2.5"/>
+                ${circles(ingreso, '#111', 'Ingreso')}
+                <polyline points="${pts(gastos)}" fill="none" stroke="#dc2626" stroke-width="2.5"/>
+                ${circles(gastos, '#dc2626', 'Gastos')}
+                <polyline points="${pts(neto)}" fill="none" stroke="#d4af37" stroke-width="2.5"/>
+                ${circles(neto, '#d4af37', 'Neto')}
+                ${labelsX}
+            </svg>`;
+            container.innerHTML = svg;
+        }
+
+        function abrirModalNeto() {
+            renderScatterChartNeto();
+            document.getElementById('modal-neto').classList.add('visible');
         }
 
         function actualizarCard() {
@@ -431,6 +736,16 @@
             currentYear = parseInt(e.target.value, 10);
             cargarDatos();
         };
+
+        document.getElementById('leyenda-ingresos').onclick = abrirModalIngresos;
+        document.getElementById('leyenda-egresos').onclick = abrirModalEgresos;
+        document.getElementById('modal-ingresos-close').onclick = () => document.getElementById('modal-ingresos').classList.remove('visible');
+        document.getElementById('modal-ingresos').onclick = (e) => { if (e.target.id === 'modal-ingresos') e.target.classList.remove('visible'); };
+        document.getElementById('modal-egresos-close').onclick = () => document.getElementById('modal-egresos').classList.remove('visible');
+        document.getElementById('modal-egresos').onclick = (e) => { if (e.target.id === 'modal-egresos') e.target.classList.remove('visible'); };
+        document.getElementById('link-grafico-neto').onclick = (e) => { e.preventDefault(); abrirModalNeto(); };
+        document.getElementById('modal-neto-close').onclick = () => document.getElementById('modal-neto').classList.remove('visible');
+        document.getElementById('modal-neto').onclick = (e) => { if (e.target.id === 'modal-neto') e.target.classList.remove('visible'); };
 
         poblarSelectorAnio();
         cargarDatos();
