@@ -48,6 +48,56 @@ MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
              'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 
+def _calcular_ingresos_mes_reservas(
+    all_events: list,
+    year: int,
+    month: int,
+) -> tuple[int, int, int, int]:
+    """
+    Calcula ingresos del mes (arriendo, tinaja, pagado, próximos) usando la misma
+    lógica que el calendario (event.end = checkout día INCLUSIVO).
+    Devuelve: (ingreso_arriendo, ingreso_tinaja, ingreso_pagado, ingreso_proximos)
+    """
+    inicio_mes = date(year, month, 1)
+    fin_mes = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    hoy = date.today()
+
+    ingreso_arriendo = 0
+    ingreso_tinaja = 0
+    ingreso_pagado = 0
+    ingreso_proximos = 0
+
+    for ev in all_events:
+        if ev.get('estado') == 'eliminado' or ev.get('estado') != 'reservado':
+            continue
+        try:
+            ev_start = date.fromisoformat(ev.get('start', ''))
+            ev_end = date.fromisoformat(ev.get('end', ''))
+            # event.end = checkout día INCLUSIVO (igual que calendario)
+            if ev_start >= fin_mes or ev_end < inicio_mes:
+                continue
+            # dias_totales = (end - start).days + 1 (calendario)
+            dias_totales = max(1, (ev_end - ev_start).days + 1)
+            # endInclusive = end + 1 día; overlap_end = min(endInclusive, fin_mes)
+            ev_end_excl = ev_end + timedelta(days=1)
+            overlap_start = max(ev_start, inicio_mes)
+            overlap_end = min(ev_end_excl, fin_mes)
+            dias_en_mes = max(0, (overlap_end - overlap_start).days)
+            proporcion = dias_en_mes / dias_totales
+            precio = round((ev.get('precio', 0) or 0) * proporcion)
+            extra = round((ev.get('extra_valor', 0) or 0) * proporcion)
+            ingreso_arriendo += precio
+            ingreso_tinaja += extra
+            if ev_end < hoy:
+                ingreso_pagado += precio + extra
+            else:
+                ingreso_proximos += precio + extra
+        except Exception:
+            pass
+
+    return ingreso_arriendo, ingreso_tinaja, ingreso_pagado, ingreso_proximos
+
+
 def get_audit_info() -> dict:
     """Obtiene info de auditoría del request."""
     try:
@@ -69,29 +119,34 @@ def get_month_calendar(year: int, month: int, include_events: bool = False) -> d
         'days': list(cal.itermonthdays2(year, month))
     }
     
-    # Incluir eventos si se solicita
+    # Incluir eventos e ingresos si se solicita
     if include_events:
         inicio_mes = date(year, month, 1)
         if month == 12:
             fin_mes = date(year + 1, 1, 1)
         else:
             fin_mes = date(year, month + 1, 1)
-        
-        # Obtener todos los eventos y filtrar los que tocan este mes
+
         all_events = db_service.obtener_eventos_formato_ical()
         events_mes = []
         for ev in all_events:
             try:
-                # Los campos son 'start' y 'end', no 'event_start' y 'event_end'
                 ev_start = date.fromisoformat(ev.get('start', ''))
                 ev_end = date.fromisoformat(ev.get('end', ''))
-                # El evento toca este mes si: empieza antes del fin del mes Y termina después del inicio
                 if ev_start < fin_mes and ev_end >= inicio_mes:
                     events_mes.append(ev)
-            except:
+            except Exception:
                 pass
         result['events'] = events_mes
-    
+
+        # Ingresos del mes (misma lógica que desempeño/calendario)
+        arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(all_events, year, month)
+        result['ingresos'] = {
+            'arriendo': arriendo,
+            'tinaja': tinaja,
+            'total': arriendo + tinaja,
+        }
+
     return result
 
 
@@ -154,21 +209,87 @@ def home():
         events = ical_events
     
     stats = airbnb_service.get_stats(events)
-    
+
     now = datetime.now()
     current = get_month_calendar(now.year, now.month)
-    
-    # Verificar si está logueado
+    arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(events, now.year, now.month)
+    ingresos_mes_actual = {'arriendo': arriendo, 'tinaja': tinaja, 'total': arriendo + tinaja}
+
     is_logged_in = session.get('logged_in', False)
-    
+
     return render_template('calendar.html',
                          events=events,
                          stats=stats,
                          current=current,
+                         ingresos_mes_actual=ingresos_mes_actual,
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
                          is_logged_in=is_logged_in,
                          today=now.strftime('%Y-%m-%d'))
+
+
+@app.route('/desempeno')
+@login_required
+def desempeno():
+    """Vista de desempeño financiero (ingresos/gastos por mes)."""
+    now = datetime.now()
+    return render_template('desempeno.html',
+                         version=APP_VERSION,
+                         property_name=PROPERTY_NAME,
+                         current_year=now.year,
+                         current_month=now.month)
+
+
+@app.route('/api/desempeno')
+@login_required
+def api_desempeno():
+    """API: Datos de desempeño mensual (ingresos, gastos, pagado/próximos)."""
+    year = request.args.get('year', datetime.now().year, type=int)
+
+    all_events = db_service.obtener_eventos_formato_ical()
+
+    meses_data = []
+    for mes in range(1, 13):
+        ingreso_arriendo, ingreso_tinaja, ingreso_pagado, ingreso_proximos = _calcular_ingresos_mes_reservas(
+            all_events, year, mes
+        )
+
+        # Gastos del mes - desglose por categoría
+        gastos_agua = db_service.obtener_gastos_agua(year, mes)
+        gastos_internet = db_service.obtener_gastos_internet(year, mes)
+        gastos_gasolina = db_service.obtener_gastos_gasolina(year, mes)
+        gastos_aseo = db_service.obtener_gastos_aseo(year, mes)
+        
+        gasto_agua = sum(g.get('valor', 0) or 0 for g in gastos_agua)
+        gasto_internet = sum(g.get('valor', 0) or 0 for g in gastos_internet)
+        gasto_gasolina = sum(g.get('valor', 0) or 0 for g in gastos_gasolina)
+        gasto_aseo = sum(g.get('valor', 0) or 0 for g in gastos_aseo)
+        
+        gasto_pagado = sum(g.get('valor', 0) or 0 for g in gastos_agua + gastos_internet + gastos_gasolina + gastos_aseo if g.get('pagado', True))
+        gasto_proximos = sum(g.get('valor', 0) or 0 for g in gastos_agua + gastos_internet + gastos_gasolina + gastos_aseo if not g.get('pagado', True))
+        
+        total_ingresos = ingreso_arriendo + ingreso_tinaja
+        total_gastos = gasto_agua + gasto_internet + gasto_gasolina + gasto_aseo
+        
+        meses_data.append({
+            'mes': mes,
+            'anio': year,
+            'arriendo': ingreso_arriendo,
+            'tinaja': ingreso_tinaja,
+            'agua': gasto_agua,
+            'internet': gasto_internet,
+            'gasolina': gasto_gasolina,
+            'aseo': gasto_aseo,
+            'ingreso_pagado': ingreso_pagado,
+            'ingreso_proximos': ingreso_proximos,
+            'gasto_pagado': gasto_pagado,
+            'gasto_proximos': gasto_proximos,
+            'total_ingresos': total_ingresos,
+            'total_gastos': total_gastos,
+            'neto': total_ingresos - total_gastos,
+        })
+    
+    return jsonify({'meses': meses_data, 'year': year})
 
 
 @app.route('/api/month')
@@ -199,32 +320,8 @@ def api_promedio_anual():
     for mc in meses_cerrados:
         mes = mc['mes']
         anio = mc['anio']
-        
-        inicio_mes = date(anio, mes, 1)
-        fin_mes = date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
-        
-        ingresos = 0
-        for ev in all_events:
-            try:
-                if ev.get('is_blocked') or ev.get('deleted'):
-                    continue
-                    
-                ev_start = date.fromisoformat(ev.get('start', ''))
-                ev_end = date.fromisoformat(ev.get('end', ''))
-                
-                if ev_start < fin_mes and ev_end >= inicio_mes:
-                    dias_totales = max(1, (ev_end - ev_start).days + 1)
-                    overlap_start = max(ev_start, inicio_mes)
-                    overlap_end = min(ev_end, fin_mes - timedelta(days=1))
-                    dias_en_mes = max(0, (overlap_end - overlap_start).days + 1)
-                    
-                    proporcion = dias_en_mes / dias_totales
-                    precio = ev.get('precio', 0) or 0
-                    extra = ev.get('extra_valor', 0) or 0
-                    ingresos += round((precio + extra) * proporcion)
-            except:
-                pass
-        
+        arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(all_events, anio, mes)
+        ingresos = arriendo + tinaja
         resultados.append({'mes': mes, 'anio': anio, 'ingresos': ingresos})
     
     total_ingresos = sum(r['ingresos'] for r in resultados)

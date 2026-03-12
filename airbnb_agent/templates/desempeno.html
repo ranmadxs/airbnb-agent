@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Desempeño - {{ property_name }}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}">
+    <style>
+        .desempeno-page { max-width: 720px; margin: 0 auto; padding: 16px; padding-bottom: 120px; transform: scale(1.3); transform-origin: top center; }
+        .desempeno-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .desempeno-back { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #ebebeb; background: white; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #484848; font-size: 1.2em; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .desempeno-back:hover { background: #f7f7f7; border-color: #FF5A5F; color: #FF5A5F; }
+        .desempeno-title { font-size: 1.5em; font-weight: 700; color: #222; margin: 0; }
+        .desempeno-resumen { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+        .desempeno-resumen h2 { font-size: 1.1em; font-weight: 700; color: #222; margin: 0; }
+        .desempeno-resumen-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .desempeno-year-select { padding: 6px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.9em; font-weight: 600; color: #222; background: white; cursor: pointer; }
+        .desempeno-year-select:hover { border-color: #1d4ed8; }
+        .desempeno-year-select:focus { outline: none; border-color: #1d4ed8; }
+        .desempeno-vista { font-size: 0.9em; color: #767676; display: flex; align-items: center; gap: 4px; }
+        .desempeno-filtro { display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: #484848; cursor: pointer; }
+        .desempeno-filtro input { width: 16px; height: 16px; cursor: pointer; }
+        .desempeno-chart { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .desempeno-chart-years { font-size: 0.85em; color: #767676; margin-bottom: 16px; }
+        .desempeno-chart-container { display: flex; flex-direction: column; gap: 0; }
+        .desempeno-bars { display: flex; flex-direction: column; gap: 12px; }
+        .desempeno-bar-row { display: flex; align-items: center; gap: 12px; min-height: 32px; transition: transform 0.25s ease, min-height 0.25s ease; }
+        .desempeno-bar-row.mes-actual { transform: scale(1.3); transform-origin: left center; min-height: 42px; background: linear-gradient(90deg, rgba(29,78,216,0.08), transparent); border-radius: 8px; padding: 4px 8px; margin: 0 -8px; }
+        .desempeno-bar-row.mes-actual .desempeno-bar-track { height: 36px; }
+        .desempeno-bar-row.mes-actual .desempeno-bar-label { font-size: 1em; font-weight: 700; }
+        .desempeno-bar-row.mes-actual .desempeno-bar-total { font-size: 0.95em; }
+        .desempeno-bar-label { font-size: 0.85em; color: #222; font-weight: 600; min-width: 36px; flex-shrink: 0; }
+        .desempeno-bar-total { font-size: 0.8em; font-weight: 700; color: #374151; min-width: 70px; text-align: right; flex-shrink: 0; }
+        .desempeno-bar-total.negativo { color: #dc2626; }
+        .desempeno-bar-track { flex: 1; min-width: 40px; height: 28px; background: #f3f4f6; border-radius: 6px; overflow: hidden; display: flex; position: relative; }
+        .desempeno-bar-seg { min-width: 4px; transition: min-width 0.3s ease; position: relative; overflow: hidden; }
+        .desempeno-bar-seg::after { content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: bar-shine 3s ease-in-out infinite; pointer-events: none; }
+        @keyframes bar-shine { 0% { left: -100%; } 100% { left: 150%; } }
+        /* Ingresos: azul pastel difuminado, borde azul (estilo home) */
+        .desempeno-bar-seg.ingreso { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), inset 0 0 0 2px #3B82F6; }
+        /* Egresos: rojo pastel difuminado, borde rojo oscuro */
+        .desempeno-bar-seg.egreso { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 50%, #fca5a5 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), inset 0 0 0 2px #991b1b; }
+        .desempeno-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; gap: 16px; }
+        .desempeno-loading.hidden { display: none; }
+        .desempeno-spinner { width: 48px; height: 48px; border: 4px solid #e5e7eb; border-top-color: #059669; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .desempeno-loading-text { font-size: 0.95em; color: #6b7280; font-weight: 500; }
+        .desempeno-chart-content { transition: opacity 0.3s ease; }
+        .desempeno-chart-content.hidden { display: none !important; }
+        .desempeno-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9em; }
+        .desempeno-error.hidden { display: none !important; }
+        .desempeno-card.hidden { display: none !important; }
+        .desempeno-leyenda { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 12px; font-size: 0.7em; color: #767676; }
+        .desempeno-leyenda-item { display: flex; align-items: center; gap: 4px; }
+        .desempeno-leyenda-dot { width: 10px; height: 10px; border-radius: 4px; }
+        .desempeno-leyenda-dot.leyenda-ingreso { box-shadow: inset 0 0 0 2px #3B82F6; }
+        .desempeno-leyenda-dot.leyenda-gasto { box-shadow: inset 0 0 0 2px #991b1b; }
+        .desempeno-nav { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 16px; }
+        .desempeno-nav-btn { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #ebebeb; background: white; cursor: pointer; font-size: 1em; color: #484848; display: flex; align-items: center; justify-content: center; }
+        .desempeno-nav-btn:hover { border-color: #FF5A5F; color: #FF5A5F; }
+        .desempeno-nav-mes { padding: 8px 16px; border-radius: 20px; font-size: 0.9em; font-weight: 600; background: #222; color: white; }
+        .desempeno-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .desempeno-card h3 { font-size: 1.1em; font-weight: 700; color: #222; margin: 0 0 16px 0; }
+        .desempeno-line { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+        .desempeno-line-dot { width: 8px; height: 8px; border-radius: 50%; background: #ec4899; flex-shrink: 0; margin-right: 10px; }
+        .desempeno-line-dot.hollow { background: transparent; border: 2px solid #ec4899; }
+        .desempeno-line-label { display: flex; align-items: center; flex: 1; font-size: 0.95em; color: #484848; }
+        .desempeno-line-value { font-weight: 700; color: #222; font-size: 0.95em; }
+        .desempeno-divider { border: none; border-top: 1px solid #eee; margin: 12px 0; }
+        .desempeno-desglose { margin-top: 16px; }
+        .desempeno-desglose-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 12px 0; }
+        .desempeno-desglose-header span { font-size: 0.95em; font-weight: 600; color: #484848; }
+        .desempeno-desglose-content { padding: 12px 0; font-size: 0.9em; color: #767676; }
+        .desempeno-desglose-content.collapsed { display: none; }
+        .desglose-seccion { margin-bottom: 12px; }
+        .desglose-seccion-titulo { font-size: 0.8em; font-weight: 700; color: #6b7280; margin-bottom: 6px; padding-bottom: 4px; }
+        .desglose-seccion:first-child .desglose-seccion-titulo { color: #1d4ed8; }
+        .desglose-seccion:first-child .desglose-item:not(.desglose-subtotal) span:last-child { color: #059669; }
+        .desglose-seccion:nth-child(2) .desglose-seccion-titulo { color: #991b1b; }
+        .desglose-seccion:nth-child(2) .desglose-item:not(.desglose-subtotal) span:last-child { color: #dc2626; }
+        .desglose-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.9em; }
+        .desglose-item span:first-child { color: #484848; }
+        .desglose-item span:last-child { font-weight: 600; color: #222; }
+        .desglose-item.desglose-subtotal { border-top: 1px dashed #d1d5db; margin-top: 4px; padding-top: 8px; font-weight: 700; }
+        .desglose-item.desglose-subtotal span:last-child { color: #374151; }
+        .desglose-item.desglose-neto { border-top: 2px solid #374151; margin-top: 12px; padding-top: 12px; font-weight: 700; font-size: 1em; }
+        .desglose-item.desglose-neto span:last-child { font-size: 1.05em; }
+        .desglose-item.desglose-neto span:last-child.valor-positivo { color: #059669; }
+        .desglose-item.desglose-neto span:last-child.valor-negativo { color: #dc2626; }
+        @media (max-width: 480px) {
+            .desempeno-bar-row { min-height: 28px; gap: 8px; }
+            .desempeno-bar-track { height: 24px; }
+            .desempeno-bar-label { min-width: 32px; font-size: 0.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container desempeno-page">
+        <div class="desempeno-header">
+            <a href="/" class="desempeno-back" title="Volver">←</a>
+            <h1 class="desempeno-title">Desempeño</h1>
+        </div>
+
+        <div class="desempeno-resumen">
+            <h2>Resumen</h2>
+            <div class="desempeno-resumen-right">
+                <select class="desempeno-year-select" id="selector-anio" title="Seleccionar año"></select>
+                <label class="desempeno-filtro" title="Ocultar gastos del gráfico y totales">
+                    <input type="checkbox" id="filtro-sin-gastos">
+                    <span>Solo ingresos</span>
+                </label>
+                <span class="desempeno-vista">Vista mensual ▾</span>
+            </div>
+        </div>
+
+        <div class="desempeno-chart">
+            <div class="desempeno-loading" id="desempeno-loading">
+                <div class="desempeno-spinner"></div>
+                <span class="desempeno-loading-text">Cargando datos...</span>
+            </div>
+            <div class="desempeno-chart-content hidden" id="desempeno-chart-content">
+            <div class="desempeno-error hidden" id="desempeno-error"></div>
+            <div class="desempeno-chart-years"><span id="chart-years">2026</span> — Max: <span id="y-max">$1.2 M CLP</span></div>
+            <div class="desempeno-chart-container">
+                <div class="desempeno-bars" id="chart-bars"></div>
+            </div>
+            <div class="desempeno-nav">
+                <button type="button" class="desempeno-nav-btn" id="nav-prev">←</button>
+                <span class="desempeno-nav-mes" id="nav-mes">mar</span>
+                <button type="button" class="desempeno-nav-btn" id="nav-next">→</button>
+            </div>
+            <div class="desempeno-leyenda">
+                <span class="desempeno-leyenda-item"><span class="desempeno-leyenda-dot leyenda-ingreso" style="background:linear-gradient(135deg,#dbeafe,#93c5fd)"></span>Ingresos</span>
+                <span class="desempeno-leyenda-item"><span class="desempeno-leyenda-dot leyenda-gasto" style="background:linear-gradient(135deg,#fee2e2,#fca5a5)"></span>Egresos</span>
+            </div>
+            </div>
+        </div>
+
+        <div class="desempeno-card hidden" id="desempeno-card">
+            <h3 id="card-title">marzo de 2026</h3>
+            <div class="desempeno-line">
+                <span class="desempeno-line-dot"></span>
+                <span class="desempeno-line-label">Pagado</span>
+                <span class="desempeno-line-value" id="valor-pagado">$0 CLP</span>
+            </div>
+            <div class="desempeno-line">
+                <span class="desempeno-line-dot hollow"></span>
+                <span class="desempeno-line-label">Próximos</span>
+                <span class="desempeno-line-value" id="valor-proximos">$0 CLP</span>
+            </div>
+            <hr class="desempeno-divider">
+            <div class="desempeno-line">
+                <span class="desempeno-line-label" style="font-weight: 700;">Total (CLP)</span>
+                <span class="desempeno-line-value" id="valor-total">$0 CLP</span>
+            </div>
+            <div class="desempeno-desglose">
+                <div class="desempeno-desglose-header" id="toggle-desglose">
+                    <span>Desglose del pago</span>
+                    <span id="desglose-arrow">▾</span>
+                </div>
+                <div class="desempeno-desglose-content collapsed" id="desglose-content">
+                    <div class="desglose-seccion">
+                        <div class="desglose-seccion-titulo">Ingresos (se suman)</div>
+                        <div class="desglose-item"><span>Arriendo</span><span id="desglose-arriendo">+$0</span></div>
+                        <div class="desglose-item"><span>Tinaja</span><span id="desglose-tinaja">+$0</span></div>
+                        <div class="desglose-item desglose-subtotal"><span>Subtotal ingresos</span><span id="desglose-ingresos">$0</span></div>
+                    </div>
+                    <div class="desglose-seccion">
+                        <div class="desglose-seccion-titulo">Egresos (se restan)</div>
+                        <div class="desglose-item"><span>Agua</span><span id="desglose-agua">-$0</span></div>
+                        <div class="desglose-item"><span>Internet</span><span id="desglose-internet">-$0</span></div>
+                        <div class="desglose-item"><span>Gasolina</span><span id="desglose-gasolina">-$0</span></div>
+                        <div class="desglose-item"><span>Aseo</span><span id="desglose-aseo">-$0</span></div>
+                        <div class="desglose-item desglose-subtotal"><span>Subtotal egresos</span><span id="desglose-gastos">-$0</span></div>
+                    </div>
+                    <div class="desglose-item desglose-neto"><span>Neto (ingresos − egresos)</span><span id="desglose-neto">$0</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MESES_ABREV = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        const MESES_FULL = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+        let currentYear = {{ current_year }};
+        let selectedMonth = {{ current_month }};
+        let mesesData = [];
+
+        function poblarSelectorAnio() {
+            const select = document.getElementById('selector-anio');
+            const anioActual = new Date().getFullYear();
+            const minY = Math.min(anioActual - 2, currentYear);
+            const maxY = Math.max(anioActual + 2, currentYear);
+            select.innerHTML = '';
+            for (let y = minY; y <= maxY; y++) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                if (y === currentYear) opt.selected = true;
+                select.appendChild(opt);
+            }
+            select.value = currentYear;
+        }
+
+        function fetchConTimeout(url, ms = 8000) {
+            const ctrl = new AbortController();
+            const id = setTimeout(() => ctrl.abort(), ms);
+            return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id));
+        }
+
+        async function cargarDatos() {
+            const loadingEl = document.getElementById('desempeno-loading');
+            const chartEl = document.getElementById('desempeno-chart-content');
+            const cardEl = document.getElementById('desempeno-card');
+            if (!loadingEl || !chartEl) return;
+            loadingEl.classList.remove('hidden');
+            chartEl.classList.add('hidden');
+            cardEl.classList.add('hidden');
+            try {
+                const yearsToFetch = [currentYear];
+                if (selectedMonth <= 5) yearsToFetch.unshift(currentYear - 1);
+                if (selectedMonth >= 11) yearsToFetch.push(currentYear + 1);
+                const allRes = await Promise.all(yearsToFetch.map(y => fetchConTimeout(`/api/desempeno?year=${y}`)));
+                for (const r of allRes) {
+                    if (!r.ok) throw new Error('API error: ' + r.status);
+                }
+                const allData = await Promise.all(allRes.map(r => r.json()));
+                mesesData = allData.flatMap(d => d.meses || []);
+                renderizarChart();
+                actualizarCard();
+                const errEl = document.getElementById('desempeno-error');
+                if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
+            } catch (err) {
+                console.error('Error cargando desempeño:', err);
+                mesesData = [];
+                const errMsg = err.name === 'AbortError' ? 'Tiempo agotado. Revisa la conexión o que el servidor esté activo.' : 'Error al cargar. Verifica que hayas iniciado sesión.';
+                const errEl = document.getElementById('desempeno-error');
+                if (errEl) { errEl.textContent = errMsg; errEl.classList.remove('hidden'); }
+                try { renderizarChart(); actualizarCard(); } catch (_) {}
+            } finally {
+                loadingEl.classList.add('hidden');
+                chartEl.classList.remove('hidden');
+                if (cardEl) cardEl.classList.remove('hidden');
+            }
+        }
+
+        function formatShort(val) {
+            if (val >= 1000000) return `$${(val/1000000).toFixed(1)} M`;
+            if (val >= 1000) return `$${(val/1000).toFixed(0)} k`;
+            return `$${val}`;
+        }
+
+        const SEG_BARRA_INGRESO = { key: 'total_ingresos', clase: 'ingreso' };
+        const SEG_BARRA_EGRESO = { key: 'total_gastos', clase: 'egreso' };
+
+        function sinGastos() {
+            return document.getElementById('filtro-sin-gastos').checked;
+        }
+
+        function getSegmentosBarra() {
+            return sinGastos() ? [SEG_BARRA_INGRESO] : [SEG_BARRA_INGRESO, SEG_BARRA_EGRESO];
+        }
+
+        function getTotalMes(m) {
+            const ing = m.total_ingresos || 0;
+            const gas = m.total_gastos || 0;
+            return sinGastos() ? (ing || 1) : (ing + gas || 1);
+        }
+
+        function getMesesParaMostrar() {
+            const out = [];
+            for (let i = -5; i <= 1; i++) {
+                let m = selectedMonth + i;
+                let y = currentYear;
+                while (m < 1) { m += 12; y--; }
+                while (m > 12) { m -= 12; y++; }
+                out.push({ mes: m, anio: y });
+            }
+            return out;
+        }
+
+        function renderizarChart() {
+            const mesesMostrar = getMesesParaMostrar();
+            const mesesFiltrados = mesesMostrar.map(({ mes, anio }) =>
+                mesesData.find(m => m.mes === mes && m.anio === anio)
+            ).filter(Boolean);
+            const maxVal = Math.max(1, ...mesesFiltrados.map(m => getTotalMes(m)));
+            const barsEl = document.getElementById('chart-bars');
+            const yearsEl = document.getElementById('chart-years');
+            const yMaxEl = document.getElementById('y-max');
+            const aniosUnicos = [...new Set(mesesMostrar.map(x => x.anio))];
+            yearsEl.textContent = aniosUnicos.length > 1 ? aniosUnicos.join('–') : currentYear;
+            yMaxEl.textContent = formatShort(maxVal) + ' CLP';
+
+            const segs = getSegmentosBarra();
+            barsEl.innerHTML = mesesFiltrados.map((m) => {
+                const esMesActual = m.mes === selectedMonth && m.anio === currentYear;
+                const claseActual = esMesActual ? ' desempeno-bar-row mes-actual' : ' desempeno-bar-row';
+                const total = getTotalMes(m);
+                const pctDelMax = maxVal > 0 ? (total / maxVal) * 100 : 0;
+                const valorMostrar = sinGastos() ? (m.total_ingresos || 0) : ((m.total_ingresos || 0) - (m.total_gastos || 0));
+                const valorClase = valorMostrar < 0 ? 'desempeno-bar-total negativo' : 'desempeno-bar-total';
+                const valorStr = Math.abs(valorMostrar) >= 1000000 ? `$${(valorMostrar/1000000).toFixed(1)} M` : `$${valorMostrar.toLocaleString('es-CL')}`;
+                const segsHtml = segs.map(s => {
+                    const val = m[s.key] || 0;
+                    const pct = total > 0 ? (val / total) * 100 : 0;
+                    return pct > 0 ? `<div class="desempeno-bar-seg ${s.clase}" style="width: ${pct}%" title="$${val.toLocaleString('es-CL')}"></div>` : '';
+                }).filter(Boolean).join('');
+                const labelMes = aniosUnicos.length > 1 ? `${MESES_ABREV[m.mes]}'${String(m.anio).slice(-2)}` : MESES_ABREV[m.mes];
+                return `
+                    <div class="${claseActual.trim()}">
+                        <span class="desempeno-bar-label">${labelMes}</span>
+                        <div class="desempeno-bar-track" style="flex: 0 1 ${Math.max(5, pctDelMax)}%" title="$${total.toLocaleString('es-CL')}">
+                            ${segsHtml}
+                        </div>
+                        <span class="${valorClase}" title="${sinGastos() ? 'Total ingresos' : 'Ingresos - Gastos'}">${valorStr}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function actualizarCard() {
+            const m = mesesData.find(x => x.mes === selectedMonth && x.anio === currentYear) || {};
+            const ocultarGastos = sinGastos();
+
+            // Pagado y Próximos siempre muestran ingresos (no cambian con el filtro)
+            const pagado = m.ingreso_pagado || 0;
+            const proximos = m.ingreso_proximos || 0;
+            const total = ocultarGastos ? (m.total_ingresos || 0) : (m.neto || 0);
+
+            document.getElementById('card-title').textContent = `${MESES_FULL[selectedMonth]} de ${currentYear}`;
+            document.getElementById('valor-pagado').textContent = `$${pagado.toLocaleString('es-CL')} CLP`;
+            document.getElementById('valor-proximos').textContent = `$${proximos.toLocaleString('es-CL')} CLP`;
+            document.getElementById('valor-total').textContent = `$${total.toLocaleString('es-CL')} CLP`;
+
+            const fmt = (v) => `$${Math.abs(v).toLocaleString('es-CL')}`;
+            document.getElementById('desglose-arriendo').textContent = '+' + fmt(m.arriendo || 0);
+            document.getElementById('desglose-tinaja').textContent = '+' + fmt(m.tinaja || 0);
+            document.getElementById('desglose-ingresos').textContent = fmt(m.total_ingresos || 0);
+            document.getElementById('desglose-agua').textContent = '-' + fmt(m.agua || 0);
+            document.getElementById('desglose-internet').textContent = '-' + fmt(m.internet || 0);
+            document.getElementById('desglose-gasolina').textContent = '-' + fmt(m.gasolina || 0);
+            document.getElementById('desglose-aseo').textContent = '-' + fmt(m.aseo || 0);
+            document.getElementById('desglose-gastos').textContent = '-' + fmt(m.total_gastos || 0);
+            const netoVal = ocultarGastos ? (m.total_ingresos || 0) : (m.neto || 0);
+            const netoEl = document.getElementById('desglose-neto');
+            netoEl.textContent = (netoVal >= 0 ? '' : '-') + fmt(netoVal);
+            netoEl.className = 'desglose-neto ' + (netoVal >= 0 ? 'valor-positivo' : 'valor-negativo');
+
+            document.getElementById('nav-mes').textContent = MESES_ABREV[selectedMonth];
+        }
+
+        function necesitaRecargar() {
+            const yearsWeHave = [...new Set(mesesData.map(m => m.anio))];
+            const mesesNecesarios = getMesesParaMostrar();
+            const yearsNeeded = [...new Set(mesesNecesarios.map(x => x.anio))];
+            return yearsNeeded.some(y => !yearsWeHave.includes(y));
+        }
+
+        document.getElementById('nav-prev').onclick = () => {
+            selectedMonth--;
+            if (selectedMonth < 1) { selectedMonth = 12; currentYear--; }
+            poblarSelectorAnio();
+            if (mesesData.length === 0 || necesitaRecargar()) cargarDatos();
+            else { renderizarChart(); actualizarCard(); }
+        };
+        document.getElementById('nav-next').onclick = () => {
+            selectedMonth++;
+            if (selectedMonth > 12) { selectedMonth = 1; currentYear++; }
+            poblarSelectorAnio();
+            if (mesesData.length === 0 || necesitaRecargar()) cargarDatos();
+            else { renderizarChart(); actualizarCard(); }
+        };
+
+        document.getElementById('toggle-desglose').onclick = () => {
+            const c = document.getElementById('desglose-content');
+            const a = document.getElementById('desglose-arrow');
+            c.classList.toggle('collapsed');
+            a.textContent = c.classList.contains('collapsed') ? '▾' : '▴';
+        };
+
+        document.getElementById('filtro-sin-gastos').onchange = () => {
+            renderizarChart();
+            actualizarCard();
+        };
+
+        document.getElementById('selector-anio').onchange = (e) => {
+            currentYear = parseInt(e.target.value, 10);
+            cargarDatos();
+        };
+
+        poblarSelectorAnio();
+        cargarDatos();
+    </script>
+</body>
+</html>

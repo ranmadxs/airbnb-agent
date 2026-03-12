@@ -19,6 +19,7 @@
                     <span class="version">v{{ version }}</span>
                 </div>
                 {% if is_logged_in %}
+                <a href="/desempeno" class="auth-btn desempeno">📊 Ingresos</a>
                 <a href="/logout" class="auth-btn logout">Salir</a>
                 {% else %}
                 <a href="/login" class="auth-btn login">Admin</a>
@@ -501,7 +502,7 @@
                 
                 <div class="form-group">
                     <label>💰 Precio (CLP)</label>
-                    <input type="number" id="reserva-precio" name="precio" min="0" placeholder="Ej: 150000">
+                    <input type="number" id="reserva-precio" name="precio" min="0" placeholder="Ej: 150000" inputmode="numeric">
                 </div>
                 
                 <div class="form-row">
@@ -511,7 +512,7 @@
                     </div>
                     <div class="form-group half">
                         <label>➕ Extra valor (CLP)</label>
-                        <input type="number" id="reserva-extra-valor" name="extra_valor" min="0" placeholder="Ej: 20000">
+                        <input type="number" id="reserva-extra-valor" name="extra_valor" min="0" placeholder="Ej: 20000" inputmode="numeric">
                     </div>
                 </div>
                 
@@ -585,7 +586,7 @@
                 <div class="form-row">
                     <div class="form-group half">
                         <label>Valor (CLP)</label>
-                        <input type="number" id="agua-valor" name="valor" min="0" placeholder="Ej: 25000" required>
+                        <input type="number" id="agua-valor" name="valor" min="0" placeholder="Ej: 25000" inputmode="numeric" required>
                     </div>
                     <div class="form-group half">
                         <label>WhatsApp</label>
@@ -667,7 +668,7 @@
                 <div class="form-row">
                     <div class="form-group half">
                         <label>Valor (CLP)</label>
-                        <input type="number" id="internet-valor" name="valor" min="0" placeholder="Ej: 45000" required>
+                        <input type="number" id="internet-valor" name="valor" min="0" placeholder="Ej: 45000" inputmode="numeric" required>
                     </div>
                     <div class="form-group half">
                         <label>WhatsApp</label>
@@ -749,7 +750,7 @@
                 <div class="form-row">
                     <div class="form-group half">
                         <label>Valor (CLP)</label>
-                        <input type="number" id="gasolina-valor" name="valor" min="0" placeholder="Ej: 35000" required>
+                        <input type="number" id="gasolina-valor" name="valor" min="0" placeholder="Ej: 35000" inputmode="numeric" required>
                     </div>
                     <div class="form-group half">
                         <label>WhatsApp</label>
@@ -830,7 +831,7 @@
                 <div class="form-row">
                     <div class="form-group half">
                         <label>Valor (CLP)</label>
-                        <input type="number" id="aseo-valor" name="valor" min="0" placeholder="Ej: 50000" required>
+                        <input type="number" id="aseo-valor" name="valor" min="0" placeholder="Ej: 50000" inputmode="numeric" required>
                     </div>
                     <div class="form-group half">
                         <label>WhatsApp</label>
@@ -871,6 +872,8 @@
         const events = {{ events | tojson }};
         const isAdmin = {{ 'true' if is_logged_in else 'false' }};
         const todayStr = '{{ today }}';
+        // Ingresos por mes (misma fuente que API desempeño) - key: "year-month"
+        let ingresosMesCache = { "{{ current.year }}-{{ current.month }}": {{ ingresos_mes_actual | tojson }} };
         
         // Estado de navegación - inicia en mes actual
         let currentYear = {{ current.year }};
@@ -915,6 +918,9 @@
             try {
                 const res = await fetch(`/api/month?year=${year}&month=${month}`);
                 const data = await res.json();
+                if (data.ingresos) {
+                    ingresosMesCache[year + '-' + month] = data.ingresos;
+                }
                 renderizarMes(data);
                 marcarDias();
                 filtrarReservasPorMes(year, month);
@@ -974,58 +980,62 @@
             calcularStatsMes(year, month);
         }
         
-        // Calcular estadísticas del mes
+        // Calcular estadísticas del mes (ingresos desde API/cache, misma fuente que desempeño)
         function calcularStatsMes(year, month) {
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
-            
+
             const inicioMes = new Date(year, month - 1, 1);
             const finMes = new Date(year, month, 0);
             const diasEnMes = finMes.getDate();
-            
+
             let totalReservas = 0;
             let proximas = 0;
             let diasOcupados = 0;
             let ingresoArriendo = 0;
             let ingresoTinaja = 0;
-            
+
+            // Usar ingresos de la API si están en caché (misma fuente que pantalla Ingresos)
+            const cacheKey = year + '-' + month;
+            const ingresosApi = ingresosMesCache[cacheKey];
+            if (ingresosApi) {
+                ingresoArriendo = ingresosApi.arriendo || 0;
+                ingresoTinaja = ingresosApi.tinaja || 0;
+            }
+
             // Solo considerar reservas (no bloqueos)
             const reservas = events.filter(e => e.estado === 'reservado');
-            
+
             reservas.forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 const hasCheckout = event.checkout;
-                
+
                 // Verificar si la reserva toca este mes
                 const tocaMes = start <= finMes && end >= inicioMes;
-                
+
                 if (tocaMes) {
                     totalReservas++;
-                    
+
                     // Próximas = no han finalizado (no tienen checkout y end > hoy)
                     if (!hasCheckout && end > hoy) {
                         proximas++;
                     }
-                    
-                    // Calcular días TOTALES de la reserva (incluyendo día de checkout)
-                    // El checkout también cuenta como día ocupado
+
+                    // Calcular días ocupados en ESTE mes (para ocupación %)
                     const diasTotales = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
-                    
-                    // Calcular días ocupados en ESTE mes (end + 1 día para incluir checkout)
                     const endInclusive = new Date(end.getTime() + 86400000);
-                    const overlapStart = new Date(Math.max(start, inicioMes));
-                    const overlapEnd = new Date(Math.min(endInclusive, new Date(finMes.getTime() + 86400000)));
+                    const overlapStart = new Date(Math.max(start.getTime(), inicioMes.getTime()));
+                    const overlapEnd = new Date(Math.min(endInclusive.getTime(), finMes.getTime() + 86400000));
                     const diasEnEsteMes = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
                     diasOcupados += diasEnEsteMes;
-                    
-                    // Calcular proporción de ingresos según días en este mes
-                    const proporcion = diasEnEsteMes / diasTotales;
-                    const precioProporcion = Math.round((event.precio || 0) * proporcion);
-                    const extraProporcion = Math.round((event.extra_valor || 0) * proporcion);
-                    
-                    ingresoArriendo += precioProporcion;
-                    ingresoTinaja += extraProporcion;
+
+                    // Ingresos: solo calcular si no tenemos datos de API
+                    if (!ingresosApi) {
+                        const proporcion = diasEnEsteMes / diasTotales;
+                        ingresoArriendo += Math.round((event.precio || 0) * proporcion);
+                        ingresoTinaja += Math.round((event.extra_valor || 0) * proporcion);
+                    }
                 }
             });
             
