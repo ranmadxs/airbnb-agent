@@ -772,6 +772,44 @@ header {
     background: #f9fafb;
     border-radius: 8px;
     border-left: 3px solid #dc2626;
+    gap: 8px;
+}
+
+.gasto-acciones {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.gasto-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.gasto-btn.pagado-btn {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.gasto-btn.pagado-btn:hover {
+    background: #a7f3d0;
+}
+
+.gasto-btn.eliminar-btn {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.gasto-btn.eliminar-btn:hover {
+    background: #fecaca;
 }
 
 .gasto-item.pendiente {
@@ -789,6 +827,15 @@ header {
     font-weight: 600;
     font-size: 0.9em;
     color: #1f2937;
+}
+
+.gasto-proveedor {
+    font-size: 0.8em;
+    color: #6b7280;
+}
+
+.gasto-proveedor:empty {
+    display: none;
 }
 
 .gasto-fecha {
@@ -2941,10 +2988,11 @@ footer {
         font-size: 0.75em;
     }
     
-    /* Modal responsive - evitar desborde en Android */
+    /* Modal responsive - centrado en celulares */
     .modal-overlay {
         padding: 12px;
-        align-items: flex-start;
+        align-items: center;
+        justify-content: center;
         overflow-y: auto;
     }
     
@@ -2956,6 +3004,7 @@ footer {
         width: 100%;
         max-width: calc(100vw - 24px);
         margin: auto;
+        align-self: center;
     }
     
     /* Form row responsive */

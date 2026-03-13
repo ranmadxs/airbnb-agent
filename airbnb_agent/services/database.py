@@ -792,6 +792,36 @@ class DatabaseService:
             print(f"❌ Error guardando gasto agua: {e}")
             return {"success": False, "error": str(e)}
     
+    def toggle_pagado_gasto(self, coleccion: str, gasto_id: str) -> dict:
+        """Alterna el estado pagado de un gasto."""
+        if not self.connect():
+            return {"success": False, "error": "No hay conexión"}
+        try:
+            from bson import ObjectId
+            coll = self.db[coleccion]
+            doc = coll.find_one({"_id": ObjectId(gasto_id)})
+            if not doc:
+                return {"success": False, "error": "Gasto no encontrado"}
+            nuevo = not doc.get("pagado", True)
+            coll.update_one({"_id": ObjectId(gasto_id)}, {"$set": {"pagado": nuevo}})
+            return {"success": True, "pagado": nuevo}
+        except Exception as e:
+            print(f"❌ Error toggle pagado: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def eliminar_gasto(self, coleccion: str, gasto_id: str) -> dict:
+        """Elimina un gasto por ID."""
+        if not self.connect():
+            return {"success": False, "error": "No hay conexión"}
+        try:
+            from bson import ObjectId
+            coll = self.db[coleccion]
+            r = coll.delete_one({"_id": ObjectId(gasto_id)})
+            return {"success": r.deleted_count > 0}
+        except Exception as e:
+            print(f"❌ Error eliminando gasto: {e}")
+            return {"success": False, "error": str(e)}
+    
     # ============================================================
     # GASTOS DE INTERNET
     # ============================================================

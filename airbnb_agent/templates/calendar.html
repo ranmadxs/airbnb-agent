@@ -1531,6 +1531,29 @@
             document.getElementById('agua-modal').style.display = 'none';
         }
         
+        async function togglePagadoGasto(tipo, gastoId, recargarFn) {
+            try {
+                const res = await fetch(`/api/gastos/${tipo}/${gastoId}`, { method: 'PATCH' });
+                const data = await res.json();
+                if (data.success && recargarFn) await recargarFn();
+                else if (!data.success) alert('Error: ' + (data.error || 'No se pudo actualizar'));
+            } catch (err) {
+                alert('Error de conexión');
+            }
+        }
+        
+        async function eliminarGasto(tipo, gastoId, recargarFn) {
+            if (!confirm('¿Eliminar este gasto?')) return;
+            try {
+                const res = await fetch(`/api/gastos/${tipo}/${gastoId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success && recargarFn) await recargarFn();
+                else if (!data.success) alert('Error: ' + (data.error || 'No se pudo eliminar'));
+            } catch (err) {
+                alert('Error de conexión');
+            }
+        }
+        
         async function cargarHistorialAgua() {
             try {
                 console.log('Cargando historial agua:', currentYear, currentMonth);
@@ -1555,16 +1578,21 @@
                         total += g.valor || 0;
                         const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
                         const estado = g.pagado ? '✅' : '⏳';
-                        
+                        const btnPagado = g.pagado ? 'Marcar pendiente' : 'Marcar pagado';
                         html += `
-                            <div class="gasto-item ${g.pagado ? 'pagado' : 'pendiente'}">
+                            <div class="gasto-item ${g.pagado ? 'pagado' : 'pendiente'}" data-id="${g.id}">
                                 <div class="gasto-info">
                                     <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                    <span class="gasto-proveedor">${g.nombre || ''}</span>
                                     <span class="gasto-fecha">${fechaPago}</span>
                                 </div>
                                 <div class="gasto-valor">
                                     <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
                                     <span class="gasto-estado">${estado}</span>
+                                </div>
+                                <div class="gasto-acciones">
+                                    <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('agua','${g.id}', cargarHistorialAgua)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
+                                    <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('agua','${g.id}', cargarHistorialAgua)" title="Eliminar">🗑</button>
                                 </div>
                             </div>
                         `;
@@ -1714,16 +1742,21 @@
                         total += g.valor || 0;
                         const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
                         const estado = g.pagado ? '✅' : '⏳';
-                        
+                        const btnPagado = g.pagado ? 'Marcar pendiente' : 'Marcar pagado';
                         html += `
-                            <div class="gasto-item internet-item ${g.pagado ? 'pagado' : 'pendiente'}">
+                            <div class="gasto-item internet-item ${g.pagado ? 'pagado' : 'pendiente'}" data-id="${g.id}">
                                 <div class="gasto-info">
                                     <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                    <span class="gasto-proveedor">${g.nombre || ''}</span>
                                     <span class="gasto-fecha">${fechaPago}</span>
                                 </div>
                                 <div class="gasto-valor">
                                     <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
                                     <span class="gasto-estado">${estado}</span>
+                                </div>
+                                <div class="gasto-acciones">
+                                    <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('internet','${g.id}', cargarHistorialInternet)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
+                                    <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('internet','${g.id}', cargarHistorialInternet)" title="Eliminar">🗑</button>
                                 </div>
                             </div>
                         `;
@@ -1869,16 +1902,21 @@
                         total += g.valor || 0;
                         const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
                         const estado = g.pagado ? '✅' : '⏳';
-                        
+                        const btnPagado = g.pagado ? 'Marcar pendiente' : 'Marcar pagado';
                         html += `
-                            <div class="gasto-item gasolina-item ${g.pagado ? 'pagado' : 'pendiente'}">
+                            <div class="gasto-item gasolina-item ${g.pagado ? 'pagado' : 'pendiente'}" data-id="${g.id}">
                                 <div class="gasto-info">
                                     <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                    <span class="gasto-proveedor">${g.nombre || ''}</span>
                                     <span class="gasto-fecha">${fechaPago}</span>
                                 </div>
                                 <div class="gasto-valor">
                                     <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
                                     <span class="gasto-estado">${estado}</span>
+                                </div>
+                                <div class="gasto-acciones">
+                                    <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('gasolina','${g.id}', cargarHistorialGasolina)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
+                                    <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('gasolina','${g.id}', cargarHistorialGasolina)" title="Eliminar">🗑</button>
                                 </div>
                             </div>
                         `;
@@ -2023,16 +2061,21 @@
                         total += g.valor || 0;
                         const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
                         const estado = g.pagado ? '✅' : '⏳';
-                        
+                        const btnPagado = g.pagado ? 'Marcar pendiente' : 'Marcar pagado';
                         html += `
-                            <div class="gasto-item aseo-item ${g.pagado ? 'pagado' : 'pendiente'}">
+                            <div class="gasto-item aseo-item ${g.pagado ? 'pagado' : 'pendiente'}" data-id="${g.id}">
                                 <div class="gasto-info">
                                     <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                    <span class="gasto-proveedor">${g.nombre || ''}</span>
                                     <span class="gasto-fecha">${fechaPago}</span>
                                 </div>
                                 <div class="gasto-valor">
                                     <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
                                     <span class="gasto-estado">${estado}</span>
+                                </div>
+                                <div class="gasto-acciones">
+                                    <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('aseo','${g.id}', cargarHistorialAseo)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
+                                    <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('aseo','${g.id}', cargarHistorialAseo)" title="Eliminar">🗑</button>
                                 </div>
                             </div>
                         `;

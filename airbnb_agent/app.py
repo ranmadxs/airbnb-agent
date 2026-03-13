@@ -600,6 +600,14 @@ def guardar_gasto_agua():
     resultado = db_service.guardar_gasto_agua(gasto)
     return jsonify(resultado)
 
+@app.route('/api/gastos/agua/<gasto_id>', methods=['PATCH', 'DELETE'])
+@login_required
+def api_gasto_agua_id(gasto_id):
+    """PATCH: alterna pagado. DELETE: elimina el gasto."""
+    if request.method == 'PATCH':
+        return jsonify(db_service.toggle_pagado_gasto('gastos_agua', gasto_id))
+    return jsonify(db_service.eliminar_gasto('gastos_agua', gasto_id))
+
 # ============================================================
 # API GASTOS DE INTERNET
 # ============================================================
@@ -634,6 +642,13 @@ def guardar_gasto_internet():
     
     resultado = db_service.guardar_gasto_internet(gasto)
     return jsonify(resultado)
+
+@app.route('/api/gastos/internet/<gasto_id>', methods=['PATCH', 'DELETE'])
+@login_required
+def api_gasto_internet_id(gasto_id):
+    if request.method == 'PATCH':
+        return jsonify(db_service.toggle_pagado_gasto('gastos_internet', gasto_id))
+    return jsonify(db_service.eliminar_gasto('gastos_internet', gasto_id))
 
 # ============================================================
 # API GASTOS DE GASOLINA
@@ -670,6 +685,13 @@ def guardar_gasto_gasolina():
     resultado = db_service.guardar_gasto_gasolina(gasto)
     return jsonify(resultado)
 
+@app.route('/api/gastos/gasolina/<gasto_id>', methods=['PATCH', 'DELETE'])
+@login_required
+def api_gasto_gasolina_id(gasto_id):
+    if request.method == 'PATCH':
+        return jsonify(db_service.toggle_pagado_gasto('gastos_gasolina', gasto_id))
+    return jsonify(db_service.eliminar_gasto('gastos_gasolina', gasto_id))
+
 # ============================================================
 # API GASTOS DE ASEO
 # ============================================================
@@ -704,6 +726,13 @@ def guardar_gasto_aseo():
     
     resultado = db_service.guardar_gasto_aseo(gasto)
     return jsonify(resultado)
+
+@app.route('/api/gastos/aseo/<gasto_id>', methods=['PATCH', 'DELETE'])
+@login_required
+def api_gasto_aseo_id(gasto_id):
+    if request.method == 'PATCH':
+        return jsonify(db_service.toggle_pagado_gasto('gastos_aseo', gasto_id))
+    return jsonify(db_service.eliminar_gasto('gastos_aseo', gasto_id))
 
 # ============================================================
 # API PROVEEDORES
