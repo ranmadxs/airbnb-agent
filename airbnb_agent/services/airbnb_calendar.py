@@ -4,12 +4,14 @@ Servicio para obtener datos del calendario de Airbnb
 import os
 import requests
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from icalendar import Calendar
 from dotenv import load_dotenv
 
 load_dotenv()
 
 AIRBNB_CALENDAR_URL = os.getenv('AIRBNB_CALENDAR_URL', '')
+TIMEZONE = os.getenv('TIMEZONE', 'America/Santiago')
 
 
 class AirbnbCalendarService:
@@ -94,6 +96,13 @@ class AirbnbCalendarService:
             start_dt = datetime.combine(start_dt, datetime.min.time())
         if not isinstance(end_dt, datetime):
             end_dt = datetime.combine(end_dt, datetime.min.time())
+        
+        # Convertir a zona horaria de la propiedad si iCal trae timezone (evita desfase UTC)
+        tz_prop = ZoneInfo(TIMEZONE)
+        if start_dt.tzinfo is not None:
+            start_dt = start_dt.astimezone(tz_prop)
+        if end_dt.tzinfo is not None:
+            end_dt = end_dt.astimezone(tz_prop)
         
         return {
             'start': start_dt.strftime('%Y-%m-%d'),

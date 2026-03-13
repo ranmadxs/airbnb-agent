@@ -9,6 +9,7 @@ import secrets
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from functools import wraps
+from zoneinfo import ZoneInfo
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from dotenv import load_dotenv
 
@@ -43,6 +44,12 @@ except Exception:
 
 # Config
 PROPERTY_NAME = os.getenv('PROPERTY_NAME', 'Posada en el Bosque')
+TIMEZONE = os.getenv('TIMEZONE', 'America/Santiago')
+
+
+def _now_local():
+    """Fecha/hora actual en la zona horaria de la propiedad (evita desfase en producción UTC)."""
+    return datetime.now(ZoneInfo(TIMEZONE))
 
 MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
              'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -210,7 +217,7 @@ def home():
     
     stats = airbnb_service.get_stats(events)
 
-    now = datetime.now()
+    now = _now_local()
     current = get_month_calendar(now.year, now.month)
     arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(events, now.year, now.month)
     ingresos_mes_actual = {'arriendo': arriendo, 'tinaja': tinaja, 'total': arriendo + tinaja}
@@ -225,7 +232,8 @@ def home():
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
                          is_logged_in=is_logged_in,
-                         today=now.strftime('%Y-%m-%d'))
+                         today=now.strftime('%Y-%m-%d'),
+                         now_time=now.strftime('%H:%M'))
 
 
 @app.route('/desempeno')

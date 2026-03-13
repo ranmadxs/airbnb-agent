@@ -393,7 +393,7 @@ class DatabaseService:
                     "readonly": doc.get("readonly", False),
                     "checkout": doc.get("checkout"),
                     "hora_checkin": doc.get("hora_checkin", ""),
-                    "hora_checkout": doc.get("hora_checkout", ""),
+                    "hora_checkout": doc.get("hora_checkout") or "18:00",
                     "nombre_huesped": doc.get("nombre_huesped", ""),
                     "adultos": doc.get("adultos", 0),
                     "ninos": doc.get("ninos", 0),

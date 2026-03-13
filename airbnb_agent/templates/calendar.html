@@ -244,10 +244,13 @@
                             {% set is_reservation = event.estado == 'reservado' %}
                             {% set is_deleted = event.estado == 'eliminado' %}
                             {% set has_checkout = event.checkout %}
-                            {% set is_past = event.end <= today %}
+                            {% set hora_checkout = event.hora_checkout or '18:00' %}
+                            {# Considerar checkout a las 18:00 por defecto: pasado si end < hoy O (end == hoy y ya pasó la hora) #}
+                            {% set is_past = event.end < today or (event.end == today and now_time >= hora_checkout) %}
                             {# Solo finalizada si terminó por fecha O si tiene checkout y ya había comenzado (evita checkout mal asignado en reservas futuras) #}
                             {% set is_finished = is_past or (has_checkout and event.start <= today) %}
-                            {% set is_in_progress = event.start <= today and event.end > today and not has_checkout and is_reservation %}
+                            {# En curso: empezó, no terminó (o termina hoy pero aún no es hora de checkout) #}
+                            {% set is_in_progress = event.start <= today and (event.end > today or (event.end == today and now_time < hora_checkout)) and not has_checkout and is_reservation %}
                             {% set is_upcoming = event.start > today and is_reservation and not is_deleted %}
                             {% set is_next = is_upcoming and not ns.found_next %}
                             {% if is_next %}{% set ns.found_next = true %}{% endif %}
@@ -271,7 +274,7 @@
                                 {% if is_in_progress and not is_deleted %}
                                 <div class="in-progress-stamp">
                                     <span class="stamp-text">EN CURSO</span>
-                                    <span class="stamp-icon">●</span>
+                                    <span class="stamp-icon">🧳</span>
                                 </div>
                                 {% endif %}
                                 
