@@ -1855,33 +1855,6 @@ header {
     100% { transform: translateX(100%); }
 }
 
-.reservation-item.is-in-progress .in-progress-overlay {
-    position: absolute;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    opacity: 0.5;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.reservation-item.is-in-progress .in-progress-label {
-    font-size: 0.8rem;
-    font-weight: 900;
-    color: #065f46;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    text-shadow: 0 0 8px rgba(255,255,255,0.9);
-}
-
-.reservation-item.is-in-progress .in-progress-icon {
-    font-size: 2rem;
-}
-
 /* Reservas eliminadas */
 .reservation-item.is-deleted {
     position: relative;
@@ -2037,6 +2010,44 @@ header {
     font-size: 1.8rem;
     font-weight: 900;
     color: #d97706;
+    line-height: 1;
+}
+
+/* Sello de estadía en curso - verde */
+.in-progress-stamp {
+    position: absolute !important;
+    top: 10px !important;
+    right: -15px !important;
+    left: auto !important;
+    width: 75px;
+    height: 75px;
+    transform: rotate(-12deg);
+    pointer-events: none;
+    z-index: 100;
+    border: 3px solid #059669;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+}
+
+.in-progress-stamp .stamp-text {
+    font-size: 0.55rem;
+    font-weight: 800;
+    color: #059669;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.in-progress-stamp .stamp-icon {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #059669;
     line-height: 1;
 }
 
@@ -2320,10 +2331,6 @@ footer {
     .reservation-item.is-in-progress,
     .reservation-item.is-upcoming.is-next {
         min-height: 95px;
-    }
-    
-    .reservation-item.is-in-progress .in-progress-icon {
-        font-size: 1.5rem;
     }
     
     .reservation-item.is-upcoming.is-next .upcoming-icon {
@@ -2758,19 +2765,6 @@ footer {
     }
     
     /* Iconos y overlays proporcionales */
-    .reservation-item.is-in-progress .in-progress-overlay {
-        top: 35%;
-    }
-    
-    .reservation-item.is-in-progress .in-progress-label {
-        font-size: 0.65rem;
-        letter-spacing: 1px;
-    }
-    
-    .reservation-item.is-in-progress .in-progress-icon {
-        font-size: 1.4rem;
-    }
-    
     .reservation-item.is-upcoming.is-next .upcoming-label {
         font-size: 0.6rem;
     }
@@ -2779,9 +2773,10 @@ footer {
         font-size: 1.2rem;
     }
     
-    /* Sello checkout más pequeño en móvil */
+    /* Sellos más pequeños en móvil */
     .checkout-stamp,
-    .upcoming-stamp {
+    .upcoming-stamp,
+    .in-progress-stamp {
         width: 55px;
         height: 55px;
         right: -5px;
@@ -2801,6 +2796,14 @@ footer {
     }
     
     .upcoming-stamp .stamp-icon {
+        font-size: 1.3rem;
+    }
+    
+    .in-progress-stamp .stamp-text {
+        font-size: 0.4rem;
+    }
+    
+    .in-progress-stamp .stamp-icon {
         font-size: 1.3rem;
     }
     
@@ -2846,10 +2849,6 @@ footer {
         right: 10px;
         bottom: 10px;
         opacity: 0.5;
-    }
-    
-    .reservation-item.is-in-progress .in-progress-overlay {
-        display: flex !important;
     }
     
     /* Badges con colores correctos */

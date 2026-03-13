@@ -245,7 +245,8 @@
                             {% set is_deleted = event.estado == 'eliminado' %}
                             {% set has_checkout = event.checkout %}
                             {% set is_past = event.end <= today %}
-                            {% set is_finished = is_past or has_checkout %}
+                            {# Solo finalizada si terminó por fecha O si tiene checkout y ya había comenzado (evita checkout mal asignado en reservas futuras) #}
+                            {% set is_finished = is_past or (has_checkout and event.start <= today) %}
                             {% set is_in_progress = event.start <= today and event.end > today and not has_checkout and is_reservation %}
                             {% set is_upcoming = event.start > today and is_reservation and not is_deleted %}
                             {% set is_next = is_upcoming and not ns.found_next %}
@@ -268,9 +269,9 @@
                                 {% endif %}
                                 
                                 {% if is_in_progress and not is_deleted %}
-                                <div class="in-progress-overlay">
-                                    <span class="in-progress-label">Estadía en curso</span>
-                                    <span class="in-progress-icon">🧳</span>
+                                <div class="in-progress-stamp">
+                                    <span class="stamp-text">EN CURSO</span>
+                                    <span class="stamp-icon">●</span>
                                 </div>
                                 {% endif %}
                                 
