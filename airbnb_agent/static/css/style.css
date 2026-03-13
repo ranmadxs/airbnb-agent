@@ -612,10 +612,17 @@ header {
 }
 
 .rentabilidad-stat .stat-value {
-    display: block;
+    display: inline;
     font-size: 0.85em;
     font-weight: 700;
     color: #334155;
+}
+
+.rentabilidad-stat .stat-vs {
+    display: inline;
+    font-size: 0.75em;
+    color: #94a3b8;
+    margin: 0 4px;
 }
 
 .rentabilidad-stat .stat-value.positive {

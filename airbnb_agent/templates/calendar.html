@@ -128,8 +128,10 @@
                     </div>
                     <div class="rentabilidad-stats">
                         <div class="rentabilidad-stat">
-                            <span class="stat-label">Prom. Año</span>
+                            <span class="stat-label">Prom. Año vs Prom. Mes</span>
                             <span class="stat-value" id="rentabilidad-promedio-anio">--</span>
+                            <span class="stat-vs">/</span>
+                            <span class="stat-value" id="rentabilidad-promedio-mes">--</span>
                         </div>
                         <div class="rentabilidad-stat">
                             <span class="stat-label">Var. YTD</span>
@@ -2376,8 +2378,9 @@
                     }
                 }
                 
-                // Actualizar Promedio del Año (FIJO)
+                // Actualizar Promedio del Año vs Promedio Mes (FIJO)
                 const promedioAnioEl = document.getElementById('rentabilidad-promedio-anio');
+                const promedioMesEl = document.getElementById('rentabilidad-promedio-mes');
                 if (promedioAnioEl) {
                     if (cantidadMeses === 0) {
                         promedioAnioEl.textContent = 'N/A';
@@ -2386,6 +2389,10 @@
                         promedioAnioEl.textContent = '$' + Math.round(promedioIngresos / 1000) + 'k';
                         promedioAnioEl.title = `Promedio de ${cantidadMeses} meses: $${promedioIngresos.toLocaleString('es-CL')}`;
                     }
+                }
+                if (promedioMesEl) {
+                    promedioMesEl.textContent = '$' + Math.round(ingresosMes / 1000) + 'k';
+                    promedioMesEl.title = `Ingresos del mes visible: $${ingresosMes.toLocaleString('es-CL')}`;
                 }
                 
                 // Actualizar Var. YTD (variación del mes visible vs promedio fijo)
