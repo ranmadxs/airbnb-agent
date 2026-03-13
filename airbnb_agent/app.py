@@ -255,6 +255,7 @@ def api_desempeno():
     year = request.args.get('year', datetime.now().year, type=int)
 
     all_events = db_service.obtener_eventos_formato_ical()
+    gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
 
     meses_data = []
     for mes in range(1, 13):
@@ -262,23 +263,17 @@ def api_desempeno():
             all_events, year, mes
         )
 
-        # Gastos del mes - desglose por categoría
-        gastos_agua = db_service.obtener_gastos_agua(year, mes)
-        gastos_internet = db_service.obtener_gastos_internet(year, mes)
-        gastos_gasolina = db_service.obtener_gastos_gasolina(year, mes)
-        gastos_aseo = db_service.obtener_gastos_aseo(year, mes)
-        
-        gasto_agua = sum(g.get('valor', 0) or 0 for g in gastos_agua)
-        gasto_internet = sum(g.get('valor', 0) or 0 for g in gastos_internet)
-        gasto_gasolina = sum(g.get('valor', 0) or 0 for g in gastos_gasolina)
-        gasto_aseo = sum(g.get('valor', 0) or 0 for g in gastos_aseo)
-        
-        gasto_pagado = sum(g.get('valor', 0) or 0 for g in gastos_agua + gastos_internet + gastos_gasolina + gastos_aseo if g.get('pagado', True))
-        gasto_proximos = sum(g.get('valor', 0) or 0 for g in gastos_agua + gastos_internet + gastos_gasolina + gastos_aseo if not g.get('pagado', True))
-        
+        g = gastos_por_mes.get(mes, {})
+        gasto_agua = g.get('agua', 0)
+        gasto_internet = g.get('internet', 0)
+        gasto_gasolina = g.get('gasolina', 0)
+        gasto_aseo = g.get('aseo', 0)
+        gasto_pagado = g.get('pagado', 0)
+        gasto_proximos = g.get('proximos', 0)
+
         total_ingresos = ingreso_arriendo + ingreso_tinaja
         total_gastos = gasto_agua + gasto_internet + gasto_gasolina + gasto_aseo
-        
+
         meses_data.append({
             'mes': mes,
             'anio': year,
@@ -296,7 +291,7 @@ def api_desempeno():
             'total_gastos': total_gastos,
             'neto': total_ingresos - total_gastos,
         })
-    
+
     return jsonify({'meses': meses_data, 'year': year})
 
 

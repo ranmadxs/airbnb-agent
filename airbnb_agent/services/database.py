@@ -694,6 +694,38 @@ class DatabaseService:
             return {"success": False, "error": str(e)}
     
     # ============================================================
+    # GASTOS AGREGADOS POR AÑO (optimizado para desempeño)
+    # ============================================================
+    
+    def obtener_gastos_agregados_anio(self, year: int) -> dict:
+        """Obtiene gastos agregados por mes para un año. 4 queries en lugar de 48."""
+        if not self.connect():
+            return {m: {'agua': 0, 'internet': 0, 'gasolina': 0, 'aseo': 0, 'pagado': 0, 'proximos': 0} for m in range(1, 13)}
+        inicio = f"{year}-01-01"
+        fin = f"{year + 1}-01-01"
+        meses = {m: {'agua': 0, 'internet': 0, 'gasolina': 0, 'aseo': 0, 'pagado': 0, 'proximos': 0} for m in range(1, 13)}
+        try:
+            for coll_name, key in [('gastos_agua', 'agua'), ('gastos_internet', 'internet'), ('gastos_gasolina', 'gasolina'), ('gastos_aseo', 'aseo')]:
+                coll = self.db[coll_name]
+                cursor = coll.find({'fecha_pago': {'$gte': inicio, '$lt': fin}}, {'fecha_pago': 1, 'valor': 1, 'pagado': 1})
+                for doc in cursor:
+                    fp = doc.get('fecha_pago', '') or ''
+                    try:
+                        mes = int(fp[5:7]) if len(fp) >= 7 else 1
+                    except (ValueError, TypeError):
+                        mes = 1
+                    if 1 <= mes <= 12:
+                        val = doc.get('valor', 0) or 0
+                        meses[mes][key] += val
+                        if doc.get('pagado', True):
+                            meses[mes]['pagado'] += val
+                        else:
+                            meses[mes]['proximos'] += val
+        except Exception as e:
+            print(f"❌ Error obteniendo gastos agregados: {e}")
+        return meses
+    
+    # ============================================================
     # GASTOS DE AGUA
     # ============================================================
     

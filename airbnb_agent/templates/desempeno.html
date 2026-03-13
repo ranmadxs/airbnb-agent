@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}">
     <style>
         .desempeno-page { max-width: 720px; margin: 0 auto; padding: 16px; padding-bottom: 120px; transform: scale(1.3); transform-origin: top center; }
+        @media (max-width: 480px) {
+            .desempeno-page { transform: scale(0.8); transform-origin: top center; }
+        }
         .desempeno-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
         .desempeno-back { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #ebebeb; background: white; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #484848; font-size: 1.2em; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         .desempeno-back:hover { background: #f7f7f7; border-color: #FF5A5F; color: #FF5A5F; }
@@ -273,7 +276,7 @@
             select.value = currentYear;
         }
 
-        function fetchConTimeout(url, ms = 8000) {
+        function fetchConTimeout(url, ms = 25000) {
             const ctrl = new AbortController();
             const id = setTimeout(() => ctrl.abort(), ms);
             return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id));
