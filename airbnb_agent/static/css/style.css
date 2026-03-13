@@ -2051,6 +2051,49 @@ header {
     line-height: 1;
 }
 
+/* Sello de reservado (próximas que no son la siguiente) - gris */
+.reserved-stamp {
+    position: absolute !important;
+    top: 10px !important;
+    right: -15px !important;
+    left: auto !important;
+    width: 75px;
+    height: 75px;
+    transform: rotate(-12deg);
+    pointer-events: none;
+    z-index: 100;
+    border: 3px solid #6b7280;
+    border-radius: 50%;
+    background: rgba(248,250,252,0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+}
+
+.reserved-stamp .stamp-text {
+    font-size: 0.5rem;
+    font-weight: 800;
+    color: #6b7280;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.reserved-stamp .stamp-icon {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #6b7280;
+    line-height: 1;
+}
+
+.reservation-item.is-reserved {
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    border-left-color: #9ca3af;
+}
+
 
 .reservation-link-btn {
     display: block;
@@ -2776,7 +2819,8 @@ footer {
     /* Sellos más pequeños en móvil */
     .checkout-stamp,
     .upcoming-stamp,
-    .in-progress-stamp {
+    .in-progress-stamp,
+    .reserved-stamp {
         width: 55px;
         height: 55px;
         right: -5px;
@@ -2804,6 +2848,14 @@ footer {
     }
     
     .in-progress-stamp .stamp-icon {
+        font-size: 1.3rem;
+    }
+    
+    .reserved-stamp .stamp-text {
+        font-size: 0.35rem;
+    }
+    
+    .reserved-stamp .stamp-icon {
         font-size: 1.3rem;
     }
     

@@ -254,7 +254,7 @@
                             {% set is_upcoming = event.start > today and is_reservation and not is_deleted %}
                             {% set is_next = is_upcoming and not ns.found_next %}
                             {% if is_next %}{% set ns.found_next = true %}{% endif %}
-                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }}" 
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_finished and not is_next and not is_in_progress else '' }}" 
                                  data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}">
                                 
                                 {% if is_finished and is_reservation %}
@@ -274,7 +274,14 @@
                                 {% if is_in_progress and not is_deleted %}
                                 <div class="in-progress-stamp">
                                     <span class="stamp-text">EN CURSO</span>
-                                    <span class="stamp-icon">🧳</span>
+                                    <span class="stamp-icon">⌂</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if is_reservation and not is_deleted and not is_finished and not is_next and not is_in_progress %}
+                                <div class="reserved-stamp">
+                                    <span class="stamp-text">RESERVADO</span>
+                                    <span class="stamp-icon">◇</span>
                                 </div>
                                 {% endif %}
                                 
