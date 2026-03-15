@@ -111,6 +111,10 @@
         .desempeno-scatter-leyenda .dot { width: 10px; height: 10px; border-radius: 50%; }
         .desempeno-chart-link { margin-left: 8px; font-size: 0.85em; text-decoration: none; color: #1d4ed8; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: #eff6ff; }
         .desempeno-chart-link:hover { background: #dbeafe; color: #1e40af; }
+        .desempeno-modal-filtro { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-bottom: 16px; padding: 12px; background: #f9fafb; border-radius: 10px; }
+        .desempeno-modal-filtro label { display: flex; align-items: center; gap: 6px; font-size: 0.9em; color: #374151; cursor: pointer; }
+        .desempeno-modal-filtro input { width: 16px; height: 16px; cursor: pointer; }
+        .desempeno-modal-total { font-size: 1em; font-weight: 700; color: #dc2626; margin-bottom: 12px; }
     </style>
 </head>
 <body>
@@ -223,6 +227,14 @@
                 <h3 class="desempeno-modal-title">Egresos por mes</h3>
                 <button type="button" class="desempeno-modal-close" id="modal-egresos-close">×</button>
             </div>
+            <div class="desempeno-modal-total" id="egresos-total-mes">Total: $0.00 K CLP</div>
+            <div class="desempeno-modal-filtro" id="egresos-filtro">
+                <label><input type="checkbox" id="filtro-egreso-agua" checked> Agua</label>
+                <label><input type="checkbox" id="filtro-egreso-internet" checked> Internet</label>
+                <label><input type="checkbox" id="filtro-egreso-gasolina" checked> Gasolina</label>
+                <label><input type="checkbox" id="filtro-egreso-aseo" checked> Aseo</label>
+                <label><input type="checkbox" id="filtro-egreso-total" checked> Total</label>
+            </div>
             <div id="scatter-chart-egresos-container"></div>
             <div class="desempeno-scatter-leyenda" id="scatter-leyenda-egresos">
                 <span><span class="dot" style="background:#0ea5e9"></span>Agua</span>
@@ -279,7 +291,16 @@
         function fetchConTimeout(url, ms = 25000) {
             const ctrl = new AbortController();
             const id = setTimeout(() => ctrl.abort(), ms);
-            return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(id));
+            return fetch(url, { signal: ctrl.signal, credentials: 'same-origin' }).finally(() => clearTimeout(id));
+        }
+
+        function mensajeError(err) {
+            if (err.name === 'AbortError') return 'Tiempo agotado. Revisa la conexión o que el servidor esté activo.';
+            const status = err.status;
+            if (status === 401) return 'Verifica que hayas iniciado sesión.';
+            if (status >= 500) return 'Error del servidor. Intenta más tarde.';
+            if (status >= 400) return 'Error al cargar. Código ' + status + '.';
+            return 'Error al cargar. Revisa la conexión.';
         }
 
         async function cargarDatos() {
@@ -296,7 +317,11 @@
                 if (selectedMonth >= 11) yearsToFetch.push(currentYear + 1);
                 const allRes = await Promise.all(yearsToFetch.map(y => fetchConTimeout(`/api/desempeno?year=${y}`)));
                 for (const r of allRes) {
-                    if (!r.ok) throw new Error('API error: ' + r.status);
+                    if (!r.ok) {
+                        const e = new Error('API error: ' + r.status);
+                        e.status = r.status;
+                        throw e;
+                    }
                 }
                 const allData = await Promise.all(allRes.map(r => r.json()));
                 mesesData = allData.flatMap(d => d.meses || []);
@@ -307,7 +332,7 @@
             } catch (err) {
                 console.error('Error cargando desempeño:', err);
                 mesesData = [];
-                const errMsg = err.name === 'AbortError' ? 'Tiempo agotado. Revisa la conexión o que el servidor esté activo.' : 'Error al cargar. Verifica que hayas iniciado sesión.';
+                const errMsg = mensajeError(err);
                 const errEl = document.getElementById('desempeno-error');
                 if (errEl) { errEl.textContent = errMsg; errEl.classList.remove('hidden'); }
                 try { renderizarChart(); actualizarCard(); } catch (_) {}
@@ -526,21 +551,40 @@
             document.getElementById('modal-ingresos').classList.add('visible');
         }
 
+        function getFiltroEgresos() {
+            return {
+                agua: document.getElementById('filtro-egreso-agua')?.checked ?? true,
+                internet: document.getElementById('filtro-egreso-internet')?.checked ?? true,
+                gasolina: document.getElementById('filtro-egreso-gasolina')?.checked ?? true,
+                aseo: document.getElementById('filtro-egreso-aseo')?.checked ?? true,
+                total: document.getElementById('filtro-egreso-total')?.checked ?? true
+            };
+        }
+
         function renderScatterChartEgresos() {
             const { meses, maxScale, labels } = chartDataForModalEgresos;
             const container = document.getElementById('scatter-chart-egresos-container');
+            const filtro = getFiltroEgresos();
             if (!meses.length || !container) return;
             const agua = meses.map(m => m.agua || 0);
             const internet = meses.map(m => m.internet || 0);
             const gasolina = meses.map(m => m.gasolina || 0);
             const aseo = meses.map(m => m.aseo || 0);
-            const total = meses.map(m => (m.agua||0)+(m.internet||0)+(m.gasolina||0)+(m.aseo||0));
+            const totalCompleto = meses.map(m => (m.agua||0)+(m.internet||0)+(m.gasolina||0)+(m.aseo||0));
+            const totalFiltrado = meses.map(m => {
+                let s = 0;
+                if (filtro.agua) s += m.agua || 0;
+                if (filtro.internet) s += m.internet || 0;
+                if (filtro.gasolina) s += m.gasolina || 0;
+                if (filtro.aseo) s += m.aseo || 0;
+                return s;
+            });
             const acumAgua = agua.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
             const acumInternet = internet.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
             const acumGasolina = gasolina.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
             const acumAseo = aseo.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
-            const acumTotal = total.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
-            const maxY = Math.max(maxScale, ...total, 1);
+            const acumTotal = totalFiltrado.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const maxY = Math.max(maxScale, ...totalFiltrado, 1);
             const pad = { left: 52, right: 16, top: 16, bottom: 32 };
             const w = 480, h = 240;
             const chartW = w - pad.left - pad.right;
@@ -573,13 +617,14 @@
             const axisY = `<line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>
                 <line x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>`;
             const labelsX = labels.map((l, i) => `<text x="${toX(i)}" y="${h - 4}" text-anchor="middle" font-size="10" fill="#6b7280">${l}</text>`).join('');
-            const series = [
-                { arr: agua, color: '#0ea5e9', acum: acumAgua, nombre: 'Agua' },
-                { arr: internet, color: '#3B82F6', acum: acumInternet, nombre: 'Internet' },
-                { arr: gasolina, color: '#f59e0b', acum: acumGasolina, nombre: 'Gasolina' },
-                { arr: aseo, color: '#8b5cf6', acum: acumAseo, nombre: 'Aseo' },
-                { arr: total, color: '#dc2626', acum: acumTotal, nombre: 'Total' }
+            const seriesAll = [
+                { key: 'agua', arr: agua, color: '#0ea5e9', acum: acumAgua, nombre: 'Agua' },
+                { key: 'internet', arr: internet, color: '#3B82F6', acum: acumInternet, nombre: 'Internet' },
+                { key: 'gasolina', arr: gasolina, color: '#f59e0b', acum: acumGasolina, nombre: 'Gasolina' },
+                { key: 'aseo', arr: aseo, color: '#8b5cf6', acum: acumAseo, nombre: 'Aseo' },
+                { key: 'total', arr: totalFiltrado, color: '#dc2626', acum: acumTotal, nombre: 'Total' }
             ];
+            const series = seriesAll.filter(s => filtro[s.key]);
             const polylines = series.map(s => `<polyline points="${pts(s.arr)}" fill="none" stroke="${s.color}" stroke-width="2.5"/>`).join('');
             const circlesHtml = series.map(s => circles(s.arr, s.color, s.acum, s.nombre)).join('');
             const svg = `<svg class="desempeno-scatter-svg" viewBox="0 0 ${w} ${h}">
@@ -591,6 +636,10 @@
                 ${labelsX}
             </svg>`;
             container.innerHTML = svg;
+            const totalSum = totalFiltrado.reduce((a, v) => a + v, 0);
+            const totalK = (totalSum / 1000).toFixed(2);
+            const totalEl = document.getElementById('egresos-total-mes');
+            if (totalEl) totalEl.textContent = `Total: $${totalK} K CLP`;
         }
 
         function abrirModalEgresos() {
@@ -746,6 +795,10 @@
         document.getElementById('modal-ingresos').onclick = (e) => { if (e.target.id === 'modal-ingresos') e.target.classList.remove('visible'); };
         document.getElementById('modal-egresos-close').onclick = () => document.getElementById('modal-egresos').classList.remove('visible');
         document.getElementById('modal-egresos').onclick = (e) => { if (e.target.id === 'modal-egresos') e.target.classList.remove('visible'); };
+        ['filtro-egreso-agua','filtro-egreso-internet','filtro-egreso-gasolina','filtro-egreso-aseo','filtro-egreso-total'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', () => renderScatterChartEgresos());
+        });
         document.getElementById('link-grafico-neto').onclick = (e) => { e.preventDefault(); abrirModalNeto(); };
         document.getElementById('modal-neto-close').onclick = () => document.getElementById('modal-neto').classList.remove('visible');
         document.getElementById('modal-neto').onclick = (e) => { if (e.target.id === 'modal-neto') e.target.classList.remove('visible'); };

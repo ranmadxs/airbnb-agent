@@ -162,6 +162,8 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('logged_in'):
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'No autorizado'}), 401
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
