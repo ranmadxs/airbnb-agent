@@ -115,6 +115,37 @@
         .desempeno-modal-filtro label { display: flex; align-items: center; gap: 6px; font-size: 0.9em; color: #374151; cursor: pointer; }
         .desempeno-modal-filtro input { width: 16px; height: 16px; cursor: pointer; }
         .desempeno-modal-total { font-size: 1em; font-weight: 700; color: #dc2626; margin-bottom: 12px; }
+        /* Tabs Mensual / Anual */
+        .desempeno-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; }
+        .desempeno-tab { padding: 10px 20px; font-size: 0.95em; font-weight: 600; color: #6b7280; background: transparent; border: none; border-bottom: 3px solid transparent; margin-bottom: -2px; cursor: pointer; }
+        .desempeno-tab:hover { color: #374151; }
+        .desempeno-tab.active { color: #1d4ed8; border-bottom-color: #1d4ed8; }
+        .desempeno-tab-panel { display: none; }
+        .desempeno-tab-panel.active { display: block; }
+        /* Vista Anual */
+        .desempeno-anual-rango { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding: 12px; background: #f9fafb; border-radius: 10px; }
+        .desempeno-anual-rango label { font-size: 0.9em; color: #374151; font-weight: 500; }
+        .desempeno-anual-rango input[type="month"] { padding: 6px 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.9em; }
+        .desempeno-anual-rango input[type="month"]:focus { outline: none; border-color: #1d4ed8; }
+        .desempeno-anual-aplicar { width: auto; min-width: 80px; height: auto; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; font-weight: 600; }
+        .desempeno-line-chart { width: 100%; height: 280px; background: white; border-radius: 12px; padding: 16px; }
+        .desempeno-anual-leyenda { display: flex; flex-direction: column; flex-wrap: nowrap; width: 100%; }
+        .desempeno-anual-totales { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; width: 100%; }
+        .desempeno-anual-total-valor { font-weight: 700; color: #374151; font-size: 0.95em; }
+        .desempeno-anual-desglose { margin-left: 1em; margin-bottom: 6px; display: flex; flex-direction: column; }
+        .desempeno-anual-gastos { margin-top: 8px; }
+        .desempeno-anual-divider { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
+        .desempeno-anual-neto { margin-bottom: 0; font-weight: 700; }
+        .desempeno-anual-neto-label { font-weight: 700; color: #222; }
+        .desempeno-anual-neto-valor { font-size: 1.05em; }
+        .desempeno-anual-neto-valor.negativo { color: #dc2626; }
+        .desempeno-anual-desglose-item { display: flex; align-items: center; gap: 6px 10px; font-size: 0.85em; color: #6b7280; cursor: pointer; margin-bottom: 4px; width: 100%; }
+        .desempeno-anual-desglose-item input { width: 14px; height: 14px; cursor: pointer; }
+        .desempeno-anual-plus { color: #9ca3af; font-weight: 600; min-width: 12px; }
+        .desempeno-anual-desglose-valor { font-weight: 600; color: #374151; margin-left: auto; }
+        .desempeno-anual-gasto-valor { color: #dc2626; }
+        .desempeno-anual-gasto-item-valor { color: #dc2626; }
+        .desempeno-line-chart svg { width: 100%; height: 100%; display: block; }
     </style>
 </head>
 <body>
@@ -122,20 +153,25 @@
         <div class="desempeno-header">
             <a href="/" class="desempeno-back" title="Volver">←</a>
             <h1 class="desempeno-title">Desempeño</h1>
+            <span class="version">v{{ version }}</span>
         </div>
 
         <div class="desempeno-resumen">
             <h2>Resumen</h2>
-            <div class="desempeno-resumen-right">
-                <select class="desempeno-year-select" id="selector-anio" title="Seleccionar año"></select>
-                <label class="desempeno-filtro" title="Ocultar gastos del gráfico y totales">
-                    <input type="checkbox" id="filtro-sin-gastos">
-                    <span>Solo ingresos</span>
-                </label>
-                <span class="desempeno-vista">Vista mensual ▾</span>
-            </div>
         </div>
 
+        <div class="desempeno-tabs">
+            <button type="button" class="desempeno-tab active" id="tab-btn-mensual">Mensual</button>
+            <button type="button" class="desempeno-tab" id="tab-btn-anual">Anual</button>
+        </div>
+
+        <div class="desempeno-tab-panel active" id="tab-panel-mensual">
+        <div class="desempeno-filtro-mensual" style="margin-bottom:12px;">
+            <label class="desempeno-filtro" title="Ocultar gastos del gráfico y totales">
+                <input type="checkbox" id="filtro-sin-gastos">
+                <span>Solo ingresos</span>
+            </label>
+        </div>
         <div class="desempeno-chart">
             <div class="desempeno-loading" id="desempeno-loading">
                 <div class="desempeno-spinner"></div>
@@ -201,6 +237,77 @@
                         <div class="desglose-item desglose-subtotal"><span>Subtotal egresos</span><span id="desglose-gastos">-$0</span></div>
                     </div>
                     <div class="desglose-item desglose-neto"><span>Neto (ingresos − egresos)</span><span id="desglose-neto">$0</span></div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <div class="desempeno-tab-panel" id="tab-panel-anual">
+            <div class="desempeno-chart">
+                <div class="desempeno-anual-rango">
+                    <label>Desde:</label>
+                    <input type="month" id="anual-desde" value="" min="2025-01" max="2030-12">
+                    <label>Hasta:</label>
+                    <input type="month" id="anual-hasta" value="" min="2025-01" max="2030-12">
+                    <button type="button" class="desempeno-nav-btn desempeno-anual-aplicar" id="anual-aplicar">Aplicar</button>
+                </div>
+                <div class="desempeno-line-chart" id="anual-line-chart">
+                    <svg id="anual-line-svg" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid meet"></svg>
+                </div>
+                <div class="desempeno-leyenda desempeno-anual-leyenda" id="anual-leyenda" style="margin-top:12px;">
+                    <div class="desempeno-anual-totales">
+                        <span class="desempeno-leyenda-item"><span class="desempeno-leyenda-dot leyenda-ingreso" style="background:linear-gradient(135deg,#dbeafe,#93c5fd)"></span>Ingreso total</span>
+                        <span class="desempeno-anual-total-valor" id="anual-total-valor">—</span>
+                    </div>
+                    <div class="desempeno-anual-desglose">
+                        <label class="desempeno-anual-desglose-item">
+                            <span class="desempeno-anual-plus">+</span>
+                            <input type="checkbox" id="anual-cb-arriendo" checked>
+                            <span>Arriendo</span>
+                            <span class="desempeno-anual-desglose-valor" id="anual-valor-arriendo">—</span>
+                        </label>
+                        <label class="desempeno-anual-desglose-item">
+                            <span class="desempeno-anual-plus">+</span>
+                            <input type="checkbox" id="anual-cb-tinaja" checked>
+                            <span>Tinaja</span>
+                            <span class="desempeno-anual-desglose-valor" id="anual-valor-tinaja">—</span>
+                        </label>
+                    </div>
+                    <div class="desempeno-anual-totales desempeno-anual-gastos">
+                        <span class="desempeno-leyenda-item"><span class="desempeno-leyenda-dot leyenda-gasto" style="background:linear-gradient(135deg,#fee2e2,#fca5a5)"></span>Gastos totales</span>
+                        <span class="desempeno-anual-total-valor desempeno-anual-gasto-valor" id="anual-gastos-valor">—</span>
+                    </div>
+                    <div class="desempeno-anual-desglose desempeno-anual-desglose-gastos">
+                        <label class="desempeno-anual-desglose-item">
+                            <span class="desempeno-anual-plus">−</span>
+                            <input type="checkbox" id="anual-cb-agua" checked>
+                            <span>Agua</span>
+                            <span class="desempeno-anual-desglose-valor desempeno-anual-gasto-item-valor" id="anual-valor-agua">—</span>
+                        </label>
+                        <label class="desempeno-anual-desglose-item">
+                            <span class="desempeno-anual-plus">−</span>
+                            <input type="checkbox" id="anual-cb-internet" checked>
+                            <span>Internet</span>
+                            <span class="desempeno-anual-desglose-valor desempeno-anual-gasto-item-valor" id="anual-valor-internet">—</span>
+                        </label>
+                        <label class="desempeno-anual-desglose-item">
+                            <span class="desempeno-anual-plus">−</span>
+                            <input type="checkbox" id="anual-cb-gasolina" checked>
+                            <span>Gasolina</span>
+                            <span class="desempeno-anual-desglose-valor desempeno-anual-gasto-item-valor" id="anual-valor-gasolina">—</span>
+                        </label>
+                        <label class="desempeno-anual-desglose-item">
+                            <span class="desempeno-anual-plus">−</span>
+                            <input type="checkbox" id="anual-cb-aseo" checked>
+                            <span>Aseo</span>
+                            <span class="desempeno-anual-desglose-valor desempeno-anual-gasto-item-valor" id="anual-valor-aseo">—</span>
+                        </label>
+                    </div>
+                    <hr class="desempeno-anual-divider">
+                    <div class="desempeno-anual-totales desempeno-anual-neto">
+                        <span class="desempeno-leyenda-item desempeno-anual-neto-label">TOTAL NETO</span>
+                        <span class="desempeno-anual-total-valor desempeno-anual-neto-valor" id="anual-neto-valor">—</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -272,21 +379,7 @@
         let chartDataForModalEgresos = { meses: [], maxScale: 0, labels: [] };
         let chartDataForModalNeto = { meses: [], maxYPos: 0, maxYNeg: 0, labels: [] };
 
-        function poblarSelectorAnio() {
-            const select = document.getElementById('selector-anio');
-            const anioActual = new Date().getFullYear();
-            const minY = Math.min(anioActual - 2, currentYear);
-            const maxY = Math.max(anioActual + 2, currentYear);
-            select.innerHTML = '';
-            for (let y = minY; y <= maxY; y++) {
-                const opt = document.createElement('option');
-                opt.value = y;
-                opt.textContent = y;
-                if (y === currentYear) opt.selected = true;
-                select.appendChild(opt);
-            }
-            select.value = currentYear;
-        }
+        function poblarSelectorAnio() { /* selector removido */ }
 
         function fetchConTimeout(url, ms = 25000) {
             const ctrl = new AbortController();
@@ -344,9 +437,10 @@
         }
 
         function formatShort(val) {
-            if (val >= 1000000) return `$${(val/1000000).toFixed(1)} M`;
-            if (val >= 1000) return `$${(val/1000).toFixed(0)} k`;
-            return `$${val}`;
+            const neg = val < 0;
+            const v = Math.abs(val);
+            let s = v >= 1000000 ? `$${(v/1000000).toFixed(1)} M` : v >= 1000 ? `$${(v/1000).toFixed(0)} k` : `$${v}`;
+            return neg ? '-' + s : s;
         }
         function formatMillones(val) {
             const v = Math.abs(val);
@@ -784,11 +878,6 @@
             actualizarCard();
         };
 
-        document.getElementById('selector-anio').onchange = (e) => {
-            currentYear = parseInt(e.target.value, 10);
-            cargarDatos();
-        };
-
         document.getElementById('leyenda-ingresos').onclick = abrirModalIngresos;
         document.getElementById('leyenda-egresos').onclick = abrirModalEgresos;
         document.getElementById('modal-ingresos-close').onclick = () => document.getElementById('modal-ingresos').classList.remove('visible');
@@ -802,6 +891,270 @@
         document.getElementById('link-grafico-neto').onclick = (e) => { e.preventDefault(); abrirModalNeto(); };
         document.getElementById('modal-neto-close').onclick = () => document.getElementById('modal-neto').classList.remove('visible');
         document.getElementById('modal-neto').onclick = (e) => { if (e.target.id === 'modal-neto') e.target.classList.remove('visible'); };
+
+        // Tabs Mensual / Anual
+        let mesesDataAnual = [];
+        let totalArriendoAnual = 0, totalTinajaAnual = 0;
+        let totalAguaAnual = 0, totalInternetAnual = 0, totalGasolinaAnual = 0, totalAseoAnual = 0;
+        let puntosAnualCompletos = [];
+        const hoy = new Date();
+        const yActual = hoy.getFullYear();
+        const mActual = hoy.getMonth() + 1;
+        document.getElementById('anual-desde').value = `${yActual}-01`;
+        document.getElementById('anual-hasta').value = `${yActual}-${String(mActual).padStart(2,'0')}`;
+
+        document.getElementById('tab-btn-mensual').onclick = () => {
+            document.querySelectorAll('.desempeno-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.desempeno-tab-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-btn-mensual').classList.add('active');
+            document.getElementById('tab-panel-mensual').classList.add('active');
+        };
+        document.getElementById('tab-btn-anual').onclick = () => {
+            document.querySelectorAll('.desempeno-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.desempeno-tab-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-btn-anual').classList.add('active');
+            document.getElementById('tab-panel-anual').classList.add('active');
+            if (mesesDataAnual.length === 0) cargarDatosAnual();
+            else renderizarLineChartAnual();
+        };
+        document.getElementById('anual-aplicar').onclick = () => cargarDatosAnual();
+
+        async function cargarDatosAnual() {
+            const desde = document.getElementById('anual-desde').value;
+            const hasta = document.getElementById('anual-hasta').value;
+            if (!desde || !hasta) return;
+            const [y1, m1] = desde.split('-').map(Number);
+            const [y2, m2] = hasta.split('-').map(Number);
+            const yearsToFetch = [];
+            for (let y = y1; y <= y2; y++) yearsToFetch.push(y);
+            try {
+                const allRes = await Promise.all(yearsToFetch.map(y => fetchConTimeout(`/api/desempeno?year=${y}`)));
+                for (const r of allRes) { if (!r.ok) throw new Error('API ' + r.status); }
+                const allData = await Promise.all(allRes.map(r => r.json()));
+                mesesDataAnual = allData.flatMap(d => d.meses || []);
+                renderizarLineChartAnual();
+            } catch (err) {
+                console.error('Error cargando anual:', err);
+                document.getElementById('anual-line-svg').innerHTML = '<text x="200" y="125" text-anchor="middle" fill="#6b7280" font-size="14">Error al cargar</text>';
+            }
+        }
+
+        function renderizarLineChartAnual() {
+            const desde = document.getElementById('anual-desde').value;
+            const hasta = document.getElementById('anual-hasta').value;
+            if (!desde || !hasta) return;
+            const [y1, m1] = desde.split('-').map(Number);
+            const [y2, m2] = hasta.split('-').map(Number);
+            if (desde > hasta) return;
+            const puntos = [];
+            totalArriendoAnual = 0;
+            totalTinajaAnual = 0;
+            totalAguaAnual = 0;
+            totalInternetAnual = 0;
+            totalGasolinaAnual = 0;
+            totalAseoAnual = 0;
+            let mes = m1, anio = y1;
+            while (anio < y2 || (anio === y2 && mes <= m2)) {
+                const d = mesesDataAnual.find(m => m.mes === mes && m.anio === anio);
+                const arriendo = d ? (d.arriendo || 0) : 0;
+                const tinaja = d ? (d.tinaja || 0) : 0;
+                const agua = d ? (d.agua || 0) : 0;
+                const internet = d ? (d.internet || 0) : 0;
+                const gasolina = d ? (d.gasolina || 0) : 0;
+                const aseo = d ? (d.aseo || 0) : 0;
+                totalArriendoAnual += arriendo;
+                totalTinajaAnual += tinaja;
+                totalAguaAnual += agua;
+                totalInternetAnual += internet;
+                totalGasolinaAnual += gasolina;
+                totalAseoAnual += aseo;
+                puntos.push({
+                    mes, anio,
+                    arriendo, tinaja, agua, internet, gasolina, aseo,
+                    label: anio !== y1 && anio !== y2 ? MESES_ABREV[mes] : `${MESES_ABREV[mes]}'${String(anio).slice(-2)}`
+                });
+                mes++; if (mes > 12) { mes = 1; anio++; }
+            }
+            puntosAnualCompletos = puntos;
+            let datos = puntos;
+            if (puntos.length > 12) {
+                const n = 12;
+                const step = puntos.length / n;
+                datos = [];
+                for (let i = 0; i < n; i++) {
+                    const idx = Math.min(Math.floor(i * step), puntos.length - 1);
+                    datos.push(puntos[idx]);
+                }
+            }
+            if (datos.length === 0) {
+                document.getElementById('anual-line-svg').innerHTML = '<text x="200" y="125" text-anchor="middle" fill="#6b7280" font-size="14">Sin datos para el rango</text>';
+                totalArriendoAnual = 0;
+                totalTinajaAnual = 0;
+                totalAguaAnual = 0;
+                totalInternetAnual = 0;
+                totalGasolinaAnual = 0;
+                totalAseoAnual = 0;
+                document.getElementById('anual-valor-arriendo').textContent = '$0';
+                document.getElementById('anual-valor-tinaja').textContent = '$0';
+                document.getElementById('anual-valor-agua').textContent = '-$0';
+                document.getElementById('anual-valor-internet').textContent = '-$0';
+                document.getElementById('anual-valor-gasolina').textContent = '-$0';
+                document.getElementById('anual-valor-aseo').textContent = '-$0';
+                document.getElementById('anual-gastos-valor').textContent = '-$0';
+                actualizarTotalAnual();
+                return;
+            }
+            redibujarChartAnual();
+
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+            const fmtNeg = (v) => '-$' + Math.round(v).toLocaleString('es-CL');
+            document.getElementById('anual-valor-arriendo').textContent = fmt(totalArriendoAnual);
+            document.getElementById('anual-valor-tinaja').textContent = fmt(totalTinajaAnual);
+            document.getElementById('anual-valor-agua').textContent = fmtNeg(totalAguaAnual);
+            document.getElementById('anual-valor-internet').textContent = fmtNeg(totalInternetAnual);
+            document.getElementById('anual-valor-gasolina').textContent = fmtNeg(totalGasolinaAnual);
+            document.getElementById('anual-valor-aseo').textContent = fmtNeg(totalAseoAnual);
+            actualizarTotalAnual();
+        }
+
+        function actualizarTotalAnual() {
+            let ing = 0;
+            if (document.getElementById('anual-cb-arriendo').checked) ing += totalArriendoAnual;
+            if (document.getElementById('anual-cb-tinaja').checked) ing += totalTinajaAnual;
+            let gas = 0;
+            if (document.getElementById('anual-cb-agua').checked) gas += totalAguaAnual;
+            if (document.getElementById('anual-cb-internet').checked) gas += totalInternetAnual;
+            if (document.getElementById('anual-cb-gasolina').checked) gas += totalGasolinaAnual;
+            if (document.getElementById('anual-cb-aseo').checked) gas += totalAseoAnual;
+            document.getElementById('anual-total-valor').textContent = '$' + Math.round(ing).toLocaleString('es-CL');
+            document.getElementById('anual-gastos-valor').textContent = gas > 0 ? '-$' + Math.round(gas).toLocaleString('es-CL') : '$0';
+            const neto = ing - gas;
+            const netoEl = document.getElementById('anual-neto-valor');
+            netoEl.textContent = (neto >= 0 ? '$' : '-$') + Math.round(Math.abs(neto)).toLocaleString('es-CL');
+            netoEl.classList.toggle('negativo', neto < 0);
+        }
+
+        function onAnualCheckboxChange() {
+            actualizarTotalAnual();
+            if (puntosAnualCompletos.length > 0) redibujarChartAnual();
+        }
+
+        function redibujarChartAnual() {
+            const datos = puntosAnualCompletos.length > 12 ? (() => {
+                const n = 12, step = puntosAnualCompletos.length / n;
+                const out = [];
+                for (let i = 0; i < n; i++) {
+                    const idx = Math.min(Math.floor(i * step), puntosAnualCompletos.length - 1);
+                    out.push(puntosAnualCompletos[idx]);
+                }
+                return out;
+            })() : [...puntosAnualCompletos];
+            if (datos.length === 0) return;
+            function valorPunto(p) {
+                let ing = 0;
+                if (document.getElementById('anual-cb-arriendo').checked) ing += p.arriendo || 0;
+                if (document.getElementById('anual-cb-tinaja').checked) ing += p.tinaja || 0;
+                let gas = 0;
+                if (document.getElementById('anual-cb-agua').checked) gas += p.agua || 0;
+                if (document.getElementById('anual-cb-internet').checked) gas += p.internet || 0;
+                if (document.getElementById('anual-cb-gasolina').checked) gas += p.gasolina || 0;
+                if (document.getElementById('anual-cb-aseo').checked) gas += p.aseo || 0;
+                return ing - gas;
+            }
+            const valores = datos.map(d => valorPunto(d));
+            const minY = Math.min(0, ...valores);
+            const maxY = Math.max(1, ...valores);
+            const svgW = 400, svgH = 250;
+            const padL = 50, padR = 20, padT = 20, padB = 40;
+            const chartW = svgW - padL - padR;
+            const chartH = svgH - padT - padB;
+            const rangePos = Math.max(maxY, 1);
+            const rangeNeg = Math.max(-minY, 0);
+            const totalRange = rangePos + rangeNeg || 1;
+            const chartHPos = rangePos / totalRange * chartH;
+            const chartHNeg = rangeNeg / totalRange * chartH;
+            const zeroY = padT + chartHPos;
+            const n = datos.length;
+            const toX = (i) => padL + (n > 1 ? (i / (n - 1)) * chartW : chartW / 2);
+            const toY = (v) => {
+                if (v >= 0) return zeroY - (v / rangePos) * chartHPos;
+                if (rangeNeg <= 0) return zeroY;
+                return zeroY + (-v / rangeNeg) * chartHNeg;
+            };
+            let pathDAzul = '';
+            let pathDRojo = '';
+            for (let i = 0; i < n; i++) {
+                const vCurr = valorPunto(datos[i]);
+                const xCurr = toX(i);
+                const yCurr = toY(vCurr);
+                if (i === 0) {
+                    if (vCurr >= 0) pathDAzul = 'M' + xCurr + ',' + yCurr;
+                    else pathDRojo = 'M' + xCurr + ',' + yCurr;
+                } else {
+                    const vPrev = valorPunto(datos[i - 1]);
+                    const xPrev = toX(i - 1);
+                    if (vPrev >= 0 && vCurr >= 0) {
+                        pathDAzul += 'L' + xCurr + ',' + yCurr;
+                    } else if (vPrev < 0 && vCurr < 0) {
+                        pathDRojo += 'L' + xCurr + ',' + yCurr;
+                    } else {
+                        const t = (0 - vPrev) / (vCurr - vPrev);
+                        const xC = xPrev + t * (xCurr - xPrev);
+                        const yC = zeroY;
+                        if (vPrev >= 0) {
+                            pathDAzul += 'L' + xC + ',' + yC;
+                            pathDRojo = (pathDRojo ? pathDRojo + 'L' : 'M') + xC + ',' + yC + 'L' + xCurr + ',' + yCurr;
+                        } else {
+                            pathDRojo += 'L' + xC + ',' + yC;
+                            pathDAzul = (pathDAzul ? pathDAzul + 'L' : 'M') + xC + ',' + yC + 'L' + xCurr + ',' + yCurr;
+                        }
+                    }
+                }
+            }
+            const stepTick = Math.max(100000, Math.ceil(Math.max(rangePos, rangeNeg) / 5));
+            const yTicks = [];
+            for (let v = Math.ceil(minY / stepTick) * stepTick; v <= maxY; v += stepTick) {
+                if (v >= minY) yTicks.push({ v, y: toY(v) });
+            }
+            if (!yTicks.some(t => t.v === 0)) yTicks.push({ v: 0, y: zeroY });
+            yTicks.sort((a, b) => a.y - b.y);
+            let html = '<g stroke="#e5e7eb" stroke-width="0.5">';
+            yTicks.forEach(t => {
+                html += `<line x1="${padL}" y1="${t.y}" x2="${svgW-padR}" y2="${t.y}"/>`;
+            });
+            for (let i = 0; i < n; i++) {
+                const x = toX(i);
+                html += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${svgH-padB}"/>`;
+            }
+            html += '</g>';
+            const arrowSize = 6;
+            html += `<line x1="${padL}" y1="${padT+arrowSize}" x2="${padL}" y2="${svgH-padB}" stroke="#374151" stroke-width="1"/>`;
+            html += `<polygon points="${padL},${padT} ${padL-arrowSize},${padT+arrowSize} ${padL+arrowSize},${padT+arrowSize}" fill="#374151"/>`;
+            html += `<line x1="${padL}" y1="${zeroY}" x2="${svgW-padR-arrowSize}" y2="${zeroY}" stroke="#374151" stroke-width="1.5"/>`;
+            html += `<polygon points="${svgW-padR},${svgH-padB} ${svgW-padR-arrowSize},${svgH-padB-arrowSize} ${svgW-padR-arrowSize},${svgH-padB+arrowSize}" fill="#374151"/>`;
+            html += `<text x="${padL-10}" y="${padT+4}" text-anchor="end" font-size="11" fill="#6b7280">CLP</text>`;
+            if (pathDAzul) html += `<path d="${pathDAzul}" fill="none" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+            if (pathDRojo) html += `<path d="${pathDRojo}" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+            datos.forEach((d, i) => {
+                const x = toX(i);
+                const y = toY(valorPunto(d));
+                const v = valorPunto(d);
+                const color = v >= 0 ? '#3B82F6' : '#dc2626';
+                html += `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="2"/>`;
+            });
+            yTicks.forEach(t => {
+                html += `<text x="${padL-6}" y="${t.y+4}" text-anchor="end" font-size="10" fill="#6b7280">${formatShort(t.v)}</text>`;
+            });
+            datos.forEach((d, i) => {
+                const x = toX(i);
+                html += `<text x="${x}" y="${svgH-padB+18}" text-anchor="middle" font-size="9" fill="#374151">${d.label}</text>`;
+            });
+            document.getElementById('anual-line-svg').innerHTML = html;
+        }
+
+        document.getElementById('anual-leyenda').addEventListener('change', (e) => {
+            if (e.target && e.target.matches('input[type="checkbox"]')) onAnualCheckboxChange();
+        });
 
         poblarSelectorAnio();
         cargarDatos();
