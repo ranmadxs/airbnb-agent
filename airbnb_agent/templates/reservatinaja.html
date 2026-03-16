@@ -16,8 +16,9 @@
         .rtj-step-dot.done { background: var(--available-color); }
         .rtj-card { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); width: 100%; }
         .rtj-fechas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-        .rtj-fecha-item { border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .rtj-fecha-item { border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         .rtj-fecha-item:hover { border-color: var(--today-color); background: #f0fdfa; }
+        @media (hover: none) { .rtj-fecha-item:hover { border-color: #e2e8f0; background: transparent; } }
         .rtj-fecha-item.selected { border-color: var(--available-color); background: #ecfdf5; }
         .rtj-fecha-dia { font-size: 1.8em; font-weight: 700; color: var(--airbnb-dark); line-height: 1; }
         .rtj-fecha-mes { font-size: 0.9em; color: #64748b; margin-top: 4px; }
