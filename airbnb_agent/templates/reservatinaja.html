@@ -687,17 +687,17 @@
                 const data = await res.json();
                 if (data.success) {
                     if (formaPago === 'mercadopago' && mercadopagoInitPoint) {
-                        window.open(mercadopagoInitPoint, '_blank', 'noopener');
                         const paso4Mp = document.getElementById('paso4-mercadopago');
                         if (paso4Mp) {
                             paso4Mp.innerHTML = `
                                 <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
-                                    <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Esperando tu pago</h4>
-                                    <p>Se abrió MercadoPago en una nueva ventana. Si no se abrió o prefieres pagar desde tu celular, escanea el QR:</p>
-                                    <div style="margin:20px 0;text-align:center;">
+                                    <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Pagar con MercadoPago</h4>
+                                    <p>Haz clic en el botón para ir a MercadoPago. El clic directo evita que el navegador bloquee el pago.</p>
+                                    <p style="margin:20px 0;"><a href="${mercadopagoInitPoint}" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;padding:15px 30px;font-size:18px;">Pagar Reserva</a></p>
+                                    <p style="font-size:0.9em;color:#94a3b8;">O escanea el QR desde tu celular:</p>
+                                    <div style="margin:16px 0;text-align:center;">
                                         <div id="qr-mercadopago" style="display:inline-block;padding:12px;background:#fff;border-radius:12px;"></div>
                                     </div>
-                                    <p style="margin-top:16px;"><a href="${mercadopagoInitPoint}" target="_blank" rel="noopener" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;">Abrir MercadoPago</a></p>
                                 </div>
                             `;
                             const qrEl = document.getElementById('qr-mercadopago');
