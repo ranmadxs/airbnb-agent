@@ -118,7 +118,8 @@
 
         <div class="rtj-card">
             <!-- Paso 1: Elegir fechas -->
-            <div id="paso-1" class="rtj-paso">
+            <div id="paso-1" class="rtj-paso" {% if retorno_mp %}style="display:none;"{% endif %}>
+                <p style="color:#059669;font-size:0.95em;font-weight:600;margin-bottom:12px;">Oferta a contar del segundo día el valor por noche es de 14.000</p>
                 <div class="rtj-fotos-tinaja">
                     <img src="{{ url_for('static', filename='images/tinaja-1.png') }}" alt="Tinaja al aire libre">
                     <img src="{{ url_for('static', filename='images/tinaja-2.png') }}" alt="Tinaja en el bosque">
@@ -263,6 +264,34 @@
                 <div id="pago-opciones-exito" class="rtj-pago-descripcion visible" style="margin-top:16px;"></div>
                 <a href="/" class="rtj-btn rtj-btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:24px;">Volver al inicio</a>
             </div>
+
+            <!-- Retorno desde MercadoPago (approved / rejected / pending) -->
+            {% if retorno_mp %}
+            <div id="paso-retorno-mp" class="rtj-paso" style="display:block;">
+                {% if retorno_mp == 'approved' %}
+                <div class="rtj-success">
+                    <div class="icon">✅</div>
+                    <h3>¡Pago aprobado!</h3>
+                    <p style="color:#64748b;margin-top:8px;">Tu pago con MercadoPago fue aprobado. Te enviaremos la confirmación por email.</p>
+                </div>
+                {% elif retorno_mp == 'rejected' %}
+                <div class="rtj-success" style="color:inherit;">
+                    <div class="icon">❌</div>
+                    <h3>Pago rechazado</h3>
+                    <p style="color:#64748b;margin-top:8px;">El pago no pudo completarse. Puedes intentar de nuevo con MercadoPago o elegir otra forma de pago.</p>
+                    <p style="font-size:0.85em;color:#94a3b8;margin-top:8px;">Si estás probando, usa las <a href="https://www.mercadopago.cl/developers/es/docs/checkout-api/integration-test/test-cards" target="_blank" rel="noopener">tarjetas de prueba</a> (ej. 5031 7557 3723 0604, nombre APRO).</p>
+                    <a href="/reservatinaja/{{ reserva.codigo_reserva }}" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-align:center;text-decoration:none;margin-top:16px;">Intentar de nuevo</a>
+                </div>
+                {% else %}
+                <div class="rtj-success" style="color:inherit;">
+                    <div class="icon">⏳</div>
+                    <h3>Pago pendiente</h3>
+                    <p style="color:#64748b;margin-top:8px;">Tu pago está en proceso. Te notificaremos cuando se confirme.</p>
+                </div>
+                {% endif %}
+                <a href="/" class="rtj-btn rtj-btn-secondary" style="display:block;text-align:center;text-decoration:none;margin-top:24px;">Volver al inicio</a>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -525,7 +554,7 @@
                     fetch('/api/reservatinaja/' + encodeURIComponent(codigoReserva) + '/mercadopago-preferencia', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ valor: totalCalculado })
+                        body: JSON.stringify({ valor: totalCalculado, email: contactoEmail })
                     }).then(r => r.json()).then(data => {
                         if (loading) loading.style.display = 'none';
                         if (data.success && data.init_point) {
@@ -561,18 +590,31 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    document.getElementById('total-pagar-texto').textContent = 'Total a pagar: $' + totalCalculado.toLocaleString('es-CL');
-                    const exitoEl = document.getElementById('pago-opciones-exito');
-                    if (exitoEl) {
-                        let html = '<p>Te enviaremos los datos de pago a:</p>';
-                        if (contactoEmail) html += `<p><strong>Email:</strong> ${contactoEmail}</p>`;
-                        if (contactoWhatsapp) html += `<p><strong>WhatsApp:</strong> ${contactoWhatsapp}</p>`;
-                        if (formaPago === 'mercadopago' && mercadopagoInitPoint) {
-                            html += `<p style="margin-top:16px;"><a href="${mercadopagoInitPoint}" target="_blank" rel="noopener" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;">Pagar con MercadoPago</a></p>`;
+                    if (formaPago === 'mercadopago' && mercadopagoInitPoint) {
+                        window.open(mercadopagoInitPoint, '_blank', 'noopener');
+                        const paso4Mp = document.getElementById('paso4-mercadopago');
+                        if (paso4Mp) {
+                            paso4Mp.innerHTML = `
+                                <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
+                                    <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Esperando tu pago</h4>
+                                    <p>Se abrió la página de MercadoPago en una nueva ventana. Completa el pago allí.</p>
+                                    <p style="margin-top:12px;">Si no se abrió la ventana o la cerraste, haz clic aquí:</p>
+                                    <p style="margin-top:12px;"><a href="${mercadopagoInitPoint}" target="_blank" rel="noopener" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;">Abrir MercadoPago</a></p>
+                                </div>
+                            `;
                         }
-                        exitoEl.innerHTML = html;
+                        document.getElementById('btn-confirmar')?.remove();
+                    } else {
+                        document.getElementById('total-pagar-texto').textContent = 'Total a pagar: $' + totalCalculado.toLocaleString('es-CL');
+                        const exitoEl = document.getElementById('pago-opciones-exito');
+                        if (exitoEl) {
+                            let html = '<p>Te enviaremos los datos de pago a:</p>';
+                            if (contactoEmail) html += `<p><strong>Email:</strong> ${contactoEmail}</p>`;
+                            if (contactoWhatsapp) html += `<p><strong>WhatsApp:</strong> ${contactoWhatsapp}</p>`;
+                            exitoEl.innerHTML = html;
+                        }
+                        mostrarPaso('exito');
                     }
-                    mostrarPaso('exito');
                 } else {
                     alert(data.error || 'Error al confirmar');
                     btn.disabled = false;

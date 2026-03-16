@@ -321,6 +321,7 @@ def reservatinaja(codigo_reserva):
             'dia_semana': DIAS_SEMANA[f.weekday()],
         })
 
+    ret = request.args.get('status') or request.args.get('ret')  # status/ret: approved, rejected, pending (retorno MercadoPago)
     return render_template('reservatinaja.html',
                          reserva=reserva,
                          fechas=fechas_info,
@@ -328,7 +329,8 @@ def reservatinaja(codigo_reserva):
                          paso=1,
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
-                         mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN))
+                         mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN),
+                         retorno_mp=ret)
 
 
 @app.route('/api/reservatinaja/<codigo_reserva>/mercadopago-preferencia', methods=['POST'])
@@ -349,6 +351,7 @@ def api_reservatinaja_mercadopago_preferencia(codigo_reserva):
     try:
         import mercadopago
         sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
+        base_url = request.url_root.rstrip('/')
         preference_data = {
             "items": [
                 {
@@ -357,8 +360,18 @@ def api_reservatinaja_mercadopago_preferencia(codigo_reserva):
                     "unit_price": valor,
                     "currency_id": "CLP"
                 }
-            ]
+            ],
+            "back_urls": {
+                "success": f"{base_url}/reservatinaja/{codigo_reserva}",
+                "failure": f"{base_url}/reservatinaja/{codigo_reserva}",
+                "pending": f"{base_url}/reservatinaja/{codigo_reserva}"
+            },
+            "auto_return": "approved",
+            "external_reference": codigo_reserva
         }
+        email = (data.get("email") or "").strip()
+        if email:
+            preference_data["payer"] = {"email": email}
         response = sdk.preference().create(preference_data)
         result = response.get("response", {})
         init_point = result.get("init_point")
