@@ -126,7 +126,7 @@
         <div class="rtj-card">
             <!-- Paso 1: Elegir fechas -->
             <div id="paso-1" class="rtj-paso" {% if retorno_mp %}style="display:none;"{% endif %}>
-                <p style="color:#059669;font-size:0.95em;font-weight:600;margin-bottom:12px;">{% if noches == 1 %}1 noche: $14.500{% elif noches >= 4 %}4 o más noches: $12.000 por noche{% else %}Más de 1 noche: $14.000 por noche{% endif %}</p>
+                <p style="color:#059669;font-size:0.95em;font-weight:600;margin-bottom:12px;">{% if noches == 1 %}1 noche: $14.500{% elif noches >= 4 %}4 o más noches: $12.000 por noche{% else %}$14.000 por noche{% endif %}</p>
                 <div class="rtj-fotos-tinaja">
                     <img src="{{ url_for('static', filename='images/tinaja-1.png') }}" alt="Tinaja al aire libre">
                     <img src="{{ url_for('static', filename='images/tinaja-2.png') }}" alt="Tinaja en el bosque">
