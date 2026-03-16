@@ -686,15 +686,17 @@
                 const data = await res.json();
                 if (data.success) {
                     if (formaPago === 'mercadopago' && mercadopagoInitPoint) {
-                        window.open(mercadopagoInitPoint, '_blank', 'noopener');
                         const paso4Mp = document.getElementById('paso4-mercadopago');
                         if (paso4Mp) {
+                            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(mercadopagoInitPoint);
                             paso4Mp.innerHTML = `
                                 <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
-                                    <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Esperando tu pago</h4>
-                                    <p>Se abrió la página de MercadoPago en una nueva ventana. Completa el pago allí.</p>
-                                    <p style="margin-top:12px;">Si no se abrió la ventana o la cerraste, haz clic aquí:</p>
-                                    <p style="margin-top:12px;"><a href="${mercadopagoInitPoint}" target="_blank" rel="noopener" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;">Abrir MercadoPago</a></p>
+                                    <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Escanea para pagar</h4>
+                                    <p>Escanea el código QR con la app de MercadoPago o la cámara de tu celular para completar el pago.</p>
+                                    <div style="margin:20px 0;text-align:center;">
+                                        <img src="${qrUrl}" alt="QR MercadoPago" style="max-width:220px;height:auto;border-radius:8px;">
+                                    </div>
+                                    <p style="font-size:0.85em;color:#94a3b8;">Si prefieres pagar en esta computadora, <a href="${mercadopagoInitPoint}" target="_blank" rel="noopener">abre el link aquí</a>.</p>
                                 </div>
                             `;
                         }
