@@ -1127,6 +1127,8 @@
         // Cargar mes desde API
         async function cargarMes(year, month) {
             try {
+                currentYear = year;
+                currentMonth = month;
                 // Resetear widgets de gastos ANTES de cargar para evitar mostrar valores del mes anterior
                 if (isAdmin) {
                     resetearWidgetsGastos();
@@ -1141,17 +1143,19 @@
                 marcarDias();
                 filtrarReservasPorMes(year, month);
                 if (isAdmin) {
-                    await Promise.all([
-                        cargarGastosAguaMes(),
-                        cargarGastosInternetMes(),
-                        cargarGastosGasolinaMes(),
-                        cargarGastosAseoMes(),
-                        cargarGastosOtrosMes(),
-                        cargarGastosElectricidadMes()
+                    await Promise.allSettled([
+                        cargarGastosAguaMes(year, month),
+                        cargarGastosInternetMes(year, month),
+                        cargarGastosGasolinaMes(year, month),
+                        cargarGastosAseoMes(year, month),
+                        cargarGastosOtrosMes(year, month),
+                        cargarGastosElectricidadMes(year, month)
                     ]);
-                    calcularTotalMes();
-                    marcarDiasConGastos();
-                    await calcularRentabilidad();
+                    if (currentYear === year && currentMonth === month) {
+                        calcularTotalMes();
+                        marcarDiasConGastos();
+                        await calcularRentabilidad();
+                    }
                 }
             } catch (e) {
                 console.error('Error cargando mes:', e);
@@ -2714,13 +2718,13 @@
         async function refrescarTodosLosGastos() {
             if (!isAdmin) return;
             try {
-                await Promise.all([
-                    cargarGastosAguaMes(),
-                    cargarGastosInternetMes(),
-                    cargarGastosGasolinaMes(),
-                    cargarGastosAseoMes(),
-                    cargarGastosOtrosMes(),
-                    cargarGastosElectricidadMes()
+                await Promise.allSettled([
+                    cargarGastosAguaMes(currentYear, currentMonth),
+                    cargarGastosInternetMes(currentYear, currentMonth),
+                    cargarGastosGasolinaMes(currentYear, currentMonth),
+                    cargarGastosAseoMes(currentYear, currentMonth),
+                    cargarGastosOtrosMes(currentYear, currentMonth),
+                    cargarGastosElectricidadMes(currentYear, currentMonth)
                 ]);
                 calcularTotalMes();
                 marcarDiasConGastos();
@@ -2729,100 +2733,112 @@
             }
         }
         
-        // Cargar gastos de agua del mes actual para el widget
-        async function cargarGastosAguaMes() {
+        // Cargar gastos de agua del mes para el widget
+        async function cargarGastosAguaMes(year, month) {
             try {
-                const res = await fetch(`/api/gastos/agua?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/agua?year=${year}&month=${month}`);
                 const data = res.ok ? await res.json() : { gastos: [] };
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosAguaMes = data.gastos || [];
                 const totalMes = gastosAguaMes.reduce((sum, g) => sum + (g.valor || 0), 0);
                 const expenseAgua = document.getElementById('expense-agua');
                 if (expenseAgua) expenseAgua.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos agua:', err);
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosAguaMes = [];
                 const expenseAgua = document.getElementById('expense-agua');
                 if (expenseAgua) expenseAgua.textContent = '-$0';
             }
         }
         
-        // Cargar gastos de internet del mes actual para el widget
-        async function cargarGastosInternetMes() {
+        // Cargar gastos de internet del mes para el widget
+        async function cargarGastosInternetMes(year, month) {
             try {
-                const res = await fetch(`/api/gastos/internet?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/internet?year=${year}&month=${month}`);
                 const data = res.ok ? await res.json() : { gastos: [] };
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosInternetMes = data.gastos || [];
                 const totalMes = gastosInternetMes.reduce((sum, g) => sum + (g.valor || 0), 0);
                 const expenseInternet = document.getElementById('expense-internet');
                 if (expenseInternet) expenseInternet.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos internet:', err);
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosInternetMes = [];
                 const expenseInternet = document.getElementById('expense-internet');
                 if (expenseInternet) expenseInternet.textContent = '-$0';
             }
         }
         
-        // Cargar gastos de gasolina del mes actual para el widget
-        async function cargarGastosGasolinaMes() {
+        // Cargar gastos de gasolina del mes para el widget
+        async function cargarGastosGasolinaMes(year, month) {
             try {
-                const res = await fetch(`/api/gastos/gasolina?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/gasolina?year=${year}&month=${month}`);
                 const data = res.ok ? await res.json() : { gastos: [] };
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosGasolinaMes = data.gastos || [];
                 const totalMes = gastosGasolinaMes.reduce((sum, g) => sum + (g.valor || 0), 0);
                 const expenseGasolina = document.getElementById('expense-gasolina');
                 if (expenseGasolina) expenseGasolina.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos gasolina:', err);
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosGasolinaMes = [];
                 const expenseGasolina = document.getElementById('expense-gasolina');
                 if (expenseGasolina) expenseGasolina.textContent = '-$0';
             }
         }
         
-        // Cargar gastos de aseo del mes actual para el widget
-        async function cargarGastosAseoMes() {
+        // Cargar gastos de aseo del mes para el widget
+        async function cargarGastosAseoMes(year, month) {
             try {
-                const res = await fetch(`/api/gastos/aseo?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/aseo?year=${year}&month=${month}`);
                 const data = res.ok ? await res.json() : { gastos: [] };
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosAseoMes = data.gastos || [];
                 const totalMes = gastosAseoMes.reduce((sum, g) => sum + (g.valor || 0), 0);
                 const expenseAseo = document.getElementById('expense-aseo');
                 if (expenseAseo) expenseAseo.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos aseo:', err);
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosAseoMes = [];
                 const expenseAseo = document.getElementById('expense-aseo');
                 if (expenseAseo) expenseAseo.textContent = '-$0';
             }
         }
         
-        async function cargarGastosOtrosMes() {
+        async function cargarGastosOtrosMes(year, month) {
             try {
-                const res = await fetch(`/api/gastos/otros?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/otros?year=${year}&month=${month}`);
                 const data = res.ok ? await res.json() : { gastos: [] };
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosOtrosMes = data.gastos || [];
                 const totalMes = gastosOtrosMes.reduce((sum, g) => sum + (g.valor || 0), 0);
                 const expenseOtros = document.getElementById('expense-otros');
                 if (expenseOtros) expenseOtros.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos otros:', err);
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosOtrosMes = [];
                 const expenseOtros = document.getElementById('expense-otros');
                 if (expenseOtros) expenseOtros.textContent = '-$0';
             }
         }
         
-        async function cargarGastosElectricidadMes() {
+        async function cargarGastosElectricidadMes(year, month) {
             try {
-                const res = await fetch(`/api/gastos/electricidad?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/electricidad?year=${year}&month=${month}`);
                 const data = res.ok ? await res.json() : { gastos: [] };
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosElectricidadMes = data.gastos || [];
                 const totalMes = gastosElectricidadMes.reduce((sum, g) => sum + (g.valor || 0), 0);
                 const expenseElectricidad = document.getElementById('expense-electricidad');
                 if (expenseElectricidad) expenseElectricidad.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos electricidad:', err);
+                if (currentYear !== year || currentMonth !== month) return;
                 gastosElectricidadMes = [];
                 const expenseElectricidad = document.getElementById('expense-electricidad');
                 if (expenseElectricidad) expenseElectricidad.textContent = '-$0';
