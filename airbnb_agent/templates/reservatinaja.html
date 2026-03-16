@@ -315,6 +315,7 @@
         function getDescuentoTodo() { return totalNoches >= 4 ? 0.30 : 0.20; }
         const codigoReserva = "{{ reserva.codigo_reserva if reserva else '' }}";
         const mercadopagoHabilitado = {{ 'true' if mercadopago_habilitado else 'false' }};
+        const MERCADOPAGO_PRUEBA_VALOR = 1500; // PRUEBA: valor fijo para MercadoPago (quitar en prod)
 
         let paso = 1;
         let seleccionTodo = false;
@@ -643,10 +644,11 @@
                     document.getElementById('btn-confirmar').disabled = true;
                     if (loading) loading.style.display = 'block';
                     if (sinUrl) sinUrl.style.display = 'none';
+                    const valorMp = MERCADOPAGO_PRUEBA_VALOR;
                     fetch('/api/reservatinaja/' + encodeURIComponent(codigoReserva) + '/mercadopago-preferencia', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ valor: totalCalculado, email: contactoEmail })
+                        body: JSON.stringify({ valor: valorMp, email: contactoEmail })
                     }).then(r => r.json()).then(data => {
                         if (loading) loading.style.display = 'none';
                         if (data.success && data.init_point) {
@@ -674,11 +676,12 @@
             const btn = document.getElementById('btn-confirmar');
             btn.disabled = true;
             btn.textContent = 'Procesando...';
+            const valorConfirmar = formaPago === 'mercadopago' ? MERCADOPAGO_PRUEBA_VALOR : totalCalculado;
             try {
                 const res = await fetch('/api/reservatinaja/' + codigoReserva + '/confirmar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ valor: totalCalculado, concepto: 'Tinaja', email: contactoEmail, whatsapp: contactoWhatsapp, forma_pago: formaPago })
+                    body: JSON.stringify({ valor: valorConfirmar, concepto: 'Tinaja', email: contactoEmail, whatsapp: contactoWhatsapp, forma_pago: formaPago })
                 });
                 const data = await res.json();
                 if (data.success) {
