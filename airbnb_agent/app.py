@@ -315,7 +315,6 @@ def reservatinaja(codigo_reserva):
                              version=APP_VERSION,
                              property_name=PROPERTY_NAME,
                              mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN) or bool(MERCADOPAGO_LINK) or bool(MERCADOPAGO_BOTONES),
-                             mercadopago_api_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN),
                              mercadopago_link=MERCADOPAGO_LINK,
                              mercadopago_botones=MERCADOPAGO_BOTONES,
                              )
@@ -345,7 +344,6 @@ def reservatinaja(codigo_reserva):
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
                          mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN) or bool(MERCADOPAGO_LINK) or bool(MERCADOPAGO_BOTONES),
-                         mercadopago_api_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN),
                          mercadopago_link=MERCADOPAGO_LINK,
                          mercadopago_botones=MERCADOPAGO_BOTONES,
                          retorno_mp=ret)

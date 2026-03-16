@@ -313,7 +313,6 @@
         function getDescuentoTodo() { return totalNoches >= 4 ? 0.30 : 0.20; }
         const codigoReserva = "{{ reserva.codigo_reserva if reserva else '' }}";
         const mercadopagoHabilitado = {{ 'true' if mercadopago_habilitado else 'false' }};
-        const mercadopagoApiHabilitado = {{ 'true' if mercadopago_api_habilitado else 'false' }};
         const MERCADOPAGO_PRUEBA_VALOR = 1500; // PRUEBA: valor fijo para MercadoPago (quitar en prod)
         const MERCADOPAGO_LINK = {{ mercadopago_link | tojson }};
         const MERCADOPAGO_BOTONES = {{ (mercadopago_botones or []) | tojson }};
@@ -661,62 +660,23 @@
                         const paso4Mp = document.getElementById('paso4-mercadopago');
                         if (paso4Mp) {
                             const totalMostrar = totalCalculado;
+                            const botonMatch = MERCADOPAGO_BOTONES.find(b => (b.valor || 0) === totalMostrar);
                             let html = `
                                 <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
                                     <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Pagar con MercadoPago</h4>
-                                    <p>Tu total: <strong>$${totalMostrar.toLocaleString('es-CL')}</strong>. Elige el botón que corresponda:</p>`;
-                            if (MERCADOPAGO_BOTONES.length > 0) {
-                                html += `<div style="margin:20px 0;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">`;
-                                MERCADOPAGO_BOTONES.forEach(b => {
-                                    const dest = b.link || '';
-                                    const val = b.valor || 0;
-                                    const match = val === totalMostrar ? ' border:2px solid var(--available-color);' : '';
-                                    html += `<a href="${dest}" class="rtj-btn rtj-btn-primary" style="padding:16px 24px;font-size:16px;text-decoration:none;min-width:140px;${match}">Pagar $${val.toLocaleString('es-CL')}</a>`;
-                                });
-                                html += `</div>`;
-                                if (mercadopagoApiHabilitado) {
-                                    html += `<p style="margin-top:20px;"><a href="#" id="link-pago-api" style="display:inline-block;padding:12px 20px;background:#7c3aed;color:white;font-weight:600;text-decoration:none;font-size:0.95em;border-radius:8px;">Pagar con API (monto dinámico)</a></p>`;
-                                }
+                                    <p>Tu total: <strong>$${totalMostrar.toLocaleString('es-CL')}</strong>.</p>`;
+                            if (botonMatch) {
+                                html += `<p style="margin:20px 0;"><a href="${botonMatch.link || ''}" class="rtj-btn rtj-btn-primary" style="display:inline-block;padding:16px 32px;font-size:18px;text-decoration:none;">Pagar $${totalMostrar.toLocaleString('es-CL')}</a></p>`;
                             } else {
                                 html += `
+                                    <p>Ingresa el monto en el formulario de MercadoPago:</p>
                                     <div style="margin:20px 0;min-height:420px;">
-                                        <iframe src="${mercadopagoInitPoint}" style="width:100%;max-width:400px;height:420px;border:1px solid #e2e8f0;border-radius:12px;" title="Pago MercadoPago"></iframe>
+                                        <iframe src="${MERCADOPAGO_LINK}" style="width:100%;max-width:400px;height:420px;border:1px solid #e2e8f0;border-radius:12px;" title="Pago MercadoPago"></iframe>
                                     </div>
-                                    <p style="font-size:0.9em;color:#94a3b8;">Si no ves el formulario arriba, <a href="${mercadopagoInitPoint}" target="_blank" rel="noopener">haz clic aquí para abrir MercadoPago</a>.</p>`;
-                                if (mercadopagoApiHabilitado) {
-                                    html += `<p style="margin-top:20px;"><a href="#" id="link-pago-api" style="display:inline-block;padding:12px 20px;background:#7c3aed;color:white;font-weight:600;text-decoration:none;font-size:0.95em;border-radius:8px;">Pagar con API (monto dinámico)</a></p>`;
-                                }
+                                    <p style="font-size:0.9em;color:#94a3b8;">Si no ves el formulario arriba, <a href="${MERCADOPAGO_LINK}" target="_blank" rel="noopener">haz clic aquí para abrir MercadoPago</a>.</p>`;
                             }
                             html += `</div>`;
                             paso4Mp.innerHTML = html;
-                            const linkApi = document.getElementById('link-pago-api');
-                            if (linkApi && mercadopagoApiHabilitado) {
-                                linkApi.addEventListener('click', async (e) => {
-                                    e.preventDefault();
-                                    linkApi.style.pointerEvents = 'none';
-                                    linkApi.textContent = 'Generando...';
-                                    try {
-                                        const valorApi = totalCalculado;
-                                        const r = await fetch('/api/reservatinaja/' + encodeURIComponent(codigoReserva) + '/mercadopago-preferencia', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ valor: valorApi, email: contactoEmail })
-                                        });
-                                        const d = await r.json();
-                                        if (d.success && d.init_point) {
-                                            window.location.href = d.init_point;
-                                        } else {
-                                            alert(d.error || 'Error al generar link');
-                                            linkApi.style.pointerEvents = '';
-                                            linkApi.textContent = 'Pagar con API (monto dinámico)';
-                                        }
-                                    } catch (err) {
-                                        alert('Error de conexión');
-                                        linkApi.style.pointerEvents = '';
-                                        linkApi.textContent = 'Pagar con API (monto dinámico)';
-                                    }
-                                });
-                            }
                         }
                         document.getElementById('btn-confirmar')?.remove();
                     } else {
