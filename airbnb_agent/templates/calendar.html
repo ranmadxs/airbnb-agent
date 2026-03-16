@@ -3098,24 +3098,10 @@
             }
         }
         
-        // Inicializar
-        marcarDias();
-        filtrarReservasPorMes(currentYear, currentMonth);
-        if (isAdmin) {
-            (async () => {
-                await Promise.all([
-                    cargarGastosAguaMes(),
-                    cargarGastosInternetMes(),
-                    cargarGastosGasolinaMes(),
-                    cargarGastosAseoMes(),
-                    cargarGastosOtrosMes(),
-                    cargarGastosElectricidadMes()
-                ]);
-                calcularTotalMes();
-                marcarDiasConGastos();
-                await calcularRentabilidad();
-            })();
-        }
+        // Inicializar: cargar mes (incluye gastos e ingresos) para tener datos al entrar
+        (async () => {
+            await cargarMes(currentYear, currentMonth);
+        })();
         
         // ============================================================
         // FILTROS DE RESERVAS

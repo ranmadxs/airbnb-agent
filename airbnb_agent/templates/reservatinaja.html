@@ -242,7 +242,6 @@
                     <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
                         <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> MercadoPago</h4>
                         <p>Con MercadoPago la reserva es inmediata. La transacción se confirma de forma automática.</p>
-                        <p id="paso4-mercadopago-link-wrap"><a href="#" id="paso4-mercadopago-link" target="_blank" rel="noopener" class="rtj-btn rtj-btn-primary" style="display:inline-block;margin-top:12px;text-decoration:none;">Abrir página de MercadoPago →</a></p>
                         <p id="paso4-mercadopago-loading" style="display:none;color:#64748b;">Generando link de pago...</p>
                         <p id="paso4-mercadopago-sin-url" style="display:none;color:#64748b;">Contacta por WhatsApp para recibir el link de pago MercadoPago.</p>
                     </div>
@@ -285,6 +284,7 @@
         let contactoEmail = '';
         let contactoWhatsapp = '';
         let formaPago = '';
+        let mercadopagoInitPoint = '';
 
         const fechasData = {{ fechas | tojson if fechas else '[]' }};
         const totalNoches = fechasData.length;
@@ -515,12 +515,11 @@
             const formaEl = document.getElementById('paso4-' + formaPago);
             if (formaEl) formaEl.style.display = 'block';
             if (formaPago === 'mercadopago') {
-                const link = document.getElementById('paso4-mercadopago-link');
-                const linkWrap = document.getElementById('paso4-mercadopago-link-wrap');
                 const loading = document.getElementById('paso4-mercadopago-loading');
                 const sinUrl = document.getElementById('paso4-mercadopago-sin-url');
-                if (mercadopagoHabilitado && link) {
-                    if (linkWrap) linkWrap.style.display = 'none';
+                mercadopagoInitPoint = '';
+                if (mercadopagoHabilitado) {
+                    document.getElementById('btn-confirmar').disabled = true;
                     if (loading) loading.style.display = 'block';
                     if (sinUrl) sinUrl.style.display = 'none';
                     fetch('/api/reservatinaja/' + encodeURIComponent(codigoReserva) + '/mercadopago-preferencia', {
@@ -530,8 +529,8 @@
                     }).then(r => r.json()).then(data => {
                         if (loading) loading.style.display = 'none';
                         if (data.success && data.init_point) {
-                            link.href = data.init_point;
-                            if (linkWrap) linkWrap.style.display = 'block';
+                            mercadopagoInitPoint = data.init_point;
+                            document.getElementById('btn-confirmar').disabled = false;
                         } else {
                             if (sinUrl) { sinUrl.style.display = 'block'; sinUrl.textContent = data.error || 'Error al generar link. Contacta por WhatsApp.'; }
                         }
@@ -540,10 +539,12 @@
                         if (sinUrl) { sinUrl.style.display = 'block'; sinUrl.textContent = 'Error de conexión. Contacta por WhatsApp.'; }
                     });
                 } else {
-                    if (linkWrap) linkWrap.style.display = 'none';
+                    document.getElementById('btn-confirmar').disabled = false;
                     if (loading) loading.style.display = 'none';
                     if (sinUrl) sinUrl.style.display = 'block';
                 }
+            } else {
+                document.getElementById('btn-confirmar').disabled = false;
             }
             mostrarPaso(4);
         });
@@ -566,6 +567,9 @@
                         let html = '<p>Te enviaremos los datos de pago a:</p>';
                         if (contactoEmail) html += `<p><strong>Email:</strong> ${contactoEmail}</p>`;
                         if (contactoWhatsapp) html += `<p><strong>WhatsApp:</strong> ${contactoWhatsapp}</p>`;
+                        if (formaPago === 'mercadopago' && mercadopagoInitPoint) {
+                            html += `<p style="margin-top:16px;"><a href="${mercadopagoInitPoint}" target="_blank" rel="noopener" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;">Pagar con MercadoPago</a></p>`;
+                        }
                         exitoEl.innerHTML = html;
                     }
                     mostrarPaso('exito');
