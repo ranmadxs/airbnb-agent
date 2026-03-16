@@ -309,7 +309,6 @@
         {% endif %}
     </div>
 
-    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@gh-pages/qrcode.min.js"></script>
     <script>
         const PRECIO_1_NOCHE = 14500;
         function getPrecioPorNoche() { return totalNoches >= 4 ? 12000 : 14000; }
@@ -692,20 +691,10 @@
                             paso4Mp.innerHTML = `
                                 <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
                                     <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Pagar con MercadoPago</h4>
-                                    <p>Haz clic en el botón para ir a MercadoPago. El clic directo evita que el navegador bloquee el pago.</p>
-                                    <p style="margin:20px 0;"><a href="${mercadopagoInitPoint}" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;padding:15px 30px;font-size:18px;">Pagar Reserva</a></p>
-                                    <p style="font-size:0.9em;color:#94a3b8;">O escanea el QR desde tu celular:</p>
-                                    <div style="margin:16px 0;text-align:center;">
-                                        <div id="qr-mercadopago" style="display:inline-block;padding:12px;background:#fff;border-radius:12px;"></div>
-                                    </div>
+                                    <p>Haz clic en el botón para ir a MercadoPago y completar el pago.</p>
+                                    <p style="margin:24px 0;"><a href="${mercadopagoInitPoint}" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;padding:16px 32px;font-size:18px;">Pagar Reserva</a></p>
                                 </div>
                             `;
-                            const qrEl = document.getElementById('qr-mercadopago');
-                            if (qrEl && typeof QRCode !== 'undefined') {
-                                try {
-                                    new QRCode(qrEl, { text: mercadopagoInitPoint, width: 200, height: 200 });
-                                } catch (e) { qrEl.innerHTML = '<p style="color:#94a3b8;font-size:0.9em;">QR no disponible. Usa el botón de arriba.</p>'; }
-                            }
                         }
                         document.getElementById('btn-confirmar')?.remove();
                     } else {
