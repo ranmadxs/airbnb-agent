@@ -37,11 +37,16 @@
         .rtj-total { font-size: 1.3em; font-weight: 700; color: var(--airbnb-dark); text-align: center; margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; display: none; }
         .rtj-total.visible { display: block; }
         .rtj-leña-grid { display: flex; flex-direction: column; gap: 12px; }
-        .rtj-leña-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; flex-wrap: wrap; gap: 8px; }
-        .rtj-leña-fecha { font-weight: 500; color: var(--airbnb-dark); }
-        .rtj-leña-select { padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; min-width: 160px; }
-        .rtj-leña-precio { font-size: 0.9em; font-weight: 600; color: var(--available-color); }
+        .rtj-leña-item { display: flex; align-items: center; justify-content: center; padding: 16px; border: 2px solid #e2e8f0; border-radius: 12px; gap: 16px; cursor: pointer; transition: all 0.2s; }
+        .rtj-leña-item:hover, .rtj-leña-item.checked { border-color: var(--available-color); background: #ecfdf5; }
+        .rtj-leña-icono { font-size: 4em; line-height: 1; }
+        .rtj-leña-checkbox { width: 24px; height: 24px; accent-color: var(--available-color); cursor: pointer; }
+        .rtj-leña-precio { font-size: 0.9em; font-weight: 600; color: var(--airbnb-dark); }
         .rtj-leña-significado { margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 10px; font-size: 0.9em; color: #64748b; line-height: 1.4; }
+        .rtj-leña-responsable { margin-top: 16px; padding: 16px; border: 2px solid #fecaca; border-radius: 10px; background: #fef2f2; display: none; }
+        .rtj-leña-responsable.visible { display: flex; align-items: flex-start; gap: 12px; }
+        .rtj-leña-responsable .rtj-cb-responsable { width: 22px; height: 22px; accent-color: #dc2626; cursor: pointer; flex-shrink: 0; margin-top: 2px; }
+        .rtj-leña-responsable label { font-size: 0.9em; color: #991b1b; line-height: 1.4; cursor: pointer; }
         .rtj-total-paso2 { font-size: 1.1em; font-weight: 700; color: var(--airbnb-dark); text-align: center; margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; }
         .rtj-resumen { background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
         .rtj-resumen-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
@@ -119,40 +124,46 @@
         <div class="rtj-card">
             <!-- Paso 1: Elegir fechas -->
             <div id="paso-1" class="rtj-paso" {% if retorno_mp %}style="display:none;"{% endif %}>
-                <p style="color:#059669;font-size:0.95em;font-weight:600;margin-bottom:12px;">Oferta a contar del segundo día el valor por noche es de 14.000</p>
+                <p style="color:#059669;font-size:0.95em;font-weight:600;margin-bottom:12px;">{% if noches == 1 %}1 noche: $14.500{% elif noches >= 4 %}4 o más noches: $12.000 por noche{% else %}Más de 1 noche: $14.000 por noche{% endif %}</p>
                 <div class="rtj-fotos-tinaja">
                     <img src="{{ url_for('static', filename='images/tinaja-1.png') }}" alt="Tinaja al aire libre">
                     <img src="{{ url_for('static', filename='images/tinaja-2.png') }}" alt="Tinaja en el bosque">
                 </div>
                 <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 1: Elige tus noches</h2>
-                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">$20.000 por noche. Selecciona las noches que deseas usar la tinaja.</p>
+                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">{% if noches == 1 %}Precio: $14.500.{% elif noches >= 4 %}Precio: $12.000 por noche.{% else %}Precio: $14.000 por noche.{% endif %} Selecciona las noches que deseas usar la tinaja.</p>
                 <div class="rtj-fechas-grid" id="fechas-grid">
                     {% for f in fechas %}
                     <div class="rtj-fecha-item" data-fecha="{{ f.fecha }}">
                         <div class="rtj-fecha-dia">{{ f.dia }}</div>
                         <div class="rtj-fecha-mes">{{ f.mes }} {{ f.anio }}</div>
                         <div class="rtj-fecha-semana">{{ f.dia_semana }}</div>
-                        <div class="rtj-fecha-precio">$20.000</div>
+                        <div class="rtj-fecha-precio">{% if noches == 1 %}$14.500{% elif noches >= 4 %}$12.000{% else %}$14.000{% endif %}</div>
                     </div>
                     {% endfor %}
                 </div>
-                <div class="rtj-opcion-todo" id="opcion-todo" data-noches="{{ noches }}">
-                    <div class="label">Todo el hospedaje ({{ noches }} noche{{ 's' if noches != 1 else '' }})</div>
-                    <div class="descuento">Oferta: 30% de descuento</div>
+                {% if noches > 1 %}
+                <div class="rtj-opcion-todo" id="opcion-todo" data-noches="{{ noches }}" data-descuento="{{ 0.30 if noches >= 4 else 0.20 }}">
+                    <div class="label">Todo el hospedaje ({{ noches }} noches)</div>
+                    <div class="descuento">Oferta: {{ '30' if noches >= 4 else '20' }}% de descuento</div>
                 </div>
+                {% endif %}
                 <div class="rtj-total" id="total-paso1"></div>
                 <div class="rtj-btn-row">
-                    <a href="/" class="rtj-btn rtj-btn-secondary" style="text-align:center;text-decoration:none;max-width:120px;">← Volver</a>
                     <button class="rtj-btn rtj-btn-primary" id="btn-paso1" disabled>Continuar al Paso 2</button>
                 </div>
             </div>
 
-            <!-- Paso 2: Paquete de leña -->
+            <!-- Paso 2: Suministro de leña -->
             <div id="paso-2" class="rtj-paso" style="display:none;">
-                <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 2: Paquete de leña</h2>
-                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">Elige el paquete de leña para tu estadía.</p>
+                <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 2: Suministro de leña</h2>
                 <div class="rtj-leña-grid" id="leña-grid"></div>
+                <p class="rtj-leña-precio" id="leña-precio-texto" style="text-align:center;margin-top:8px;"></p>
+                <p id="leña-oferta-texto" style="color:#059669;font-size:0.9em;font-weight:600;margin-top:8px;text-align:center;display:none;"></p>
                 <div class="rtj-leña-significado" id="leña-significado"></div>
+                <div class="rtj-leña-responsable" id="leña-responsable">
+                    <input type="checkbox" class="rtj-cb-responsable" id="leña-cb-responsable">
+                    <label for="leña-cb-responsable">El cliente debe ser responsable del suministro de la leña y la tinaja se entregará sólo llena con 1500 Litros pero sin madera para encenderla.</label>
+                </div>
                 <div class="rtj-total-paso2" id="total-paso2"></div>
                 <div class="rtj-btn-row">
                     <button type="button" class="rtj-btn rtj-btn-secondary" onclick="mostrarPaso(1)">← Volver</button>
@@ -297,10 +308,9 @@
     </div>
 
     <script>
-        const PRECIO_PRIMERA = 20000;
-        const PRECIO_RESTANTES = 14000;
-        const DESCUENTO_TODO = 0.30;
-        const LEÑA_EXTREMA_1DIA = 3000;
+        const PRECIO_1_NOCHE = 14500;
+        function getPrecioPorNoche() { return totalNoches >= 4 ? 12000 : 14000; }
+        function getDescuentoTodo() { return totalNoches >= 4 ? 0.30 : 0.20; }
         const codigoReserva = "{{ reserva.codigo_reserva if reserva else '' }}";
         const mercadopagoHabilitado = {{ 'true' if mercadopago_habilitado else 'false' }};
 
@@ -337,8 +347,13 @@
         // Paso 1: selección de fechas
         document.querySelectorAll('.rtj-fecha-item').forEach(item => {
             item.addEventListener('click', () => {
-                if (document.getElementById('opcion-todo').classList.contains('selected')) return;
-                item.classList.toggle('selected');
+                const opcionTodo = document.getElementById('opcion-todo');
+                if (opcionTodo?.classList.contains('selected')) {
+                    opcionTodo.classList.remove('selected');
+                    item.classList.remove('selected');
+                } else {
+                    item.classList.toggle('selected');
+                }
                 actualizarSeleccionPaso1();
             });
         });
@@ -361,20 +376,21 @@
             const seleccionados = Array.from(items).filter(i => i.classList.contains('selected')).map(i => i.dataset.fecha);
             const haySeleccionados = seleccionados.length > 0;
 
-            const precioConDescuento = Math.round(PRECIO_PRIMERA * (1 - DESCUENTO_TODO));
+            const precioConDescuento = Math.round(getPrecioPorNoche() * (1 - getDescuentoTodo()));
 
             items.forEach(item => {
                 const fecha = item.dataset.fecha;
                 const precioEl = item.querySelector('.rtj-fecha-precio');
                 if (!precioEl) return;
 
-                if (todoSeleccionado) {
+                if (totalNoches === 1) {
+                    precioEl.textContent = '$14.500';
+                } else if (todoSeleccionado) {
                     precioEl.textContent = '$' + precioConDescuento.toLocaleString('es-CL');
                 } else if (!haySeleccionados) {
-                    precioEl.textContent = '$20.000';
+                    precioEl.textContent = totalNoches >= 4 ? '$12.000' : '$14.000';
                 } else {
-                    const esPrimera = seleccionados.indexOf(fecha) === 0;
-                    precioEl.textContent = esPrimera ? '$20.000' : '$14.000';
+                    precioEl.textContent = totalNoches >= 4 ? '$12.000' : '$14.000';
                 }
             });
         }
@@ -384,32 +400,51 @@
             const items = document.querySelectorAll('.rtj-fecha-item.selected');
             nochesSeleccionadas = Array.from(items).map(i => i.dataset.fecha);
 
-            if (nochesSeleccionadas.length === totalNoches && totalNoches > 0) {
-                opcionTodo?.classList.add('selected');
+            if (totalNoches === 1) {
+                if (nochesSeleccionadas.length === 1) {
+                    tinajaTotal = PRECIO_1_NOCHE;
+                    totalCalculado = tinajaTotal;
+                    document.getElementById('total-paso1').textContent = 'Total: $' + tinajaTotal.toLocaleString('es-CL');
+                    document.getElementById('total-paso1').classList.add('visible');
+                } else {
+                    document.getElementById('total-paso1').classList.remove('visible');
+                    tinajaTotal = 0;
+                    totalCalculado = 0;
+                }
+                actualizarPreciosDias();
+                document.getElementById('btn-paso1').disabled = totalCalculado === 0;
+                return;
+            }
+
+            if (nochesSeleccionadas.length === totalNoches && totalNoches > 1 && opcionTodo) {
+                opcionTodo.classList.add('selected');
                 document.querySelectorAll('.rtj-fecha-item').forEach(i => i.classList.add('selected'));
                 seleccionTodo = true;
                 nochesSeleccionadas = fechasData.map(f => f.fecha);
-                const subtotal = PRECIO_PRIMERA * nochesSeleccionadas.length;
-                tinajaTotal = Math.round(subtotal * (1 - DESCUENTO_TODO));
+                const subtotal = getPrecioPorNoche() * nochesSeleccionadas.length;
+                const desc = getDescuentoTodo();
+                tinajaTotal = Math.round(subtotal * (1 - desc));
                 totalCalculado = tinajaTotal;
-                document.getElementById('total-paso1').textContent = 'Total: $' + tinajaTotal.toLocaleString('es-CL') + ' (Todo el hospedaje, 30% desc.)';
+                document.getElementById('total-paso1').textContent = 'Total: $' + tinajaTotal.toLocaleString('es-CL') + ' (Todo el hospedaje, ' + (desc * 100) + '% desc.)';
                 document.getElementById('total-paso1').classList.add('visible');
                 actualizarPreciosDias();
+                document.getElementById('btn-paso1').disabled = false;
                 return;
             }
 
             seleccionTodo = opcionTodo?.classList.contains('selected') || false;
 
-            if (seleccionTodo) {
+            if (seleccionTodo && totalNoches > 1) {
                 nochesSeleccionadas = fechasData.map(f => f.fecha);
-                const subtotal = PRECIO_PRIMERA * nochesSeleccionadas.length;
-                tinajaTotal = Math.round(subtotal * (1 - DESCUENTO_TODO));
+                const subtotal = getPrecioPorNoche() * nochesSeleccionadas.length;
+                const desc = getDescuentoTodo();
+                tinajaTotal = Math.round(subtotal * (1 - desc));
                 totalCalculado = tinajaTotal;
-                document.getElementById('total-paso1').textContent = 'Total: $' + tinajaTotal.toLocaleString('es-CL') + ' (Todo el hospedaje, 30% desc.)';
+                document.getElementById('total-paso1').textContent = 'Total: $' + tinajaTotal.toLocaleString('es-CL') + ' (Todo el hospedaje, ' + (desc * 100) + '% desc.)';
                 document.getElementById('total-paso1').classList.add('visible');
                 actualizarPreciosDias();
             } else if (nochesSeleccionadas.length > 0) {
-                tinajaTotal = PRECIO_PRIMERA + (nochesSeleccionadas.length - 1) * PRECIO_RESTANTES;
+                tinajaTotal = getPrecioPorNoche() * nochesSeleccionadas.length;
                 totalCalculado = tinajaTotal;
                 document.getElementById('total-paso1').textContent = 'Total: $' + tinajaTotal.toLocaleString('es-CL');
                 document.getElementById('total-paso1').classList.add('visible');
@@ -424,56 +459,105 @@
             document.getElementById('btn-paso1').disabled = totalCalculado === 0;
         }
 
-        const LEÑA_SIGNIFICADOS = {
-            regular: 'Leña Regular (estándar): Paquete básico de leña para una noche. Incluido sin costo adicional.',
-            extrema: 'Leña Extrema: Paquete mayor de leña. Con 2 o más noches está incluido. Con 1 noche tiene un costo adicional de $3.000.'
-        };
+        const PRECIO_LEÑA = 5000;
+        const LEÑA_SIGNIFICADO = 'El suministro de leña incluye toda la leña necesaria para mantener prendida la tinaja 🛁 durante el día y su noche.';
+        const LEÑA_SIN_SELECCIONAR = 'La leña debe ser proporcionada por el cliente.';
+
+        let oferta100Leña = false;
+
+        function actualizarSignificadoLeña() {
+            const cb = document.getElementById('leña-checkbox');
+            const el = document.getElementById('leña-significado');
+            const respDiv = document.getElementById('leña-responsable');
+            const respCb = document.getElementById('leña-cb-responsable');
+            if (cb && el) {
+                if (cb.checked) {
+                    el.textContent = LEÑA_SIGNIFICADO;
+                    if (respDiv) respDiv.classList.remove('visible');
+                    if (respCb) respCb.checked = false;
+                } else {
+                    el.textContent = LEÑA_SIN_SELECCIONAR;
+                    if (respDiv) respDiv.classList.add('visible');
+                }
+            }
+            actualizarBtnPaso2();
+        }
+
+        function actualizarBtnPaso2() {
+            const cb = document.getElementById('leña-checkbox');
+            const respCb = document.getElementById('leña-cb-responsable');
+            const btn = document.getElementById('btn-paso2');
+            if (!btn) return;
+            const puedeAvanzar = cb?.checked || (respCb?.checked && !cb?.checked);
+            btn.disabled = !puedeAvanzar;
+        }
 
         document.getElementById('btn-paso1')?.addEventListener('click', () => {
             const grid = document.getElementById('leña-grid');
             grid.innerHTML = '';
-            const es1Dia = nochesSeleccionadas.length === 1;
-            const precioExtrema = es1Dia ? LEÑA_EXTREMA_1DIA : 0;
-            const paquetes = [
-                { id: 'regular', nombre: 'Leña Regular', precio: 0 },
-                { id: 'extrema', nombre: 'Leña Extrema', precio: precioExtrema }
-            ];
+            const es1Noche = nochesSeleccionadas.length === 1;
             const div = document.createElement('div');
             div.className = 'rtj-leña-item';
+            div.id = 'leña-item';
             div.innerHTML = `
-                <span class="rtj-leña-fecha">Paquete de leña</span>
-                <select class="rtj-leña-select">
-                    ${paquetes.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre}${p.precio > 0 ? ' — $' + p.precio.toLocaleString('es-CL') : ' — $0'}</option>`).join('')}
-                </select>
+                <span class="rtj-leña-icono">🪵</span>
+                <input type="checkbox" class="rtj-leña-checkbox" id="leña-checkbox">
+                <span style="font-weight:600;color:var(--airbnb-dark);">Stack de leña</span>
             `;
             grid.appendChild(div);
-            const sel = grid.querySelector('.rtj-leña-select');
-            if (nochesSeleccionadas.length > 1) {
-                sel.value = 'extrema';
+            const cb = document.getElementById('leña-checkbox');
+            const precioTexto = document.getElementById('leña-precio-texto');
+            const ofertaTexto = document.getElementById('leña-oferta-texto');
+            if (es1Noche) {
+                precioTexto.textContent = 'Valor por suministro de leña: $5.000';
+                ofertaTexto.style.display = 'none';
+            } else {
+                precioTexto.innerHTML = 'Valor por suministro de leña: <s>$5.000</s>';
+                ofertaTexto.textContent = 'Oferta: descuento especial 100% incluido en su paquete';
+                ofertaTexto.style.display = 'block';
             }
-            sel.addEventListener('change', () => {
+            oferta100Leña = !es1Noche;
+            cb.checked = true;
+            const item = document.getElementById('leña-item');
+            const respCb = document.getElementById('leña-cb-responsable');
+            item.addEventListener('click', (e) => {
+                if (e.target === cb) return;
+                if (oferta100Leña) return;
+                cb.checked = !cb.checked;
+                actualizarLeñaUI();
                 actualizarTotalLeña();
                 actualizarSignificadoLeña();
             });
-            actualizarTotalLeña();
+            cb.addEventListener('click', (e) => { if (oferta100Leña) e.preventDefault(); });
+            cb.addEventListener('change', () => {
+                if (oferta100Leña) { cb.checked = true; return; }
+                actualizarLeñaUI();
+                actualizarTotalLeña();
+                actualizarSignificadoLeña();
+            });
+            respCb?.addEventListener('change', actualizarBtnPaso2);
             actualizarSignificadoLeña();
+            actualizarLeñaUI();
+            actualizarTotalLeña();
+            actualizarBtnPaso2();
             mostrarPaso(2);
         });
 
-        function actualizarSignificadoLeña() {
-            const sel = document.querySelector('.rtj-leña-select');
-            const el = document.getElementById('leña-significado');
-            if (sel && el) {
-                const id = sel.value || 'regular';
-                el.textContent = LEÑA_SIGNIFICADOS[id] || '';
+        function actualizarLeñaUI() {
+            const cb = document.getElementById('leña-checkbox');
+            const item = document.getElementById('leña-item');
+            if (cb && item) {
+                item.classList.toggle('checked', cb.checked);
             }
         }
 
         function actualizarTotalLeña() {
-            leñaTotal = 0;
-            const sel = document.querySelector('.rtj-leña-select');
-            if (sel) {
-                leñaTotal = parseInt(sel.selectedOptions[0]?.dataset.precio || 0, 10);
+            const cb = document.getElementById('leña-checkbox');
+            const es1Noche = nochesSeleccionadas.length === 1;
+            if (cb?.checked) {
+                leñaTotal = es1Noche ? PRECIO_LEÑA : 0;
+            } else {
+                leñaTotal = 0;
             }
             totalCalculado = tinajaTotal + leñaTotal;
             const el = document.getElementById('total-paso2');
@@ -523,12 +607,15 @@
             contactoEmail = (document.getElementById('rtj-email')?.value || '').trim();
             contactoWhatsapp = (document.getElementById('rtj-whatsapp')?.value || '').trim();
             const resumen = document.getElementById('resumen-final');
-            const desc = seleccionTodo ? 'Todo el hospedaje (30% desc.)' : nochesSeleccionadas.length + ' noche(s)';
+            const desc = seleccionTodo ? 'Todo el hospedaje (' + (getDescuentoTodo() * 100) + '% desc.)' : nochesSeleccionadas.length + ' noche(s)';
             let rows = `
                 <div class="rtj-resumen-row"><span>Tinaja</span><span>${desc} — $${tinajaTotal.toLocaleString('es-CL')}</span></div>
             `;
-            if (leñaTotal > 0) {
-                rows += `<div class="rtj-resumen-row"><span>Leña</span><span>$${leñaTotal.toLocaleString('es-CL')}</span></div>`;
+            const leñaCb = document.getElementById('leña-checkbox');
+            if (leñaCb?.checked) {
+                rows += leñaTotal > 0
+                    ? `<div class="rtj-resumen-row"><span>Leña</span><span>$${leñaTotal.toLocaleString('es-CL')}</span></div>`
+                    : `<div class="rtj-resumen-row"><span>Leña</span><span>Incluido</span></div>`;
             }
             const formaNombre = { airbnb: 'App Airbnb', transferencia: 'Transferencia', mercadopago: 'MercadoPago' }[formaPago] || formaPago;
             if (contactoEmail) rows += `<div class="rtj-resumen-row"><span>Email</span><span>${contactoEmail}</span></div>`;
