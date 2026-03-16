@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛁 Reservar Tinaja - {{ property_name }}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛁</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}">
+    <style>
+        .rtj-container { max-width: 560px; margin: 0 auto; padding: 24px; min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .rtj-header { text-align: center; margin-bottom: 32px; }
+        .rtj-header h1 { font-size: 1.5em; color: var(--airbnb-dark); margin-bottom: 8px; }
+        .rtj-steps { display: flex; gap: 8px; margin-bottom: 32px; }
+        .rtj-step-dot { width: 12px; height: 12px; border-radius: 50%; background: #e2e8f0; }
+        .rtj-step-dot.active { background: var(--today-color); }
+        .rtj-step-dot.done { background: var(--available-color); }
+        .rtj-card { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); width: 100%; }
+        .rtj-fechas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .rtj-fecha-item { border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .rtj-fecha-item:hover { border-color: var(--today-color); background: #f0fdfa; }
+        .rtj-fecha-item.selected { border-color: var(--available-color); background: #ecfdf5; }
+        .rtj-fecha-dia { font-size: 1.8em; font-weight: 700; color: var(--airbnb-dark); line-height: 1; }
+        .rtj-fecha-mes { font-size: 0.9em; color: #64748b; margin-top: 4px; }
+        .rtj-fecha-semana { font-size: 0.8em; color: #94a3b8; margin-top: 2px; }
+        .rtj-fecha-precio { font-size: 0.85em; color: var(--airbnb-dark); font-weight: 600; margin-top: 8px; }
+        .rtj-opcion-todo { border: 2px dashed #94a3b8; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; margin-top: 16px; transition: all 0.2s; }
+        .rtj-opcion-todo:hover, .rtj-opcion-todo.selected { border-color: var(--available-color); background: #ecfdf5; }
+        .rtj-opcion-todo .label { font-weight: 600; color: var(--airbnb-dark); }
+        .rtj-opcion-todo .descuento { font-size: 0.85em; color: var(--available-color); margin-top: 4px; }
+        .rtj-btn { width: 100%; padding: 14px 24px; border-radius: 12px; font-weight: 600; font-size: 1em; cursor: pointer; border: none; margin-top: 20px; transition: all 0.2s; }
+        .rtj-btn-primary { background: var(--today-color); color: white; }
+        .rtj-btn-primary:hover:not(:disabled) { background: #006d72; }
+        .rtj-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .rtj-total { font-size: 1.3em; font-weight: 700; color: var(--airbnb-dark); text-align: center; margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; display: none; }
+        .rtj-total.visible { display: block; }
+        .rtj-leña-grid { display: flex; flex-direction: column; gap: 12px; }
+        .rtj-leña-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; }
+        .rtj-leña-fecha { font-weight: 500; color: var(--airbnb-dark); }
+        .rtj-leña-select { padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; min-width: 140px; }
+        .rtj-resumen { background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+        .rtj-resumen-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .rtj-resumen-row:last-child { margin-bottom: 0; font-weight: 700; font-size: 1.1em; }
+        .rtj-error { color: #dc2626; text-align: center; padding: 20px; }
+        .rtj-success { text-align: center; padding: 24px; }
+        .rtj-success .icon { font-size: 3em; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="rtj-container">
+        {% if error %}
+        <div class="rtj-card">
+            <div class="rtj-error">
+                <p>{{ error }}</p>
+                <a href="/" class="rtj-btn rtj-btn-primary" style="margin-top:16px;display:inline-block;text-decoration:none;text-align:center;">Volver al inicio</a>
+            </div>
+        </div>
+        {% else %}
+        <div class="rtj-header">
+            <h1>🛁 Reservar Tinaja</h1>
+            <p style="color:#64748b;font-size:0.95em;">{{ property_name }}</p>
+        </div>
+
+        <div class="rtj-steps">
+            <span class="rtj-step-dot active" id="step-dot-1"></span>
+            <span class="rtj-step-dot" id="step-dot-2"></span>
+            <span class="rtj-step-dot" id="step-dot-3"></span>
+        </div>
+
+        <div class="rtj-card">
+            <!-- Paso 1: Elegir fechas -->
+            <div id="paso-1" class="rtj-paso">
+                <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 1: Elige tus noches</h2>
+                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">$14.000 por noche. Selecciona las noches que deseas usar la tinaja.</p>
+                <div class="rtj-fechas-grid" id="fechas-grid">
+                    {% for f in fechas %}
+                    <div class="rtj-fecha-item" data-fecha="{{ f.fecha }}" data-precio="14000">
+                        <div class="rtj-fecha-dia">{{ f.dia }}</div>
+                        <div class="rtj-fecha-mes">{{ f.mes }} {{ f.anio }}</div>
+                        <div class="rtj-fecha-semana">{{ f.dia_semana }}</div>
+                        <div class="rtj-fecha-precio">$14.000</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="rtj-opcion-todo" id="opcion-todo" data-noches="{{ noches }}">
+                    <div class="label">Todo el hospedaje ({{ noches }} noche{{ 's' if noches != 1 else '' }})</div>
+                    <div class="descuento">20% de descuento</div>
+                </div>
+                <div class="rtj-total" id="total-paso1"></div>
+                <button class="rtj-btn rtj-btn-primary" id="btn-paso1" disabled>Continuar al Paso 2</button>
+            </div>
+
+            <!-- Paso 2: Paquetes de leña -->
+            <div id="paso-2" class="rtj-paso" style="display:none;">
+                <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 2: Paquete de leña</h2>
+                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">Elige un paquete de leña para cada noche seleccionada.</p>
+                <div class="rtj-leña-grid" id="leña-grid"></div>
+                <button class="rtj-btn rtj-btn-primary" id="btn-paso2">Continuar al Paso 3</button>
+            </div>
+
+            <!-- Paso 3: Confirmación -->
+            <div id="paso-3" class="rtj-paso" style="display:none;">
+                <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 3: Confirmar</h2>
+                <div class="rtj-resumen" id="resumen-final"></div>
+                <button class="rtj-btn rtj-btn-primary" id="btn-confirmar">Confirmar y generar pago</button>
+            </div>
+
+            <!-- Éxito -->
+            <div id="paso-exito" class="rtj-paso" style="display:none;">
+                <div class="rtj-success">
+                    <div class="icon">✅</div>
+                    <h3>¡Pago registrado!</h3>
+                    <p style="color:#64748b;margin-top:8px;">Tu reserva de tinaja ha sido confirmada.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const PRECIO_NOCHE = 14000;
+        const DESCUENTO_TODO = 0.20;
+        const codigoReserva = "{{ reserva.codigo_reserva if reserva else '' }}";
+
+        let paso = 1;
+        let seleccionTodo = false;
+        let nochesSeleccionadas = [];
+        let totalCalculado = 0;
+
+        const fechasData = {{ fechas | tojson if fechas else '[]' }};
+
+        function mostrarPaso(p) {
+            paso = p;
+            document.querySelectorAll('.rtj-paso').forEach(el => el.style.display = 'none');
+            const el = document.getElementById('paso-' + p);
+            if (el) el.style.display = 'block';
+            document.querySelectorAll('.rtj-step-dot').forEach((dot, i) => {
+                dot.classList.remove('active', 'done');
+                if (i + 1 < p) dot.classList.add('done');
+                if (i + 1 === p) dot.classList.add('active');
+            });
+        }
+
+        // Paso 1: selección de fechas
+        document.querySelectorAll('.rtj-fecha-item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (document.getElementById('opcion-todo').classList.contains('selected')) return;
+                item.classList.toggle('selected');
+                actualizarSeleccionPaso1();
+            });
+        });
+
+        document.getElementById('opcion-todo')?.addEventListener('click', () => {
+            const opcion = document.getElementById('opcion-todo');
+            document.querySelectorAll('.rtj-fecha-item').forEach(i => i.classList.remove('selected'));
+            opcion.classList.toggle('selected');
+            actualizarSeleccionPaso1();
+        });
+
+        function actualizarSeleccionPaso1() {
+            const opcionTodo = document.getElementById('opcion-todo');
+            seleccionTodo = opcionTodo?.classList.contains('selected') || false;
+            const items = document.querySelectorAll('.rtj-fecha-item.selected');
+            nochesSeleccionadas = Array.from(items).map(i => i.dataset.fecha);
+
+            if (seleccionTodo) {
+                nochesSeleccionadas = fechasData.map(f => f.fecha);
+                const subtotal = PRECIO_NOCHE * nochesSeleccionadas.length;
+                totalCalculado = Math.round(subtotal * (1 - DESCUENTO_TODO));
+                document.getElementById('total-paso1').textContent = 'Total: $' + totalCalculado.toLocaleString('es-CL');
+                document.getElementById('total-paso1').classList.add('visible');
+            } else if (nochesSeleccionadas.length > 0) {
+                totalCalculado = PRECIO_NOCHE * nochesSeleccionadas.length;
+                document.getElementById('total-paso1').textContent = 'Total: $' + totalCalculado.toLocaleString('es-CL');
+                document.getElementById('total-paso1').classList.add('visible');
+            } else {
+                document.getElementById('total-paso1').classList.remove('visible');
+                totalCalculado = 0;
+            }
+
+            document.getElementById('btn-paso1').disabled = totalCalculado === 0;
+        }
+
+        document.getElementById('btn-paso1')?.addEventListener('click', () => {
+            // Renderizar paso 2: paquetes leña por cada noche seleccionada
+            const grid = document.getElementById('leña-grid');
+            grid.innerHTML = '';
+            const paquetes = ['Sin leña', 'Paquete Básico', 'Paquete Estándar', 'Paquete Premium'];
+            nochesSeleccionadas.forEach(fecha => {
+                const f = fechasData.find(x => x.fecha === fecha);
+                const label = f ? `${f.dia} ${f.mes} - ${f.dia_semana}` : fecha;
+                const div = document.createElement('div');
+                div.className = 'rtj-leña-item';
+                div.innerHTML = `
+                    <span class="rtj-leña-fecha">${label}</span>
+                    <select class="rtj-leña-select">
+                        ${paquetes.map(p => `<option value="${p}">${p}</option>`).join('')}
+                    </select>
+                `;
+                grid.appendChild(div);
+            });
+            mostrarPaso(2);
+        });
+
+        document.getElementById('btn-paso2')?.addEventListener('click', () => {
+            const resumen = document.getElementById('resumen-final');
+            const desc = seleccionTodo ? 'Todo el hospedaje (20% desc.)' : nochesSeleccionadas.length + ' noche(s)';
+            resumen.innerHTML = `
+                <div class="rtj-resumen-row"><span>Tinaja</span><span>${desc}</span></div>
+                <div class="rtj-resumen-row"><span>Total</span><span>$${totalCalculado.toLocaleString('es-CL')}</span></div>
+            `;
+            mostrarPaso(3);
+        });
+
+        document.getElementById('btn-confirmar')?.addEventListener('click', async () => {
+            const btn = document.getElementById('btn-confirmar');
+            btn.disabled = true;
+            btn.textContent = 'Procesando...';
+            try {
+                const res = await fetch('/api/reservatinaja/' + codigoReserva + '/confirmar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ valor: totalCalculado, concepto: 'Tinaja' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarPaso('exito');
+                } else {
+                    alert(data.error || 'Error al confirmar');
+                    btn.disabled = false;
+                    btn.textContent = 'Confirmar y generar pago';
+                }
+            } catch (err) {
+                alert('Error de conexión');
+                btn.disabled = false;
+                btn.textContent = 'Confirmar y generar pago';
+            }
+        });
+    </script>
+</body>
+</html>

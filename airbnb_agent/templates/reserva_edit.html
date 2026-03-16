@@ -245,7 +245,7 @@
             {% endif %}
             
             <form method="POST" id="reserva-form">
-                <input type="hidden" name="reserva_id" value="{{ reserva._id if reserva else '' }}">
+                <input type="hidden" name="reserva_id" value="{{ str(reserva._id) if reserva else '' }}">
                 
                 <div class="form-group">
                     <label>
@@ -279,13 +279,82 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>🔖 Código de reserva</label>
+                    <input type="text" name="codigo_reserva" value="{{ reserva.codigo_reserva if reserva and reserva.codigo_reserva else codigo_inicial }}" placeholder="Ej: HM123456 o RES-202503101430">
+                </div>
+                
+                <div class="form-group">
                     <label>Descripción / Notas</label>
                     <textarea name="summary" rows="2" placeholder="Ej: Reserva manual, Mantenimiento...">{{ reserva.summary if reserva else '' }}</textarea>
                 </div>
                 
                 <div class="form-group">
-                    <label>URL Reserva (opcional)</label>
-                    <input type="url" name="reservation_url" value="{{ reserva.reservation_url if reserva and reserva.reservation_url else '' }}" placeholder="https://...">
+                    <label>👤 Nombre del huésped</label>
+                    <input type="text" name="nombre_huesped" value="{{ reserva.nombre_huesped if reserva and reserva.nombre_huesped else '' }}" placeholder="Ej: Juan Pérez">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>🕐 Hora llegada</label>
+                        <input type="time" name="hora_checkin" value="{{ reserva.hora_checkin if reserva and reserva.hora_checkin else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>🕐 Hora salida</label>
+                        <input type="time" name="hora_checkout" value="{{ reserva.hora_checkout if reserva and reserva.hora_checkout else '' }}">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>👤 Adultos</label>
+                        <input type="number" name="adultos" min="0" max="20" value="{{ reserva.adultos if reserva and reserva.adultos is not none else 0 }}">
+                    </div>
+                    <div class="form-group">
+                        <label>👶 Niños</label>
+                        <input type="number" name="ninos" min="0" max="20" value="{{ reserva.ninos if reserva and reserva.ninos is not none else 0 }}">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>🐾 Mascotas</label>
+                    <input type="number" name="mascotas" min="0" max="10" value="{{ reserva.mascotas if reserva and reserva.mascotas is not none else 0 }}">
+                </div>
+                
+                <div class="form-group">
+                    <label>📝 Notas</label>
+                    <textarea name="notas" rows="2" placeholder="Ej: Llegada tardía...">{{ reserva.notas if reserva and reserva.notas else '' }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>💰 Precio (CLP)</label>
+                    <input type="number" name="precio" min="0" value="{{ reserva.precio if reserva and reserva.precio else '' }}" placeholder="Ej: 150000">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>➕ Extra concepto</label>
+                        <input type="text" name="extra_concepto" value="{{ reserva.extra_concepto if reserva and reserva.extra_concepto else '' }}" placeholder="Ej: Tinaja">
+                    </div>
+                    <div class="form-group">
+                        <label>➕ Extra valor (CLP)</label>
+                        <input type="number" name="extra_valor" min="0" value="{{ reserva.extra_valor if reserva and reserva.extra_valor else 0 }}" placeholder="Ej: 20000">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>📍 Comuna</label>
+                        <input type="text" name="comuna" value="{{ reserva.comuna if reserva and reserva.comuna else '' }}" placeholder="Ej: Santiago">
+                    </div>
+                    <div class="form-group">
+                        <label>🌎 País</label>
+                        <input type="text" name="pais" value="{{ reserva.pais if reserva and reserva.pais else '' }}" placeholder="Ej: Chile">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>URL Reserva (Airbnb)</label>
+                    <input type="url" name="reservation_url" value="{{ reserva.reservation_url if reserva and reserva.reservation_url else '' }}" placeholder="https://airbnb.com/...">
                 </div>
                 
                 <div class="form-group">

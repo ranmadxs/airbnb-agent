@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛁 Tinaja - {{ property_name }}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛁</text></svg>">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo">
+                    <span style="font-size:1.5em;">🛁</span>
+                </div>
+                <div class="title-version">
+                    <h1>Tinaja - {{ property_name }}</h1>
+                    <span class="version">v{{ version }}</span>
+                </div>
+                <a href="/" class="auth-btn">← Calendario</a>
+            </div>
+        </header>
+
+        <main>
+            <div class="calendar-layout">
+            <div class="calendar-card full-width" id="calendar-card">
+                <div class="calendar-header">
+                    <button class="nav-btn" id="prev-btn" onclick="navegarMes(-1)">
+                        <span class="nav-arrow">←</span>
+                    </button>
+                    <h3 id="month-title">{{ current.month_name }} {{ current.year }}</h3>
+                    <button class="nav-btn" id="next-btn" onclick="navegarMes(1)">
+                        <span class="nav-arrow">→</span>
+                    </button>
+                </div>
+                <div class="calendar-grid" id="calendar-grid">
+                    <div class="day-header">Lu</div>
+                    <div class="day-header">Ma</div>
+                    <div class="day-header">Mi</div>
+                    <div class="day-header">Ju</div>
+                    <div class="day-header">Vi</div>
+                    <div class="day-header weekend">Sa</div>
+                    <div class="day-header weekend">Do</div>
+                    {% for day, weekday in current.days %}
+                        {% if day == 0 %}
+                            <div class="day-cell empty"></div>
+                        {% else %}
+                            <div class="day-cell {% if weekday >= 5 %}weekend{% endif %}"
+                                 data-date="{{ current.year }}-{{ '%02d'|format(current.month) }}-{{ '%02d'|format(day) }}">
+                                <span class="day-number">{{ day }}</span>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="legend-color available"></span>
+                    <span>Disponible</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color checkin-dot"></span>
+                    <span>Entrada</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color reserved"></span>
+                    <span>Reservado (tinaja)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color today"></span>
+                    <span>Hoy</span>
+                </div>
+            </div>
+
+            <div class="reservations-panel">
+                <div class="panel-header">
+                    <h3>🛁 Reservas con Tinaja</h3>
+                </div>
+                <div class="reservations-list" id="reservations-list">
+                    {% if events %}
+                        {% for event in events|sort(attribute='start') %}
+                            {% set is_past = event.end < today or (event.end == today and now_time >= (event.hora_checkout or '18:00')) %}
+                            <div class="reservation-item is-reservation {{ 'is-past' if is_past else 'is-upcoming' }}"
+                                 data-start="{{ event.start }}" data-end="{{ event.end }}">
+                                <div class="reservation-type">
+                                    <span class="type-badge reservation">🛁 Tinaja</span>
+                                    <span class="nights-badge">{{ event.days }} noche{{ 's' if event.days != 1 else '' }}</span>
+                                </div>
+                                <div class="dates-row">
+                                    <div class="date-block">
+                                        <span class="date-label">Check-in</span>
+                                        <span class="date-value">{{ event.start }}</span>
+                                    </div>
+                                    <span class="date-arrow">→</span>
+                                    <div class="date-block">
+                                        <span class="date-label">Check-out</span>
+                                        <span class="date-value">{{ event.end }}</span>
+                                    </div>
+                                </div>
+                                <div class="guests-row">
+                                    <span class="guest-badge adults">👤 {{ event.adultos or 0 }}</span>
+                                    <span class="guest-badge children">👶 {{ event.ninos or 0 }}</span>
+                                    <span class="guest-badge pets">🐾 {{ event.mascotas or 0 }}</span>
+                                </div>
+                                {% if event.extra_valor %}
+                                <div class="price-row">
+                                    <span class="price-value price-extra">Tinaja: ${{ "{:,.0f}".format(event.extra_valor).replace(",", ".") }}</span>
+                                </div>
+                                {% endif %}
+                                <div class="reservation-info">
+                                    <span>{% if event.nombre_huesped %}{{ event.nombre_huesped }}{% else %}{{ event.summary }}{% endif %}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="no-reservations">
+                            <span>No hay reservas con tinaja este mes</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>🛁 Tinaja - {{ property_name }} v{{ version }}</p>
+            <p class="footer-links">
+                <a href="/" class="footer-link">← Volver al calendario</a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        const events = {{ events | tojson }};
+        const todayStr = '{{ today }}';
+        let ingresosMesCache = { "{{ current.year }}-{{ current.month }}": {{ ingresos_mes_actual | tojson }} };
+
+        let currentYear = {{ current.year }};
+        let currentMonth = {{ current.month }};
+        const minYear = 2025, minMonth = 12;
+        const maxYear = 2027, maxMonth = 12;
+
+        async function navegarMes(delta) {
+            currentMonth += delta;
+            if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+            else if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+            if (currentYear < minYear || (currentYear === minYear && currentMonth < minMonth)) {
+                currentYear = minYear; currentMonth = minMonth; return;
+            }
+            if (currentYear > maxYear || (currentYear === maxYear && currentMonth > maxMonth)) {
+                currentYear = maxYear; currentMonth = maxMonth; return;
+            }
+            await cargarMes(currentYear, currentMonth);
+        }
+
+        async function cargarMes(year, month) {
+            try {
+                const res = await fetch(`/api/month/tinaja?year=${year}&month=${month}`);
+                const data = await res.json();
+                if (data.ingresos) {
+                    ingresosMesCache[year + '-' + month] = data.ingresos;
+                }
+                renderizarMes(data);
+                marcarDias();
+                filtrarReservasPorMes(year, month);
+            } catch (e) {
+                console.error('Error cargando mes:', e);
+            }
+        }
+
+        function filtrarReservasPorMes(year, month) {
+            const mesStr = String(month).padStart(2, '0');
+            const prefijoMes = `${year}-${mesStr}`;
+            document.querySelectorAll('.reservation-item').forEach(item => {
+                const startStr = item.dataset.start || '';
+                const endStr = item.dataset.end || '';
+                const iniciaEnMes = startStr.startsWith(prefijoMes);
+                const terminaEnMes = endStr.startsWith(prefijoMes);
+                const inicioMes = new Date(year, month - 1, 1);
+                const finMes = new Date(year, month, 0, 23, 59, 59);
+                const start = new Date(startStr + 'T00:00:00');
+                const end = new Date(endStr + 'T00:00:00');
+                const atraviesaMes = start < inicioMes && end > finMes;
+                const enMes = iniciaEnMes || terminaEnMes || atraviesaMes;
+                item.dataset.enMes = enMes ? 'true' : 'false';
+            });
+            aplicarFiltros();
+        }
+
+        function aplicarFiltros() {
+            document.querySelectorAll('.reservation-item').forEach(item => {
+                const enMes = item.dataset.enMes === 'true';
+                item.style.display = enMes ? '' : 'none';
+            });
+        }
+
+        function renderizarMes(data) {
+            document.getElementById('month-title').textContent = `${data.month_name} ${data.year}`;
+            const grid = document.getElementById('calendar-grid');
+            const headers = `
+                <div class="day-header">Lu</div>
+                <div class="day-header">Ma</div>
+                <div class="day-header">Mi</div>
+                <div class="day-header">Ju</div>
+                <div class="day-header">Vi</div>
+                <div class="day-header weekend">Sa</div>
+                <div class="day-header weekend">Do</div>
+            `;
+            let cells = '';
+            data.days.forEach(([day, weekday]) => {
+                if (day === 0) {
+                    cells += '<div class="day-cell empty"></div>';
+                } else {
+                    const dateStr = `${data.year}-${String(data.month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                    const weekendClass = weekday >= 5 ? 'weekend' : '';
+                    cells += `<div class="day-cell ${weekendClass}" data-date="${dateStr}">
+                        <span class="day-number">${day}</span>
+                    </div>`;
+                }
+            });
+            grid.innerHTML = headers + cells;
+        }
+
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function marcarDias() {
+            events.forEach(event => {
+                const start = new Date(event.start + 'T00:00:00');
+                const end = new Date(event.end + 'T00:00:00');
+                const inicioMesVisible = new Date(currentYear, currentMonth - 1, 1);
+                const finMesVisible = new Date(currentYear, currentMonth, 0);
+                const diasTotales = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+                const endInclusive = new Date(end.getTime() + 86400000);
+                const overlapStart = new Date(Math.max(start, inicioMesVisible));
+                const overlapEnd = new Date(Math.min(endInclusive, new Date(finMesVisible.getTime() + 86400000)));
+                const diasEnEsteMes = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
+                const proporcion = diasEnEsteMes / diasTotales;
+                const extraProporcion = Math.round((event.extra_valor || 0) * proporcion);
+                const empiezaEnEsteMes = start >= inicioMesVisible && start <= finMesVisible;
+                let globitoPuesto = false;
+
+                let current = new Date(start);
+                while (current <= end) {
+                    const dateStr = formatDate(current);
+                    const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                    if (cell) {
+                        const esPrimerDiaReserva = formatDate(current) === formatDate(start);
+                        const esUltimoDiaReserva = formatDate(current) === formatDate(end);
+                        if (!esUltimoDiaReserva) cell.classList.add('reserved');
+                        const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
+                        const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
+
+                        if (mostrarGlobitos) {
+                            if (esPrimerDiaReserva) cell.classList.add('checkin');
+                            const nombre = event.nombre_huesped || '';
+                            const adultos = event.adultos || 0;
+                            const ninos = event.ninos || 0;
+                            const mascotas = event.mascotas || 0;
+                            const totalPersonas = adultos + ninos;
+
+                            if (nombre || totalPersonas > 0) {
+                                const bubble = document.createElement('div');
+                                bubble.className = 'guest-bubble';
+                                const nombreCorto = nombre ? nombre.substring(0, 10) : '?';
+                                const nombreFormateado = nombreCorto.charAt(0).toUpperCase() + nombreCorto.slice(1).toLowerCase();
+                                let contenido = `<span class="bubble-initial">${nombreFormateado}</span>`;
+                                if (totalPersonas > 1) contenido += `<span class="bubble-count">+${totalPersonas - 1}</span>`;
+                                if (mascotas > 0) contenido += `<span class="bubble-pets">+${mascotas}</span>`;
+                                bubble.innerHTML = contenido;
+                                cell.appendChild(bubble);
+                            }
+
+                            if (extraProporcion > 0) {
+                                const extraBubble = document.createElement('div');
+                                extraBubble.className = 'extra-bubble';
+                                extraBubble.innerHTML = `$${extraProporcion.toLocaleString('es-CL')}`;
+                                extraBubble.title = event.extra_concepto || 'Tinaja';
+                                cell.appendChild(extraBubble);
+                            }
+                            globitoPuesto = true;
+                        }
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+
+                const checkoutCell = document.querySelector(`[data-date="${formatDate(end)}"]`);
+                if (checkoutCell) checkoutCell.classList.add('checkout-day');
+            });
+
+            const today = formatDate(new Date());
+            const todayCell = document.querySelector(`[data-date="${today}"]`);
+            if (todayCell) todayCell.classList.add('today');
+        }
+
+        // Inicializar en carga: marcar calendario y filtrar lista al mes actual
+        marcarDias();
+        filtrarReservasPorMes(currentYear, currentMonth);
+    </script>
+</body>
+</html>

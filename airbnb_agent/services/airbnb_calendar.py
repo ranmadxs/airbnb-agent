@@ -78,12 +78,24 @@ class AirbnbCalendarService:
         summary = str(component.get('summary', 'Reservado'))
         description = str(component.get('description', ''))
         
-        # Extraer URL de reserva
+        # Extraer URL de reserva y código
         reservation_url = None
+        codigo_reserva = None
         if 'Reservation URL:' in description:
             match = re.search(r'Reservation URL:\s*(https://[^\s\\]+)', description)
             if match:
                 reservation_url = match.group(1)
+                # Extraer código: primero ?code=XXX, si no el último segmento de la URL
+                code_match = re.search(r'[?&]code=([^&\s]+)', reservation_url)
+                if code_match:
+                    codigo_reserva = code_match.group(1)
+                else:
+                    # Último segmento después del último /
+                    parts = reservation_url.rstrip('/').split('/')
+                    if parts:
+                        last = parts[-1]
+                        if last and not last.startswith('?'):
+                            codigo_reserva = last.split('?')[0] or None
         
         if not start or not end:
             return None
@@ -109,7 +121,8 @@ class AirbnbCalendarService:
             'end': end_dt.strftime('%Y-%m-%d'),
             'summary': summary,
             'days': (end_dt - start_dt).days,
-            'reservation_url': reservation_url
+            'reservation_url': reservation_url,
+            'codigo_reserva': codigo_reserva
         }
     
     def get_stats(self, events: list = None) -> dict:

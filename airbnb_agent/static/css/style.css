@@ -318,6 +318,11 @@ header {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
+}
+
+.income-group-items.grid-3x2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
 }
 
@@ -514,6 +519,67 @@ header {
 .income-widget.total-mes.total-rojo .income-value,
 .income-widget.total-mes.total-rojo .income-label {
     color: white;
+}
+
+.income-widget.total-mes.total-naranjo {
+    border-color: #ea580c;
+    background: linear-gradient(135deg, #c2410c 0%, #ea580c 100%);
+}
+
+.income-widget.total-mes.total-naranjo .income-icon,
+.income-widget.total-mes.total-naranjo .income-value,
+.income-widget.total-mes.total-naranjo .income-label {
+    color: white;
+}
+
+.income-widget.total-mes.total-gris {
+    border-color: #64748b;
+    background: linear-gradient(135deg, #475569 0%, #64748b 100%);
+}
+
+.income-widget.total-mes.total-gris .income-icon,
+.income-widget.total-mes.total-gris .income-value,
+.income-widget.total-mes.total-gris .income-label {
+    color: white;
+}
+
+.income-widget.total-mes.total-oro {
+    border-color: #d4af37;
+    background: linear-gradient(135deg, #b8860b 0%, #d4af37 100%);
+}
+
+.income-widget.total-mes.total-oro .income-icon,
+.income-widget.total-mes.total-oro .income-value,
+.income-widget.total-mes.total-oro .income-label {
+    color: white;
+}
+
+/* Sellos MVP en widget Total del Mes */
+.income-widget.total-mes {
+    position: relative;
+}
+
+.total-mes-sello {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65em;
+    font-weight: 800;
+    color: #1a1a1a;
+    background: linear-gradient(135deg, #ffd700 0%, #ffec8b 50%, #daa520 100%);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    z-index: 2;
+}
+
+.total-mes-sello span {
+    line-height: 1;
 }
 
 /* Widget de Rentabilidad */
@@ -957,6 +1023,24 @@ header {
     color: #374151;
 }
 
+.modal-otros, .modal-electricidad {
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.otros-historial, .electricidad-historial {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 2px solid #e5e7eb;
+}
+
+.otros-historial h3, .electricidad-historial h3 {
+    font-size: 1em;
+    margin-bottom: 12px;
+    color: #374151;
+}
+
 .gasto-item.aseo-item {
     border-left-color: #8b5cf6;
 }
@@ -1301,6 +1385,34 @@ header {
     right: 14px;
 }
 
+.gasto-icon.gasto-otros {
+    left: 8px;
+    bottom: 14px;
+}
+
+.gasto-icon.gasto-electricidad {
+    right: 8px;
+    bottom: 14px;
+}
+
+.gasto-item.otros-item {
+    border-left-color: #0ea5e9;
+}
+
+.gasto-item.otros-item.pendiente {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.gasto-item.electricidad-item {
+    border-left-color: #eab308;
+}
+
+.gasto-item.electricidad-item.pendiente {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+}
+
 /* Globito de extra en calendario (solo admin) - azul */
 .extra-bubble {
     position: absolute;
@@ -1340,6 +1452,16 @@ header {
 .day-cell.blocked {
     background: #e5e5e5;
     border: 1px solid #ccc;
+}
+
+.day-cell .canceled-day-cross {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 0.9rem;
+    color: #dc2626;
+    font-weight: bold;
+    z-index: 3;
 }
 
 .day-cell.blocked .day-number {
@@ -1933,6 +2055,70 @@ header {
     color: white;
 }
 
+/* Reservas canceladas */
+.reservation-item.is-canceled {
+    position: relative;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 50%, #fecaca 100%);
+    border-left-color: #dc2626;
+}
+
+.reservation-item.is-canceled .canceled-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 0;
+}
+
+.reservation-item.is-canceled .canceled-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #dc2626;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.reservation-item.is-canceled .canceled-cross {
+    font-size: 1.5rem;
+    color: #dc2626;
+    font-weight: bold;
+}
+
+.type-badge.canceled {
+    background: #dc2626;
+    color: white;
+}
+
+.action-btn.cancel {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.action-btn.cancel:hover {
+    background: #fde68a;
+}
+
+.btn-cancel-reserva {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.btn-cancel-reserva:hover {
+    background: #fde68a;
+}
+
 /* Botones de acción */
 .item-actions {
     display: flex;
@@ -2148,6 +2334,17 @@ header {
     border-left-color: #9ca3af;
 }
 
+
+.codigo-badge {
+    display: inline-block;
+    font-size: 0.8em;
+    padding: 4px 8px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    color: var(--airbnb-dark);
+    font-family: monospace;
+    margin-bottom: 4px;
+}
 
 .reservation-link-btn {
     display: block;
@@ -2664,7 +2861,8 @@ footer {
         gap: 6px;
     }
     
-    .income-group-items.grid-2x2 {
+    .income-group-items.grid-2x2,
+    .income-group-items.grid-3x2 {
         grid-template-columns: 1fr 1fr;
         gap: 6px;
     }

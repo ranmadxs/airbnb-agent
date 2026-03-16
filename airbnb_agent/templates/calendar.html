@@ -65,7 +65,7 @@
                         <span class="income-group-title">Gastos</span>
                         <span class="income-group-total" id="expense-total">-$0</span>
                     </div>
-                    <div class="income-group-items grid-2x2">
+                    <div class="income-group-items grid-3x2">
                         <div class="expense-widget-mini agua" onclick="abrirModalAgua()">
                             <div class="expense-icon">💧</div>
                             <div class="expense-content">
@@ -95,6 +95,22 @@
                             <div class="expense-content">
                                 <span class="expense-value" id="expense-aseo">-$0</span>
                                 <span class="expense-label">Aseo</span>
+                            </div>
+                            <span class="expense-add-icon">+</span>
+                        </div>
+                        <div class="expense-widget-mini otros" onclick="abrirModalOtros()">
+                            <div class="expense-icon">📦</div>
+                            <div class="expense-content">
+                                <span class="expense-value" id="expense-otros">-$0</span>
+                                <span class="expense-label">Otros</span>
+                            </div>
+                            <span class="expense-add-icon">+</span>
+                        </div>
+                        <div class="expense-widget-mini electricidad" onclick="abrirModalElectricidad()">
+                            <div class="expense-icon">⚡</div>
+                            <div class="expense-content">
+                                <span class="expense-value" id="expense-electricidad">-$0</span>
+                                <span class="expense-label">Electricidad</span>
                             </div>
                             <span class="expense-add-icon">+</span>
                         </div>
@@ -229,6 +245,7 @@
                             <option value="activas">🟢 Activas</option>
                             <option value="pasadas">⏳ Pasadas</option>
                             {% if is_logged_in %}
+                            <option value="canceladas">⊘ Canceladas</option>
                             <option value="eliminadas">🗑️ Eliminadas</option>
                             {% endif %}
                         </select>
@@ -245,6 +262,7 @@
                         {% for event in events|sort(attribute='start') %}
                             {% set is_reservation = event.estado == 'reservado' %}
                             {% set is_deleted = event.estado == 'eliminado' %}
+                            {% set is_canceled = event.estado == 'cancelado' %}
                             {% set has_checkout = event.checkout %}
                             {% set hora_checkout = event.hora_checkout or '18:00' %}
                             {# Considerar checkout a las 18:00 por defecto: pasado si end < hoy O (end == hoy y ya pasó la hora) #}
@@ -253,10 +271,10 @@
                             {% set is_finished = is_past or (has_checkout and event.start <= today) %}
                             {# En curso: empezó, no terminó (o termina hoy pero aún no es hora de checkout) #}
                             {% set is_in_progress = event.start <= today and (event.end > today or (event.end == today and now_time < hora_checkout)) and not has_checkout and is_reservation %}
-                            {% set is_upcoming = event.start > today and is_reservation and not is_deleted %}
+                            {% set is_upcoming = event.start > today and is_reservation and not is_deleted and not is_canceled %}
                             {% set is_next = is_upcoming and not ns.found_next %}
                             {% if is_next %}{% set ns.found_next = true %}{% endif %}
-                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_finished and not is_next and not is_in_progress else '' }}" 
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}" 
                                  data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}">
                                 
                                 {% if is_finished and is_reservation %}
@@ -291,9 +309,18 @@
                                 <div class="deleted-overlay">🗑️</div>
                                 {% endif %}
                                 
+                                {% if is_canceled %}
+                                <div class="canceled-overlay">
+                                    <span class="canceled-badge">CANCELED</span>
+                                    <span class="canceled-cross">✕</span>
+                                </div>
+                                {% endif %}
+                                
                                 <div class="reservation-type">
                                     {% if is_deleted %}
                                         <span class="type-badge deleted">🗑️ Eliminado</span>
+                                    {% elif is_canceled %}
+                                        <span class="type-badge canceled">✕ Cancelado</span>
                                     {% elif is_reservation %}
                                         <span class="type-badge reservation">🏠 Reserva</span>
                                     {% else %}
@@ -352,6 +379,9 @@
                                     <span>📌 {{ event.summary }}</span>
                                 </div>
                                 {% else %}
+                                    {% if event.codigo_reserva %}
+                                    <span class="codigo-badge" title="Código de reserva">🔖 {{ event.codigo_reserva }}</span>
+                                    {% endif %}
                                     {% if event.reservation_url and is_logged_in %}
                                     <a href="{{ event.reservation_url }}" target="_blank" class="reservation-link-btn">
                                         Ver en Airbnb ↗
@@ -372,10 +402,19 @@
                                     <button class="action-btn restore" onclick="restaurarReserva('{{ event.id }}')" title="Restaurar">
                                         ♻️ Restaurar
                                     </button>
+                                    {% elif is_canceled %}
+                                    <button class="action-btn edit" onclick="editarReserva('{{ event.id }}')" title="Ver/Editar">
+                                        ✏️
+                                    </button>
                                     {% else %}
                                         {% if is_in_progress and is_reservation %}
                                         <button class="action-btn finish" onclick="registrarCheckout('{{ event.id }}')" title="Registrar checkout">
                                             🏁 Checkout
+                                        </button>
+                                        {% endif %}
+                                        {% if is_reservation %}
+                                        <button class="action-btn cancel" onclick="cancelarReserva('{{ event.id }}')" title="Cancelar reserva">
+                                            ⊘
                                         </button>
                                         {% endif %}
                                         <button class="action-btn edit" onclick="editarReserva('{{ event.id }}')" title="Editar">
@@ -415,6 +454,7 @@
             </div>
             <p>🏠 {{ property_name }} v{{ version }}</p>
             <p class="footer-links">
+                <a href="/tinaja" class="footer-link">🛁 Tinaja</a>
                 <a href="https://airbnb.cl/h/posadaenelbosque" target="_blank" class="footer-link">
                     <img src="https://www.airbnb.com/favicon.ico" alt="Airbnb" width="16" height="16">
                     Ver en Airbnb
@@ -463,6 +503,11 @@
                         <option value="reservado">Reserva</option>
                         <option value="bloqueado">Bloqueo</option>
                     </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>🔖 Código de reserva</label>
+                    <input type="text" id="reserva-codigo" name="codigo_reserva" placeholder="Ej: HM123456 o RES-202503101430">
                 </div>
                 
                 <div class="form-group">
@@ -545,8 +590,9 @@
                 </div>
                 
                 <div class="modal-actions">
-                    <button type="button" class="btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                    <button type="button" class="btn-secondary" onclick="cerrarModal()">Cerrar</button>
                     <button type="button" class="btn-danger" id="btn-eliminar" onclick="eliminarReservaModal()" style="display: none;">Eliminar</button>
+                    <button type="button" class="btn-cancel-reserva" id="btn-cancelar-reserva" onclick="cancelarReservaModal()" style="display: none;" title="Cancelar reserva y generar devolución">⊘ Cancelar reserva</button>
                     <button type="submit" class="btn-primary">Guardar</button>
                 </div>
             </form>
@@ -880,6 +926,138 @@
         </div>
     </div>
 
+    <!-- Modal de Gastos Otros (devoluciones, etc.) -->
+    <div id="otros-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content modal-otros">
+            <div class="modal-header">
+                <h2>📦 Gastos Otros</h2>
+                <button type="button" class="modal-close" onclick="cerrarModalOtros()">&times;</button>
+            </div>
+            <form onsubmit="guardarGastoOtros(event)">
+                <div class="form-group">
+                    <label>Proveedor</label>
+                    <select id="otros-proveedor" name="proveedor_id" onchange="seleccionarProveedorOtros()">
+                        <option value="">-- Seleccionar proveedor --</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Razón</label>
+                        <input type="text" id="otros-razon" name="razon" placeholder="Ej: Devolución reserva">
+                    </div>
+                    <div class="form-group half">
+                        <label>Nombre</label>
+                        <input type="text" id="otros-nombre" name="nombre" placeholder="Ej: Huésped">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Tipo</label>
+                        <select id="otros-tipo" name="tipo">
+                            <option value="devolucion">Devolución</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group half">
+                        <label>Fecha de Pago</label>
+                        <input type="date" id="otros-fecha-pago" name="fecha_pago">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Valor (CLP)</label>
+                        <input type="number" id="otros-valor" name="valor" min="0" placeholder="Ej: 150000" inputmode="numeric" required>
+                    </div>
+                    <div class="form-group half">
+                        <label>WhatsApp</label>
+                        <input type="text" id="otros-whatsapp" name="whatsapp" placeholder="Ej: +56912345678">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="otros-descripcion" name="descripcion" rows="2" placeholder="Detalles adicionales..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="otros-pagado" name="pagado" checked> Pagado</label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalOtros()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Gasto</button>
+                </div>
+            </form>
+            <div class="otros-historial">
+                <h3>📋 Historial del Mes</h3>
+                <div id="otros-historial-lista"><p class="no-data">No hay gastos registrados este mes</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Gastos Electricidad -->
+    <div id="electricidad-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content modal-electricidad">
+            <div class="modal-header">
+                <h2>⚡ Gastos Electricidad</h2>
+                <button type="button" class="modal-close" onclick="cerrarModalElectricidad()">&times;</button>
+            </div>
+            <form onsubmit="guardarGastoElectricidad(event)">
+                <div class="form-group">
+                    <label>Proveedor</label>
+                    <select id="electricidad-proveedor" name="proveedor_id" onchange="seleccionarProveedorElectricidad()">
+                        <option value="">-- Seleccionar proveedor --</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Razón</label>
+                        <input type="text" id="electricidad-razon" name="razon" placeholder="Ej: Consumo mensual">
+                    </div>
+                    <div class="form-group half">
+                        <label>Nombre</label>
+                        <input type="text" id="electricidad-nombre" name="nombre" placeholder="Ej: CGE">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Tipo</label>
+                        <select id="electricidad-tipo" name="tipo">
+                            <option value="consumo">Consumo</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group half">
+                        <label>Fecha de Pago</label>
+                        <input type="date" id="electricidad-fecha-pago" name="fecha_pago">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Valor (CLP)</label>
+                        <input type="number" id="electricidad-valor" name="valor" min="0" placeholder="Ej: 45000" inputmode="numeric" required>
+                    </div>
+                    <div class="form-group half">
+                        <label>WhatsApp</label>
+                        <input type="text" id="electricidad-whatsapp" name="whatsapp" placeholder="Ej: +56912345678">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="electricidad-descripcion" name="descripcion" rows="2" placeholder="Detalles adicionales..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="electricidad-pagado" name="pagado" checked> Pagado</label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="cerrarModalElectricidad()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Gasto</button>
+                </div>
+            </form>
+            <div class="electricidad-historial">
+                <h3>📋 Historial del Mes</h3>
+                <div id="electricidad-historial-lista"><p class="no-data">No hay gastos registrados este mes</p></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Datos de eventos desde el servidor
         const events = {{ events | tojson }};
@@ -899,6 +1077,8 @@
         let gastosInternetMes = [];
         let gastosGasolinaMes = [];
         let gastosAseoMes = [];
+        let gastosOtrosMes = [];
+        let gastosElectricidadMes = [];
         
         // Navegar entre meses
         async function navegarMes(delta) {
@@ -929,6 +1109,11 @@
         // Cargar mes desde API
         async function cargarMes(year, month) {
             try {
+                // Resetear widgets de gastos ANTES de cargar para evitar mostrar valores del mes anterior
+                if (isAdmin) {
+                    resetearWidgetsGastos();
+                }
+                
                 const res = await fetch(`/api/month?year=${year}&month=${month}`);
                 const data = await res.json();
                 if (data.ingresos) {
@@ -938,10 +1123,14 @@
                 marcarDias();
                 filtrarReservasPorMes(year, month);
                 if (isAdmin) {
-                    await cargarGastosAguaMes();
-                    await cargarGastosInternetMes();
-                    await cargarGastosGasolinaMes();
-                    await cargarGastosAseoMes();
+                    await Promise.all([
+                        cargarGastosAguaMes(),
+                        cargarGastosInternetMes(),
+                        cargarGastosGasolinaMes(),
+                        cargarGastosAseoMes(),
+                        cargarGastosOtrosMes(),
+                        cargarGastosElectricidadMes()
+                    ]);
                     calcularTotalMes();
                     marcarDiasConGastos();
                     await calcularRentabilidad();
@@ -949,6 +1138,21 @@
             } catch (e) {
                 console.error('Error cargando mes:', e);
             }
+        }
+        
+        function resetearWidgetsGastos() {
+            ['agua', 'internet', 'gasolina', 'aseo', 'otros', 'electricidad'].forEach(tipo => {
+                const el = document.getElementById('expense-' + tipo);
+                if (el) el.textContent = '-$0';
+            });
+            const totalEl = document.getElementById('expense-total');
+            if (totalEl) totalEl.textContent = '-$0';
+            gastosAguaMes = [];
+            gastosInternetMes = [];
+            gastosGasolinaMes = [];
+            gastosAseoMes = [];
+            gastosOtrosMes = [];
+            gastosElectricidadMes = [];
         }
         
         // Filtrar reservas por mes desplegado
@@ -1306,6 +1510,25 @@
                 }
             });
             
+            // PASO 3: Reservas canceladas - añadir cruz roja al lado de cada día
+            events.filter(e => e.estado === 'cancelado').forEach(event => {
+                const start = new Date(event.start + 'T00:00:00');
+                const end = new Date(event.end + 'T00:00:00');
+                let current = new Date(start);
+                while (current <= end) {
+                    const dateStr = formatDate(current);
+                    const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                    if (cell && !cell.querySelector('.canceled-day-cross')) {
+                        const cross = document.createElement('span');
+                        cross.className = 'canceled-day-cross';
+                        cross.innerHTML = '✕';
+                        cross.title = 'Reserva cancelada';
+                        cell.appendChild(cross);
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+            });
+            
             // Marcar hoy
             const today = formatDate(new Date());
             const todayCell = document.querySelector(`[data-date="${today}"]`);
@@ -1329,61 +1552,115 @@
         // MODAL DE RESERVA
         // ============================================================
         
+        function populateModalForm(data) {
+            document.getElementById('reserva-id').value = data.id;
+            document.getElementById('reserva-start').value = data.event_start;
+            document.getElementById('reserva-end').value = data.event_end;
+            document.getElementById('reserva-estado').value = data.estado;
+            document.getElementById('reserva-codigo').value = data.codigo_reserva || '';
+            document.getElementById('reserva-summary').value = data.summary || '';
+            document.getElementById('reserva-url').value = data.reservation_url || '';
+            document.getElementById('reserva-readonly').checked = data.readonly;
+            document.getElementById('reserva-hora-checkin').value = data.hora_checkin || '';
+            document.getElementById('reserva-hora-checkout').value = data.hora_checkout || '';
+            document.getElementById('reserva-huesped').value = data.nombre_huesped || '';
+            document.getElementById('reserva-adultos').value = data.adultos || 0;
+            document.getElementById('reserva-ninos').value = data.ninos || 0;
+            document.getElementById('reserva-mascotas').value = data.mascotas || 0;
+            document.getElementById('reserva-notas').value = data.notas || '';
+            document.getElementById('reserva-precio').value = data.precio || '';
+            document.getElementById('reserva-extra-concepto').value = data.extra_concepto || '';
+            document.getElementById('reserva-extra-valor').value = data.extra_valor || '';
+            document.getElementById('reserva-comuna').value = data.comuna || '';
+            document.getElementById('reserva-pais').value = data.pais || '';
+            const urlLink = document.getElementById('reserva-url-link');
+            if (data.reservation_url) {
+                urlLink.href = data.reservation_url;
+                urlLink.style.display = 'inline-flex';
+            } else {
+                urlLink.style.display = 'none';
+            }
+        }
+        
         async function abrirModalReserva(fecha) {
             const modal = document.getElementById('reserva-modal');
             const title = document.getElementById('modal-title');
             const btnEliminar = document.getElementById('btn-eliminar');
             
-            // Resetear formulario
             document.getElementById('reserva-form').reset();
             document.getElementById('reserva-id').value = '';
             document.getElementById('reserva-start').value = fecha;
             document.getElementById('reserva-end').value = '';
             document.getElementById('reserva-url-link').style.display = 'none';
+            document.getElementById('reserva-codigo').value = 'RES-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + new Date().toTimeString().slice(0,5).replace(':','');
             btnEliminar.style.display = 'none';
+            document.getElementById('btn-cancelar-reserva').style.display = 'none';
             title.textContent = 'Nueva Reserva/Bloqueo';
             
-            // Buscar si existe reserva en esta fecha
             try {
                 const res = await fetch(`/api/reserva/por-fecha/${fecha}`);
                 const data = await res.json();
-                
                 if (data.found) {
                     title.textContent = 'Editar Reserva';
-                    document.getElementById('reserva-id').value = data.id;
-                    document.getElementById('reserva-start').value = data.event_start;
-                    document.getElementById('reserva-end').value = data.event_end;
-                    document.getElementById('reserva-estado').value = data.estado;
-                    document.getElementById('reserva-summary').value = data.summary || '';
-                    document.getElementById('reserva-url').value = data.reservation_url || '';
-                    document.getElementById('reserva-readonly').checked = data.readonly;
-                    document.getElementById('reserva-hora-checkin').value = data.hora_checkin || '';
-                    document.getElementById('reserva-hora-checkout').value = data.hora_checkout || '';
-                    document.getElementById('reserva-huesped').value = data.nombre_huesped || '';
-                    document.getElementById('reserva-adultos').value = data.adultos || 0;
-                    document.getElementById('reserva-ninos').value = data.ninos || 0;
-                    document.getElementById('reserva-mascotas').value = data.mascotas || 0;
-                    document.getElementById('reserva-notas').value = data.notas || '';
-                    document.getElementById('reserva-precio').value = data.precio || '';
-                    document.getElementById('reserva-extra-concepto').value = data.extra_concepto || '';
-                    document.getElementById('reserva-extra-valor').value = data.extra_valor || '';
-                    document.getElementById('reserva-comuna').value = data.comuna || '';
-                    document.getElementById('reserva-pais').value = data.pais || '';
-                    
-                    if (data.reservation_url) {
-                        const urlLink = document.getElementById('reserva-url-link');
-                        urlLink.href = data.reservation_url;
-                        urlLink.style.display = 'inline-flex';
-                    }
-                    
+                    populateModalForm(data);
                     btnEliminar.style.display = 'inline-block';
+                    const btnCancelar = document.getElementById('btn-cancelar-reserva');
+                    btnCancelar.style.display = (data.estado === 'reservado') ? 'inline-block' : 'none';
                 }
             } catch (err) {
                 console.error('Error cargando reserva:', err);
             }
-            
             modal.style.display = 'flex';
         }
+        
+        async function abrirModalReservaPorId(id) {
+            const modal = document.getElementById('reserva-modal');
+            const title = document.getElementById('modal-title');
+            const btnEliminar = document.getElementById('btn-eliminar');
+            
+            document.getElementById('reserva-form').reset();
+            document.getElementById('reserva-id').value = '';
+            document.getElementById('reserva-url-link').style.display = 'none';
+            btnEliminar.style.display = 'none';
+            title.textContent = 'Editar Reserva';
+            
+            try {
+                const res = await fetch(`/api/reserva/${id}`);
+                const data = await res.json();
+                if (data.found) {
+                    populateModalForm(data);
+                    btnEliminar.style.display = 'inline-block';
+                    const btnCancelar = document.getElementById('btn-cancelar-reserva');
+                    btnCancelar.style.display = (data.estado === 'reservado') ? 'inline-block' : 'none';
+                } else {
+                    alert('Error: ' + (data.error || 'Reserva no encontrada'));
+                    return;
+                }
+            } catch (err) {
+                console.error('Error cargando reserva:', err);
+                alert('Error de conexión');
+                return;
+            }
+            modal.style.display = 'flex';
+        }
+        
+        // Auto-extraer código de reserva al pegar URL (Airbnb ?code= o último segmento)
+        document.getElementById('reserva-url').addEventListener('input', function() {
+            const url = this.value;
+            const codigoInput = document.getElementById('reserva-codigo');
+            if (!url || codigoInput.value) return;
+            const codeMatch = url.match(/[?&]code=([^&\s]+)/);
+            if (codeMatch) {
+                codigoInput.value = codeMatch[1];
+            } else {
+                const parts = url.replace(/\/$/, '').split('/');
+                const last = parts[parts.length - 1];
+                if (last && !last.startsWith('?')) {
+                    const code = last.split('?')[0];
+                    if (code) codigoInput.value = code;
+                }
+            }
+        });
         
         function cerrarModal() {
             document.getElementById('reserva-modal').style.display = 'none';
@@ -1398,6 +1675,7 @@
                 event_end: document.getElementById('reserva-end').value,
                 estado: document.getElementById('reserva-estado').value,
                 summary: document.getElementById('reserva-summary').value,
+                codigo_reserva: document.getElementById('reserva-codigo').value,
                 reservation_url: document.getElementById('reserva-url').value,
                 readonly: document.getElementById('reserva-readonly').checked,
                 hora_checkin: document.getElementById('reserva-hora-checkin').value,
@@ -1452,6 +1730,12 @@
                     alert('Error de conexión');
                 }
             }
+        }
+        
+        function cancelarReservaModal() {
+            const id = document.getElementById('reserva-id').value;
+            if (!id) return;
+            cancelarReserva(id);
         }
         
         // Cerrar modal con Escape
@@ -1535,8 +1819,10 @@
             try {
                 const res = await fetch(`/api/gastos/${tipo}/${gastoId}`, { method: 'PATCH' });
                 const data = await res.json();
-                if (data.success && recargarFn) await recargarFn();
-                else if (!data.success) alert('Error: ' + (data.error || 'No se pudo actualizar'));
+                if (data.success && recargarFn) {
+                    await recargarFn();
+                    await refrescarTodosLosGastos();
+                } else if (!data.success) alert('Error: ' + (data.error || 'No se pudo actualizar'));
             } catch (err) {
                 alert('Error de conexión');
             }
@@ -1547,8 +1833,10 @@
             try {
                 const res = await fetch(`/api/gastos/${tipo}/${gastoId}`, { method: 'DELETE' });
                 const data = await res.json();
-                if (data.success && recargarFn) await recargarFn();
-                else if (!data.success) alert('Error: ' + (data.error || 'No se pudo eliminar'));
+                if (data.success && recargarFn) {
+                    await recargarFn();
+                    await refrescarTodosLosGastos();
+                } else if (!data.success) alert('Error: ' + (data.error || 'No se pudo eliminar'));
             } catch (err) {
                 alert('Error de conexión');
             }
@@ -1642,6 +1930,7 @@
                 
                 if (result.success) {
                     await cargarHistorialAgua();
+                    await refrescarTodosLosGastos();
                     // Limpiar formulario
                     document.getElementById('agua-razon').value = '';
                     document.getElementById('agua-valor').value = '';
@@ -1806,6 +2095,7 @@
                 
                 if (result.success) {
                     await cargarHistorialInternet();
+                    await refrescarTodosLosGastos();
                     document.getElementById('internet-razon').value = '';
                     document.getElementById('internet-valor').value = '';
                     document.getElementById('internet-descripcion').value = '';
@@ -1965,6 +2255,7 @@
                 
                 if (result.success) {
                     await cargarHistorialGasolina();
+                    await refrescarTodosLosGastos();
                     document.getElementById('gasolina-razon').value = '';
                     document.getElementById('gasolina-valor').value = '';
                     document.getElementById('gasolina-descripcion').value = '';
@@ -2124,6 +2415,7 @@
                 
                 if (result.success) {
                     await cargarHistorialAseo();
+                    await refrescarTodosLosGastos();
                     document.getElementById('aseo-razon').value = '';
                     document.getElementById('aseo-valor').value = '';
                     document.getElementById('aseo-descripcion').value = '';
@@ -2141,88 +2433,354 @@
             if (e.target.id === 'aseo-modal') cerrarModalAseo();
         });
         
+        // ========== MODAL OTROS ==========
+        let gastosOtros = [];
+        let proveedoresOtros = [];
+        
+        async function abrirModalOtros() {
+            const modal = document.getElementById('otros-modal');
+            await cargarProveedoresOtros();
+            document.getElementById('otros-proveedor').value = '';
+            document.getElementById('otros-razon').value = '';
+            document.getElementById('otros-nombre').value = '';
+            document.getElementById('otros-tipo').value = 'devolucion';
+            document.getElementById('otros-fecha-pago').value = new Date().toISOString().split('T')[0];
+            document.getElementById('otros-valor').value = '';
+            document.getElementById('otros-whatsapp').value = '';
+            document.getElementById('otros-descripcion').value = '';
+            document.getElementById('otros-pagado').checked = true;
+            await cargarHistorialOtros();
+            modal.style.display = 'flex';
+        }
+        
+        function cerrarModalOtros() {
+            document.getElementById('otros-modal').style.display = 'none';
+        }
+        
+        async function cargarProveedoresOtros() {
+            try {
+                const res = await fetch('/api/proveedores?tipo=otros');
+                const data = await res.json();
+                proveedoresOtros = data.proveedores || [];
+                const select = document.getElementById('otros-proveedor');
+                select.innerHTML = '<option value="">-- Seleccionar proveedor --</option>';
+                proveedoresOtros.forEach(p => {
+                    select.innerHTML += `<option value="${p.id}">${p.nombre} - ${p.servicio}</option>`;
+                });
+            } catch (err) { console.error('Error cargando proveedores otros:', err); }
+        }
+        
+        function seleccionarProveedorOtros() {
+            const prov = proveedoresOtros.find(p => p.id === document.getElementById('otros-proveedor').value);
+            if (prov) {
+                document.getElementById('otros-nombre').value = prov.nombre;
+                document.getElementById('otros-whatsapp').value = prov.whatsapp || '';
+                document.getElementById('otros-descripcion').value = prov.servicio || '';
+            }
+        }
+        
+        async function cargarHistorialOtros() {
+            try {
+                const res = await fetch(`/api/gastos/otros?year=${currentYear}&month=${currentMonth}`);
+                const data = await res.json();
+                gastosOtros = data.gastos || [];
+                const lista = document.getElementById('otros-historial-lista');
+                if (gastosOtros.length === 0) {
+                    lista.innerHTML = '<p class="no-data">No hay gastos registrados este mes</p>';
+                } else {
+                    let html = '<div class="gastos-lista">';
+                    gastosOtros.forEach(g => {
+                        const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
+                        const estado = g.pagado ? '✅' : '⏳';
+                        const btnPagado = g.pagado ? 'Marcar pendiente' : 'Marcar pagado';
+                        html += `<div class="gasto-item otros-item ${g.pagado ? 'pagado' : 'pendiente'}" data-id="${g.id}">
+                            <div class="gasto-info">
+                                <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                <span class="gasto-proveedor">${g.nombre || ''}</span>
+                                <span class="gasto-fecha">${fechaPago}</span>
+                            </div>
+                            <div class="gasto-valor">
+                                <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
+                                <span class="gasto-estado">${estado}</span>
+                            </div>
+                            <div class="gasto-acciones">
+                                <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('otros','${g.id}', cargarHistorialOtros)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
+                                <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('otros','${g.id}', cargarHistorialOtros)" title="Eliminar">🗑</button>
+                            </div>
+                        </div>`;
+                    });
+                    const total = gastosOtros.reduce((s, g) => s + (g.valor || 0), 0);
+                    html += `</div><div class="gastos-total"><span>Total:</span><span class="total-valor">-$${total.toLocaleString('es-CL')}</span></div>`;
+                    lista.innerHTML = html;
+                }
+                const expenseOtros = document.getElementById('expense-otros');
+                if (expenseOtros) expenseOtros.textContent = '-$' + gastosOtros.reduce((s, g) => s + (g.valor || 0), 0).toLocaleString('es-CL');
+            } catch (err) { console.error('Error cargando historial otros:', err); }
+        }
+        
+        async function guardarGastoOtros(e) {
+            e.preventDefault();
+            const data = {
+                razon: document.getElementById('otros-razon').value,
+                nombre: document.getElementById('otros-nombre').value,
+                tipo: document.getElementById('otros-tipo').value,
+                fecha_pago: document.getElementById('otros-fecha-pago').value,
+                valor: parseInt(document.getElementById('otros-valor').value) || 0,
+                whatsapp: document.getElementById('otros-whatsapp').value,
+                descripcion: document.getElementById('otros-descripcion').value,
+                pagado: document.getElementById('otros-pagado').checked,
+                proveedor_id: document.getElementById('otros-proveedor').value
+            };
+            try {
+                const res = await fetch('/api/gastos/otros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                const result = await res.json();
+                if (result.success) {
+                    await cargarHistorialOtros();
+                    await refrescarTodosLosGastos();
+                    document.getElementById('otros-razon').value = '';
+                    document.getElementById('otros-valor').value = '';
+                    document.getElementById('otros-descripcion').value = '';
+                    alert('Gasto guardado correctamente');
+                } else alert('Error: ' + (result.error || 'No se pudo guardar'));
+            } catch (err) { alert('Error de conexión'); }
+        }
+        
+        document.getElementById('otros-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'otros-modal') cerrarModalOtros();
+        });
+        
+        // ========== MODAL ELECTRICIDAD ==========
+        let gastosElectricidad = [];
+        let proveedoresElectricidad = [];
+        
+        async function abrirModalElectricidad() {
+            const modal = document.getElementById('electricidad-modal');
+            await cargarProveedoresElectricidad();
+            document.getElementById('electricidad-proveedor').value = '';
+            document.getElementById('electricidad-razon').value = '';
+            document.getElementById('electricidad-nombre').value = '';
+            document.getElementById('electricidad-tipo').value = 'consumo';
+            document.getElementById('electricidad-fecha-pago').value = new Date().toISOString().split('T')[0];
+            document.getElementById('electricidad-valor').value = '';
+            document.getElementById('electricidad-whatsapp').value = '';
+            document.getElementById('electricidad-descripcion').value = '';
+            document.getElementById('electricidad-pagado').checked = true;
+            await cargarHistorialElectricidad();
+            modal.style.display = 'flex';
+        }
+        
+        function cerrarModalElectricidad() {
+            document.getElementById('electricidad-modal').style.display = 'none';
+        }
+        
+        async function cargarProveedoresElectricidad() {
+            try {
+                const res = await fetch('/api/proveedores?tipo=electricidad');
+                const data = await res.json();
+                proveedoresElectricidad = data.proveedores || [];
+                const select = document.getElementById('electricidad-proveedor');
+                select.innerHTML = '<option value="">-- Seleccionar proveedor --</option>';
+                proveedoresElectricidad.forEach(p => {
+                    select.innerHTML += `<option value="${p.id}">${p.nombre} - ${p.servicio}</option>`;
+                });
+            } catch (err) { console.error('Error cargando proveedores electricidad:', err); }
+        }
+        
+        function seleccionarProveedorElectricidad() {
+            const prov = proveedoresElectricidad.find(p => p.id === document.getElementById('electricidad-proveedor').value);
+            if (prov) {
+                document.getElementById('electricidad-nombre').value = prov.nombre;
+                document.getElementById('electricidad-whatsapp').value = prov.whatsapp || '';
+                document.getElementById('electricidad-descripcion').value = prov.servicio || '';
+            }
+        }
+        
+        async function cargarHistorialElectricidad() {
+            try {
+                const res = await fetch(`/api/gastos/electricidad?year=${currentYear}&month=${currentMonth}`);
+                const data = await res.json();
+                gastosElectricidad = data.gastos || [];
+                const lista = document.getElementById('electricidad-historial-lista');
+                if (gastosElectricidad.length === 0) {
+                    lista.innerHTML = '<p class="no-data">No hay gastos registrados este mes</p>';
+                } else {
+                    let html = '<div class="gastos-lista">';
+                    gastosElectricidad.forEach(g => {
+                        const fechaPago = g.fecha_pago ? new Date(g.fecha_pago).toLocaleDateString('es-CL') : 'Sin fecha';
+                        const estado = g.pagado ? '✅' : '⏳';
+                        const btnPagado = g.pagado ? 'Marcar pendiente' : 'Marcar pagado';
+                        html += `<div class="gasto-item electricidad-item ${g.pagado ? 'pagado' : 'pendiente'}" data-id="${g.id}">
+                            <div class="gasto-info">
+                                <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
+                                <span class="gasto-proveedor">${g.nombre || ''}</span>
+                                <span class="gasto-fecha">${fechaPago}</span>
+                            </div>
+                            <div class="gasto-valor">
+                                <span>-$${(g.valor || 0).toLocaleString('es-CL')}</span>
+                                <span class="gasto-estado">${estado}</span>
+                            </div>
+                            <div class="gasto-acciones">
+                                <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('electricidad','${g.id}', cargarHistorialElectricidad)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
+                                <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('electricidad','${g.id}', cargarHistorialElectricidad)" title="Eliminar">🗑</button>
+                            </div>
+                        </div>`;
+                    });
+                    const total = gastosElectricidad.reduce((s, g) => s + (g.valor || 0), 0);
+                    html += `</div><div class="gastos-total"><span>Total:</span><span class="total-valor">-$${total.toLocaleString('es-CL')}</span></div>`;
+                    lista.innerHTML = html;
+                }
+                const expenseEl = document.getElementById('expense-electricidad');
+                if (expenseEl) expenseEl.textContent = '-$' + gastosElectricidad.reduce((s, g) => s + (g.valor || 0), 0).toLocaleString('es-CL');
+            } catch (err) { console.error('Error cargando historial electricidad:', err); }
+        }
+        
+        async function guardarGastoElectricidad(e) {
+            e.preventDefault();
+            const data = {
+                razon: document.getElementById('electricidad-razon').value,
+                nombre: document.getElementById('electricidad-nombre').value,
+                tipo: document.getElementById('electricidad-tipo').value,
+                fecha_pago: document.getElementById('electricidad-fecha-pago').value,
+                valor: parseInt(document.getElementById('electricidad-valor').value) || 0,
+                whatsapp: document.getElementById('electricidad-whatsapp').value,
+                descripcion: document.getElementById('electricidad-descripcion').value,
+                pagado: document.getElementById('electricidad-pagado').checked,
+                proveedor_id: document.getElementById('electricidad-proveedor').value
+            };
+            try {
+                const res = await fetch('/api/gastos/electricidad', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                const result = await res.json();
+                if (result.success) {
+                    await cargarHistorialElectricidad();
+                    await refrescarTodosLosGastos();
+                    document.getElementById('electricidad-razon').value = '';
+                    document.getElementById('electricidad-valor').value = '';
+                    document.getElementById('electricidad-descripcion').value = '';
+                    alert('Gasto guardado correctamente');
+                } else alert('Error: ' + (result.error || 'No se pudo guardar'));
+            } catch (err) { alert('Error de conexión'); }
+        }
+        
+        document.getElementById('electricidad-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'electricidad-modal') cerrarModalElectricidad();
+        });
+        
+        // Refrescar todos los gastos (widgets, total, iconos en calendario) - usar tras guardar/toggle/eliminar
+        async function refrescarTodosLosGastos() {
+            if (!isAdmin) return;
+            try {
+                await Promise.all([
+                    cargarGastosAguaMes(),
+                    cargarGastosInternetMes(),
+                    cargarGastosGasolinaMes(),
+                    cargarGastosAseoMes(),
+                    cargarGastosOtrosMes(),
+                    cargarGastosElectricidadMes()
+                ]);
+                calcularTotalMes();
+                marcarDiasConGastos();
+            } catch (err) {
+                console.error('Error refrescando gastos:', err);
+            }
+        }
+        
         // Cargar gastos de agua del mes actual para el widget
         async function cargarGastosAguaMes() {
             try {
-                console.log('Cargando gastos agua mes:', currentYear, currentMonth);
                 const res = await fetch(`/api/gastos/agua?year=${currentYear}&month=${currentMonth}`);
-                if (!res.ok) {
-                    console.error('Error API gastos agua widget:', res.status, res.statusText);
-                    return;
-                }
-                const data = await res.json();
-                console.log('Gastos agua widget:', data);
+                const data = res.ok ? await res.json() : { gastos: [] };
                 gastosAguaMes = data.gastos || [];
-                
                 const totalMes = gastosAguaMes.reduce((sum, g) => sum + (g.valor || 0), 0);
-                console.log('Total gastos agua:', totalMes);
                 const expenseAgua = document.getElementById('expense-agua');
                 if (expenseAgua) expenseAgua.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos agua:', err);
+                gastosAguaMes = [];
+                const expenseAgua = document.getElementById('expense-agua');
+                if (expenseAgua) expenseAgua.textContent = '-$0';
             }
         }
         
         // Cargar gastos de internet del mes actual para el widget
         async function cargarGastosInternetMes() {
             try {
-                console.log('Cargando gastos internet mes:', currentYear, currentMonth);
                 const res = await fetch(`/api/gastos/internet?year=${currentYear}&month=${currentMonth}`);
-                if (!res.ok) {
-                    console.error('Error API gastos internet widget:', res.status, res.statusText);
-                    return;
-                }
-                const data = await res.json();
-                console.log('Gastos internet cargados widget:', data);
+                const data = res.ok ? await res.json() : { gastos: [] };
                 gastosInternetMes = data.gastos || [];
                 const totalMes = gastosInternetMes.reduce((sum, g) => sum + (g.valor || 0), 0);
-                console.log('Total gastos internet:', totalMes);
                 const expenseInternet = document.getElementById('expense-internet');
                 if (expenseInternet) expenseInternet.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos internet:', err);
+                gastosInternetMes = [];
+                const expenseInternet = document.getElementById('expense-internet');
+                if (expenseInternet) expenseInternet.textContent = '-$0';
             }
         }
         
         // Cargar gastos de gasolina del mes actual para el widget
         async function cargarGastosGasolinaMes() {
             try {
-                console.log('Cargando gastos gasolina mes:', currentYear, currentMonth);
                 const res = await fetch(`/api/gastos/gasolina?year=${currentYear}&month=${currentMonth}`);
-                if (!res.ok) {
-                    console.error('Error API gastos gasolina widget:', res.status, res.statusText);
-                    return;
-                }
-                const data = await res.json();
-                console.log('Gastos gasolina cargados widget:', data);
+                const data = res.ok ? await res.json() : { gastos: [] };
                 gastosGasolinaMes = data.gastos || [];
                 const totalMes = gastosGasolinaMes.reduce((sum, g) => sum + (g.valor || 0), 0);
-                console.log('Total gastos gasolina:', totalMes);
                 const expenseGasolina = document.getElementById('expense-gasolina');
                 if (expenseGasolina) expenseGasolina.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos gasolina:', err);
+                gastosGasolinaMes = [];
+                const expenseGasolina = document.getElementById('expense-gasolina');
+                if (expenseGasolina) expenseGasolina.textContent = '-$0';
             }
         }
         
         // Cargar gastos de aseo del mes actual para el widget
         async function cargarGastosAseoMes() {
             try {
-                console.log('Cargando gastos aseo mes:', currentYear, currentMonth);
                 const res = await fetch(`/api/gastos/aseo?year=${currentYear}&month=${currentMonth}`);
-                if (!res.ok) {
-                    console.error('Error API gastos aseo widget:', res.status, res.statusText);
-                    return;
-                }
-                const data = await res.json();
-                console.log('Gastos aseo cargados widget:', data);
+                const data = res.ok ? await res.json() : { gastos: [] };
                 gastosAseoMes = data.gastos || [];
                 const totalMes = gastosAseoMes.reduce((sum, g) => sum + (g.valor || 0), 0);
-                console.log('Total gastos aseo:', totalMes);
                 const expenseAseo = document.getElementById('expense-aseo');
                 if (expenseAseo) expenseAseo.textContent = '-$' + totalMes.toLocaleString('es-CL');
             } catch (err) {
                 console.error('Error cargando gastos aseo:', err);
+                gastosAseoMes = [];
+                const expenseAseo = document.getElementById('expense-aseo');
+                if (expenseAseo) expenseAseo.textContent = '-$0';
+            }
+        }
+        
+        async function cargarGastosOtrosMes() {
+            try {
+                const res = await fetch(`/api/gastos/otros?year=${currentYear}&month=${currentMonth}`);
+                const data = res.ok ? await res.json() : { gastos: [] };
+                gastosOtrosMes = data.gastos || [];
+                const totalMes = gastosOtrosMes.reduce((sum, g) => sum + (g.valor || 0), 0);
+                const expenseOtros = document.getElementById('expense-otros');
+                if (expenseOtros) expenseOtros.textContent = '-$' + totalMes.toLocaleString('es-CL');
+            } catch (err) {
+                console.error('Error cargando gastos otros:', err);
+                gastosOtrosMes = [];
+                const expenseOtros = document.getElementById('expense-otros');
+                if (expenseOtros) expenseOtros.textContent = '-$0';
+            }
+        }
+        
+        async function cargarGastosElectricidadMes() {
+            try {
+                const res = await fetch(`/api/gastos/electricidad?year=${currentYear}&month=${currentMonth}`);
+                const data = res.ok ? await res.json() : { gastos: [] };
+                gastosElectricidadMes = data.gastos || [];
+                const totalMes = gastosElectricidadMes.reduce((sum, g) => sum + (g.valor || 0), 0);
+                const expenseElectricidad = document.getElementById('expense-electricidad');
+                if (expenseElectricidad) expenseElectricidad.textContent = '-$' + totalMes.toLocaleString('es-CL');
+            } catch (err) {
+                console.error('Error cargando gastos electricidad:', err);
+                gastosElectricidadMes = [];
+                const expenseElectricidad = document.getElementById('expense-electricidad');
+                if (expenseElectricidad) expenseElectricidad.textContent = '-$0';
             }
         }
         
@@ -2262,6 +2820,14 @@
             gastosAseoMes.forEach(g => {
                 if (g.fecha_pago) agregarIconoGasto(g.fecha_pago, '🧹', 'aseo', g.valor || 0);
             });
+            // Marcar gastos otros
+            gastosOtrosMes.forEach(g => {
+                if (g.fecha_pago) agregarIconoGasto(g.fecha_pago, '📦', 'otros', g.valor || 0);
+            });
+            // Marcar gastos electricidad
+            gastosElectricidadMes.forEach(g => {
+                if (g.fecha_pago) agregarIconoGasto(g.fecha_pago, '⚡', 'electricidad', g.valor || 0);
+            });
         }
         
         // Calcular total del mes (ingresos - gastos) y colorear widget
@@ -2280,9 +2846,11 @@
             const gastoInternet = Math.abs(getValor('expense-internet'));
             const gastoGasolina = Math.abs(getValor('expense-gasolina'));
             const gastoAseo = Math.abs(getValor('expense-aseo'));
+            const gastoOtros = Math.abs(getValor('expense-otros'));
+            const gastoElectricidad = Math.abs(getValor('expense-electricidad'));
             
             const totalIngresos = ingresoArriendo + ingresoTinaja;
-            const totalGastos = gastoAgua + gastoInternet + gastoGasolina + gastoAseo;
+            const totalGastos = gastoAgua + gastoInternet + gastoGasolina + gastoAseo + gastoOtros + gastoElectricidad;
             const balance = totalIngresos - totalGastos;
             
             console.log('Total mes:', { totalIngresos, totalGastos, balance });
@@ -2303,50 +2871,78 @@
                 valorEl.textContent = signo + '$' + balance.toLocaleString('es-CL');
             }
             
-            // Calcular estrellas (1 por cada 50% sobre los gastos)
-            // ratio 1.5 = 1 estrella (50% sobre), ratio 2.0 = 2 estrellas (100% sobre), etc.
-            let estrellas = 0;
-            if (totalGastos > 0) {
-                const ratio = totalIngresos / totalGastos;
-                const porcentajeSobre = (ratio - 1) * 100; // % por encima de los gastos
-                estrellas = Math.max(0, Math.floor(porcentajeSobre / 50));
-            } else if (totalIngresos > 0) {
-                // Sin gastos = calcular basado en ingresos (1 estrella por cada 50k)
-                estrellas = Math.floor(totalIngresos / 50000);
-            }
+            // Calcular estrellas: 1 por cada 100.000 pesos de beneficio (ingresos - gastos)
+            const estrellas = Math.max(0, Math.floor(balance / 100000));
             
             // Mostrar estrellas (sin máximo)
             if (estrellasEl) {
                 estrellasEl.textContent = '⭐'.repeat(estrellas);
-                const porcentaje = totalGastos > 0 ? Math.round((totalIngresos / totalGastos - 1) * 100) : 0;
-                estrellasEl.title = estrellas > 0 ? `${porcentaje}% sobre gastos (1⭐ cada 50%)` : '';
+                estrellasEl.title = estrellas > 0 ? `Beneficio $${balance.toLocaleString('es-CL')} (1⭐ cada $100.000)` : '';
             }
             
-            // Determinar color según relación ingresos/gastos
-            if (widgetEl) {
-                // Remover clases de color anteriores
-                widgetEl.classList.remove('total-azul', 'total-verde', 'total-amarillo', 'total-rojo');
+            // Color y sello se aplican en aplicarColorYSelloTotalMes (usa API estadísticas)
+            aplicarColorYSelloTotalMes(balance, estrellas);
+        }
+        
+        async function aplicarColorYSelloTotalMes(balance, estrellas) {
+            const widgetEl = document.getElementById('widget-total-mes');
+            if (!widgetEl) return;
+            
+            // Remover clases de color y sello anteriores
+            widgetEl.classList.remove('total-azul', 'total-verde', 'total-amarillo', 'total-rojo', 'total-naranjo', 'total-gris', 'total-oro');
+            const selloExistente = widgetEl.querySelector('.total-mes-sello');
+            if (selloExistente) selloExistente.remove();
+            
+            // 1. Negativo → siempre rojo
+            if (balance < 0) {
+                widgetEl.classList.add('total-rojo');
+                return;
+            }
+            
+            // 2. Menos de 3 estrellas → naranjo
+            if (estrellas < 3) {
+                widgetEl.classList.add('total-naranjo');
+                return;
+            }
+            
+            // 3. Colores según desviaciones estándar (necesitamos API)
+            try {
+                const res = await fetch(`/api/estadisticas-total-mes?year=${currentYear}`);
+                const data = res.ok ? await res.json() : {};
+                const mean = data.mean || 0;
+                const std = data.std || 1;
+                const primerLugar = data.primer_lugar;
+                const segundoLugar = data.segundo_lugar;
                 
-                if (totalGastos === 0) {
-                    // Sin gastos, siempre azul si hay ingresos
-                    widgetEl.classList.add(totalIngresos > 0 ? 'total-azul' : 'total-amarillo');
+                const esPrimerLugar = primerLugar && primerLugar.mes === currentMonth && primerLugar.anio === currentYear;
+                const esSegundoLugar = segundoLugar && segundoLugar.mes === currentMonth && segundoLugar.anio === currentYear;
+                
+                // Sello MVP (1° o 2° lugar del año)
+                if (esPrimerLugar || esSegundoLugar) {
+                    const sello = document.createElement('div');
+                    sello.className = 'total-mes-sello';
+                    sello.innerHTML = '<span>' + (esPrimerLugar ? 'MVP' : '2°') + '</span>';
+                    widgetEl.appendChild(sello);
+                }
+                
+                // Color según desviaciones estándar
+                if (balance > mean + 4 * std) {
+                    widgetEl.classList.add('total-oro');
                 } else {
-                    const ratio = totalIngresos / totalGastos;
-                    
-                    if (ratio >= 2) {
-                        // Ingresos >= 2x gastos → Azul
-                        widgetEl.classList.add('total-azul');
-                    } else if (ratio >= 1.5) {
-                        // Ingresos >= 1.5x gastos → Verde
+                    const dist = Math.abs(balance - mean);
+                    if (dist <= 1 * std) {
+                        widgetEl.classList.add('total-gris');
+                    } else if (dist <= 2 * std) {
                         widgetEl.classList.add('total-verde');
-                    } else if (ratio >= 1) {
-                        // Ingresos >= gastos → Amarillo
-                        widgetEl.classList.add('total-amarillo');
+                    } else if (dist <= 3 * std) {
+                        widgetEl.classList.add('total-azul');
                     } else {
-                        // Ingresos < gastos → Rojo
-                        widgetEl.classList.add('total-rojo');
+                        widgetEl.classList.add('total-gris');
                     }
                 }
+            } catch (err) {
+                console.error('Error aplicando color/sello total mes:', err);
+                widgetEl.classList.add('total-azul');
             }
         }
         
@@ -2363,7 +2959,8 @@
                 // Datos del mes VISIBLE (puede cambiar al navegar)
                 const ingresosMes = getValor('income-arriendo') + getValor('income-tinaja');
                 const gastosMes = Math.abs(getValor('expense-agua')) + Math.abs(getValor('expense-internet')) + 
-                                 Math.abs(getValor('expense-gasolina')) + Math.abs(getValor('expense-aseo'));
+                                 Math.abs(getValor('expense-gasolina')) + Math.abs(getValor('expense-aseo')) +
+                                 Math.abs(getValor('expense-otros')) + Math.abs(getValor('expense-electricidad'));
                 
                 // ROI del mes visible
                 let roi = 0;
@@ -2461,10 +3058,14 @@
         filtrarReservasPorMes(currentYear, currentMonth);
         if (isAdmin) {
             (async () => {
-                await cargarGastosAguaMes();
-                await cargarGastosInternetMes();
-                await cargarGastosGasolinaMes();
-                await cargarGastosAseoMes();
+                await Promise.all([
+                    cargarGastosAguaMes(),
+                    cargarGastosInternetMes(),
+                    cargarGastosGasolinaMes(),
+                    cargarGastosAseoMes(),
+                    cargarGastosOtrosMes(),
+                    cargarGastosElectricidadMes()
+                ]);
                 calcularTotalMes();
                 marcarDiasConGastos();
                 await calcularRentabilidad();
@@ -2485,24 +3086,27 @@
                 const isReservation = item.classList.contains('is-reservation');
                 const isBlocked = item.classList.contains('is-blocked');
                 const isDeleted = item.classList.contains('is-deleted');
+                const isCanceled = item.classList.contains('is-canceled');
                 
                 let showByStatus = true;
                 let showByType = true;
                 
                 // Filtro por estado
                 if (filterStatus === 'activas') {
-                    showByStatus = !isPast && !isDeleted;
+                    showByStatus = !isPast && !isDeleted && !isCanceled;
                 } else if (filterStatus === 'pasadas') {
-                    showByStatus = isPast && !isDeleted;
+                    showByStatus = isPast && !isDeleted && !isCanceled;
+                } else if (filterStatus === 'canceladas') {
+                    showByStatus = isCanceled;
                 } else if (filterStatus === 'eliminadas') {
                     showByStatus = isDeleted;
                 } else if (filterStatus === 'todas') {
                     showByStatus = !isDeleted;
                 }
                 
-                // Filtro por tipo (no aplica a eliminados)
+                // Filtro por tipo (canceladas cuentan como reservas para el filtro)
                 if (filterType === 'reservas') {
-                    showByType = isReservation || isDeleted;
+                    showByType = isReservation || isDeleted || isCanceled;
                 } else if (filterType === 'bloqueos') {
                     showByType = isBlocked || isDeleted;
                 }
@@ -2525,7 +3129,7 @@
         
         // Funciones de admin
         function editarReserva(id) {
-            window.location.href = `/admin/reserva?id=${id}`;
+            abrirModalReservaPorId(id);
         }
         
         function eliminarReserva(id) {
@@ -2565,6 +3169,20 @@
                             window.location.reload();
                         } else {
                             alert('Error al registrar checkout: ' + (data.error || 'Error desconocido'));
+                        }
+                    });
+            }
+        }
+        
+        function cancelarReserva(id) {
+            if (confirm('¿Cancelar esta reserva? Se generará un gasto de devolución por el total del arriendo.')) {
+                fetch(`/api/reserva/${id}/cancelar`, { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Error: ' + (data.error || 'No se pudo cancelar'));
                         }
                     });
             }

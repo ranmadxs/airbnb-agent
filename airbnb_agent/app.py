@@ -157,6 +157,44 @@ def get_month_calendar(year: int, month: int, include_events: bool = False) -> d
     return result
 
 
+def get_month_calendar_tinaja(year: int, month: int, include_events: bool = False) -> dict:
+    """Genera datos del calendario para un mes, solo con reservas que pagaron tinaja (extra_valor > 0)."""
+    cal = calendar.Calendar(firstweekday=0)
+    result = {
+        'year': year,
+        'month': month,
+        'month_name': MESES_ES[month],
+        'days': list(cal.itermonthdays2(year, month))
+    }
+
+    if include_events:
+        inicio_mes = date(year, month, 1)
+        fin_mes = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+
+        all_events = db_service.obtener_eventos_formato_ical()
+        events_tinaja = [
+            ev for ev in all_events
+            if ev.get('estado') == 'reservado'
+            and (ev.get('extra_valor') or 0) > 0
+        ]
+
+        events_mes = []
+        for ev in events_tinaja:
+            try:
+                ev_start = date.fromisoformat(ev.get('start', ''))
+                ev_end = date.fromisoformat(ev.get('end', ''))
+                if ev_start < fin_mes and ev_end >= inicio_mes:
+                    events_mes.append(ev)
+            except Exception:
+                pass
+        result['events'] = events_mes
+
+        _, tinaja_ingreso, _, _ = _calcular_ingresos_mes_reservas(events_tinaja, year, month)
+        result['ingresos'] = {'tinaja': tinaja_ingreso, 'total': tinaja_ingreso}
+
+    return result
+
+
 def login_required(f):
     """Decorador para proteger rutas que requieren autenticación."""
     @wraps(f)
@@ -238,6 +276,85 @@ def home():
                          now_time=now.strftime('%H:%M'))
 
 
+@app.route('/reservatinaja/<codigo_reserva>')
+def reservatinaja(codigo_reserva):
+    """Página pública: tutorial 3 pasos para reservar tinaja por código de reserva."""
+    reserva = db_service.obtener_reserva_por_codigo(codigo_reserva)
+    if not reserva or reserva.get('estado') != 'reservado':
+        return render_template('reservatinaja.html',
+                             reserva=None,
+                             fechas=[],
+                             error='Reserva no encontrada o no disponible',
+                             version=APP_VERSION,
+                             property_name=PROPERTY_NAME)
+
+    start = date.fromisoformat(reserva['event_start'])
+    end = date.fromisoformat(reserva['event_end'])
+    noches = (end - start).days
+    fechas = [start + timedelta(days=i) for i in range(noches)]
+
+    DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    fechas_info = []
+    for f in fechas:
+        fechas_info.append({
+            'fecha': f.strftime('%Y-%m-%d'),
+            'dia': f.day,
+            'mes': MESES_ES[f.month],
+            'anio': f.year,
+            'dia_semana': DIAS_SEMANA[f.weekday()],
+        })
+
+    return render_template('reservatinaja.html',
+                         reserva=reserva,
+                         fechas=fechas_info,
+                         noches=noches,
+                         paso=1,
+                         version=APP_VERSION,
+                         property_name=PROPERTY_NAME)
+
+
+@app.route('/api/reservatinaja/<codigo_reserva>/confirmar', methods=['POST'])
+def api_reservatinaja_confirmar(codigo_reserva):
+    """API: Confirma y registra el pago de tinaja en la reserva."""
+    data = request.get_json() or {}
+    valor = int(data.get('valor', 0) or 0)
+    if valor <= 0:
+        return jsonify({"success": False, "error": "Valor inválido"})
+
+    reserva = db_service.obtener_reserva_por_codigo(codigo_reserva)
+    if not reserva or reserva.get('estado') != 'reservado':
+        return jsonify({"success": False, "error": "Reserva no encontrada"})
+
+    resultado = db_service.actualizar_tinaja_reserva(
+        str(reserva['_id']), valor, data.get('concepto', 'Tinaja')
+    )
+    return jsonify(resultado)
+
+
+@app.route('/tinaja')
+def tinaja():
+    """Página pública: calendario de reservas con tinaja (solo las que pagaron extra)."""
+    events = db_service.obtener_eventos_formato_ical()
+    events_tinaja = [
+        ev for ev in events
+        if ev.get('estado') == 'reservado' and (ev.get('extra_valor') or 0) > 0
+    ]
+
+    now = _now_local()
+    current = get_month_calendar_tinaja(now.year, now.month)
+    _, tinaja_ingreso, _, _ = _calcular_ingresos_mes_reservas(events_tinaja, now.year, now.month)
+    ingresos_mes_actual = {'tinaja': tinaja_ingreso, 'total': tinaja_ingreso}
+
+    return render_template('tinaja.html',
+                         events=events_tinaja,
+                         current=current,
+                         ingresos_mes_actual=ingresos_mes_actual,
+                         version=APP_VERSION,
+                         property_name=PROPERTY_NAME,
+                         today=now.strftime('%Y-%m-%d'),
+                         now_time=now.strftime('%H:%M'))
+
+
 @app.route('/desempeno')
 @login_required
 def desempeno():
@@ -305,6 +422,14 @@ def api_month():
     return jsonify(get_month_calendar(year, month, include_events=True))
 
 
+@app.route('/api/month/tinaja')
+def api_month_tinaja():
+    """API: Datos de un mes con solo reservas que pagaron tinaja (extra_valor > 0)."""
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    return jsonify(get_month_calendar_tinaja(year, month, include_events=True))
+
+
 @app.route('/api/promedio-anual')
 def api_promedio_anual():
     """API: Calcula el promedio de ingresos de meses cerrados (dic anterior + meses hasta hoy)."""
@@ -337,6 +462,48 @@ def api_promedio_anual():
         'total_ingresos': total_ingresos,
         'promedio': round(promedio),
         'cantidad_meses': len(resultados)
+    })
+
+
+@app.route('/api/estadisticas-total-mes')
+@login_required
+def api_estadisticas_total_mes():
+    """API: Estadísticas de balance por mes para colores y ranking MVP (mean, std, 1° y 2° lugar)."""
+    import math
+    year = request.args.get('year', date.today().year, type=int)
+
+    all_events = db_service.obtener_eventos_formato_ical()
+    gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
+
+    balances = []
+    for mes in range(1, 13):
+        arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(all_events, year, mes)
+        g = gastos_por_mes.get(mes, {})
+        total_gastos = (
+            g.get('agua', 0) + g.get('internet', 0) + g.get('gasolina', 0)
+            + g.get('aseo', 0) + g.get('otros', 0) + g.get('electricidad', 0)
+        )
+        balance = (arriendo + tinaja) - total_gastos
+        balances.append({'mes': mes, 'anio': year, 'balance': balance})
+
+    valores = [b['balance'] for b in balances]
+    n = len(valores)
+    media = sum(valores) / n if n else 0
+    varianza = sum((v - media) ** 2 for v in valores) / n if n else 0
+    std = math.sqrt(varianza) if varianza > 0 else 0
+
+    # Ordenar por balance descendente para ranking
+    ordenado = sorted(balances, key=lambda x: x['balance'], reverse=True)
+    primer_lugar = ordenado[0] if ordenado else None
+    segundo_lugar = ordenado[1] if len(ordenado) > 1 else None
+
+    return jsonify({
+        'year': year,
+        'balances': {b['mes']: b['balance'] for b in balances},
+        'mean': round(media),
+        'std': round(std),
+        'primer_lugar': {'mes': primer_lugar['mes'], 'anio': primer_lugar['anio']} if primer_lugar else None,
+        'segundo_lugar': {'mes': segundo_lugar['mes'], 'anio': segundo_lugar['anio']} if segundo_lugar else None,
     })
 
 
@@ -430,35 +597,59 @@ def api_finalizar_estadia(reserva_id):
     return jsonify(resultado)
 
 
+@app.route('/api/reserva/<reserva_id>/cancelar', methods=['POST'])
+@login_required
+def api_cancelar_reserva(reserva_id):
+    """API: Cancela reserva y genera gasto de devolución."""
+    resultado = db_service.cancelar_reserva(reserva_id, get_audit_info())
+    return jsonify(resultado)
+
+
+def _reserva_to_json(reserva) -> dict:
+    """Convierte reserva de BD al formato JSON para API/frontend."""
+    return {
+        "found": True,
+        "id": str(reserva.get('_id', '')),
+        "event_start": reserva.get('event_start', ''),
+        "event_end": reserva.get('event_end', ''),
+        "estado": reserva.get('estado', 'bloqueado'),
+        "summary": reserva.get('summary', ''),
+        "codigo_reserva": reserva.get('codigo_reserva', ''),
+        "reservation_url": reserva.get('reservation_url', ''),
+        "readonly": reserva.get('readonly', False),
+        "source": reserva.get('source', ''),
+        "hora_checkin": reserva.get('hora_checkin', ''),
+        "hora_checkout": reserva.get('hora_checkout', ''),
+        "nombre_huesped": reserva.get('nombre_huesped', ''),
+        "adultos": reserva.get('adultos', 0),
+        "ninos": reserva.get('ninos', 0),
+        "mascotas": reserva.get('mascotas', 0),
+        "notas": reserva.get('notas', ''),
+        "precio": reserva.get('precio', 0),
+        "extra_concepto": reserva.get('extra_concepto', ''),
+        "extra_valor": reserva.get('extra_valor', 0),
+        "comuna": reserva.get('comuna', ''),
+        "pais": reserva.get('pais', '')
+    }
+
+
+@app.route('/api/reserva/<reserva_id>')
+@login_required
+def api_reserva_por_id(reserva_id):
+    """API: Obtener reserva por ID."""
+    reserva = db_service.obtener_reserva_por_id(reserva_id)
+    if reserva:
+        return jsonify(_reserva_to_json(reserva))
+    return jsonify({"found": False, "error": "Reserva no encontrada"}), 404
+
+
 @app.route('/api/reserva/por-fecha/<fecha>')
 @login_required
 def api_reserva_por_fecha(fecha):
     """API: Obtener reserva por fecha."""
     reserva = db_service.buscar_reserva_por_fecha(fecha)
     if reserva:
-        return jsonify({
-            "found": True,
-            "id": str(reserva.get('_id', '')),
-            "event_start": reserva.get('event_start', ''),
-            "event_end": reserva.get('event_end', ''),
-            "estado": reserva.get('estado', 'bloqueado'),
-            "summary": reserva.get('summary', ''),
-            "reservation_url": reserva.get('reservation_url', ''),
-            "readonly": reserva.get('readonly', False),
-            "source": reserva.get('source', ''),
-            "hora_checkin": reserva.get('hora_checkin', ''),
-            "hora_checkout": reserva.get('hora_checkout', ''),
-            "nombre_huesped": reserva.get('nombre_huesped', ''),
-            "adultos": reserva.get('adultos', 0),
-            "ninos": reserva.get('ninos', 0),
-            "mascotas": reserva.get('mascotas', 0),
-            "notas": reserva.get('notas', ''),
-            "precio": reserva.get('precio', 0),
-            "extra_concepto": reserva.get('extra_concepto', ''),
-            "extra_valor": reserva.get('extra_valor', 0),
-            "comuna": reserva.get('comuna', ''),
-            "pais": reserva.get('pais', '')
-        })
+        return jsonify(_reserva_to_json(reserva))
     return jsonify({"found": False, "fecha": fecha})
 
 
@@ -473,7 +664,8 @@ def api_guardar_reserva():
         'event_end': data.get('event_end'),
         'estado': data.get('estado', 'bloqueado'),
         'summary': data.get('summary', ''),
-        'reservation_url': data.get('reservation_url') or None,
+        'codigo_reserva': (data.get('codigo_reserva') or '').strip() or None,
+        'reservation_url': (data.get('reservation_url') or '').strip() or None,
         'readonly': data.get('readonly', False),
         'source': 'admin',
         'hora_checkin': data.get('hora_checkin', ''),
@@ -535,21 +727,47 @@ def admin_reserva():
                 error = 'Error al eliminar la reserva'
         else:
             # Crear/actualizar reserva
+            rid = request.form.get('reserva_id', '')
+            existente = db_service.obtener_reserva_por_id(rid) if rid else None
+
+            def _get(field, default=''):
+                val = request.form.get(field)
+                if val is not None and str(val).strip() != '':
+                    return val
+                return existente.get(field, default) if existente else default
+
             datos = {
-                'event_start': request.form.get('event_start'),
-                'event_end': request.form.get('event_end'),
-                'estado': request.form.get('estado'),
-                'summary': request.form.get('summary', ''),
-                'reservation_url': request.form.get('reservation_url', '') or None,
+                'event_start': request.form.get('event_start') or (existente.get('event_start') if existente else ''),
+                'event_end': request.form.get('event_end') or (existente.get('event_end') if existente else ''),
+                'estado': request.form.get('estado') or (existente.get('estado', 'bloqueado') if existente else 'bloqueado'),
+                'summary': _get('summary', ''),
+                'codigo_reserva': (request.form.get('codigo_reserva') or '').strip() or (existente.get('codigo_reserva') if existente else None),
+                'reservation_url': request.form.get('reservation_url') or (existente.get('reservation_url') if existente else None),
                 'readonly': request.form.get('readonly') == 'on',
-                'source': 'admin'
+                'source': existente.get('source', 'admin') if existente else 'admin',
+                'hora_checkin': _get('hora_checkin', ''),
+                'hora_checkout': _get('hora_checkout', ''),
+                'nombre_huesped': _get('nombre_huesped', ''),
+                'adultos': int(_get('adultos', 0) or 0),
+                'ninos': int(_get('ninos', 0) or 0),
+                'mascotas': int(_get('mascotas', 0) or 0),
+                'notas': _get('notas', ''),
+                'precio': int(_get('precio', 0) or 0),
+                'extra_concepto': _get('extra_concepto', ''),
+                'extra_valor': int(_get('extra_valor', 0) or 0),
+                'comuna': _get('comuna', ''),
+                'pais': _get('pais', ''),
             }
-            
+            # reservation_url: si el form envía vacío, mantener existente al editar
+            if existente and (not request.form.get('reservation_url') or request.form.get('reservation_url', '').strip() == ''):
+                datos['reservation_url'] = existente.get('reservation_url')
+            else:
+                datos['reservation_url'] = request.form.get('reservation_url', '') or None
+
             # Validar fechas
             if datos['event_start'] >= datos['event_end']:
                 error = 'La fecha de check-out debe ser posterior al check-in'
             else:
-                rid = request.form.get('reserva_id', '')
                 resultado = db_service.guardar_reserva_manual(rid, datos, get_audit_info())
                 
                 if resultado.get('success'):
@@ -558,9 +776,13 @@ def admin_reserva():
                     error = resultado.get('error', 'Error al guardar')
     
     now = datetime.now()
+    codigo_inicial = ''
+    if not reserva:
+        codigo_inicial = f"RES-{datetime.utcnow().strftime('%Y%m%d%H%M')}"
     return render_template('reserva_edit.html',
                          reserva=reserva,
                          fecha=fecha,
+                         codigo_inicial=codigo_inicial,
                          today=now.strftime('%Y-%m-%d'),
                          property_name=PROPERTY_NAME,
                          error=error,
@@ -735,6 +957,80 @@ def api_gasto_aseo_id(gasto_id):
     if request.method == 'PATCH':
         return jsonify(db_service.toggle_pagado_gasto('gastos_aseo', gasto_id))
     return jsonify(db_service.eliminar_gasto('gastos_aseo', gasto_id))
+
+# ============================================================
+# API GASTOS OTROS (devoluciones, etc.)
+# ============================================================
+
+@app.route('/api/gastos/otros', methods=['GET'])
+@login_required
+def obtener_gastos_otros():
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    gastos = db_service.obtener_gastos_otros(year, month)
+    return jsonify({"gastos": gastos})
+
+@app.route('/api/gastos/otros', methods=['POST'])
+@login_required
+def guardar_gasto_otros():
+    data = request.get_json()
+    gasto = {
+        'razon': data.get('razon', ''),
+        'nombre': data.get('nombre', ''),
+        'tipo': data.get('tipo', 'devolucion'),
+        'fecha_pago': data.get('fecha_pago', ''),
+        'valor': data.get('valor', 0),
+        'descripcion': data.get('descripcion', ''),
+        'whatsapp': data.get('whatsapp', ''),
+        'pagado': data.get('pagado', True),
+        'proveedor_id': data.get('proveedor_id', '')
+    }
+    resultado = db_service.guardar_gasto_otros(gasto)
+    return jsonify(resultado)
+
+@app.route('/api/gastos/otros/<gasto_id>', methods=['PATCH', 'DELETE'])
+@login_required
+def api_gasto_otros_id(gasto_id):
+    if request.method == 'PATCH':
+        return jsonify(db_service.toggle_pagado_gasto('gastos_otros', gasto_id))
+    return jsonify(db_service.eliminar_gasto('gastos_otros', gasto_id))
+
+# ============================================================
+# API GASTOS ELECTRICIDAD
+# ============================================================
+
+@app.route('/api/gastos/electricidad', methods=['GET'])
+@login_required
+def obtener_gastos_electricidad():
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    gastos = db_service.obtener_gastos_electricidad(year, month)
+    return jsonify({"gastos": gastos})
+
+@app.route('/api/gastos/electricidad', methods=['POST'])
+@login_required
+def guardar_gasto_electricidad():
+    data = request.get_json()
+    gasto = {
+        'razon': data.get('razon', ''),
+        'nombre': data.get('nombre', ''),
+        'tipo': data.get('tipo', 'consumo'),
+        'fecha_pago': data.get('fecha_pago', ''),
+        'valor': data.get('valor', 0),
+        'descripcion': data.get('descripcion', ''),
+        'whatsapp': data.get('whatsapp', ''),
+        'pagado': data.get('pagado', True),
+        'proveedor_id': data.get('proveedor_id', '')
+    }
+    resultado = db_service.guardar_gasto_electricidad(gasto)
+    return jsonify(resultado)
+
+@app.route('/api/gastos/electricidad/<gasto_id>', methods=['PATCH', 'DELETE'])
+@login_required
+def api_gasto_electricidad_id(gasto_id):
+    if request.method == 'PATCH':
+        return jsonify(db_service.toggle_pagado_gasto('gastos_electricidad', gasto_id))
+    return jsonify(db_service.eliminar_gasto('gastos_electricidad', gasto_id))
 
 # ============================================================
 # API PROVEEDORES
