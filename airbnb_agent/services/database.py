@@ -46,6 +46,8 @@ class DatabaseService:
                 self.db = self.client["airbnb-db"]
                 self.reservas = self.db["reservas"]
                 self.dias = self.db["dias"]
+                self.personas = self.db["personas"]
+                self.transacciones = self.db["transacciones"]
                 
                 # Crear índices
                 self.reservas.create_index([("event_start", 1), ("event_end", 1)], unique=True)
@@ -406,6 +408,7 @@ class DatabaseService:
                     "precio": doc.get("precio", 0),
                     "extra_concepto": doc.get("extra_concepto", ""),
                     "extra_valor": doc.get("extra_valor", 0),
+                    "extra_pago_confirmado": doc.get("extra_pago_confirmado", False),
                     "comuna": doc.get("comuna", ""),
                     "pais": doc.get("pais", "")
                 })
@@ -509,6 +512,7 @@ class DatabaseService:
                 "precio": datos.get('precio', 0),
                 "extra_concepto": datos.get('extra_concepto', ''),
                 "extra_valor": datos.get('extra_valor', 0),
+                "extra_pago_confirmado": bool(datos.get('extra_pago_confirmado', False)),
                 "comuna": datos.get('comuna', ''),
                 "pais": datos.get('pais', ''),
                 "updated_at": datetime.utcnow(),
@@ -539,15 +543,88 @@ class DatabaseService:
             print(f"❌ Error guardando reserva: {e}")
             return {"success": False, "error": str(e)}
 
-    def actualizar_tinaja_reserva(self, reserva_id: str, valor: int, concepto: str = "Tinaja") -> dict:
-        """Actualiza el pago de tinaja en una reserva (extra_valor, extra_concepto)."""
+    def crear_o_buscar_persona(self, email: str = None, whatsapp: str = None, nombre: str = None) -> str | None:
+        """Busca persona por email o whatsapp; si no existe, la crea. Retorna persona_id o None."""
+        if not self.connect():
+            return None
+        try:
+            from bson import ObjectId
+            email = (email or "").strip()
+            whatsapp = (whatsapp or "").strip()
+            if not email and not whatsapp:
+                return None
+            # Buscar por email o whatsapp
+            or_conds = []
+            if email:
+                or_conds.append({"email": email})
+            if whatsapp:
+                or_conds.append({"whatsapp": whatsapp})
+            if not or_conds:
+                return None
+            persona = self.personas.find_one({"$or": or_conds})
+            if persona:
+                return str(persona["_id"])
+            # Crear nueva persona
+            doc = {
+                "nombre": (nombre or "").strip() or "Huésped",
+                "email": email,
+                "whatsapp": whatsapp,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+            }
+            r = self.personas.insert_one(doc)
+            return str(r.inserted_id)
+        except Exception as e:
+            print(f"❌ Error crear/buscar persona: {e}")
+            return None
+
+    def registrar_transaccion_tinaja(self, reserva_id: str, persona_id: str, valor: int,
+                                     concepto: str = "Tinaja", forma_pago: str = "transferencia",
+                                     extra_email: str = None, extra_whatsapp: str = None) -> dict:
+        """Crea una transacción de tinaja asociada a reserva y persona."""
         if not self.connect():
             return {"success": False, "error": "No hay conexión a MongoDB"}
         try:
             from bson import ObjectId
+            doc = {
+                "fecha": datetime.utcnow(),
+                "valor": valor,
+                "concepto": concepto,
+                "forma_pago": forma_pago or "transferencia",
+                "estado": "pendiente",
+                "reserva_id": reserva_id,
+                "persona_id": persona_id,
+                "extra_email": (extra_email or "").strip(),
+                "extra_whatsapp": (extra_whatsapp or "").strip(),
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+            }
+            r = self.transacciones.insert_one(doc)
+            return {"success": True, "id": str(r.inserted_id)}
+        except Exception as e:
+            print(f"❌ Error registrando transacción: {e}")
+            return {"success": False, "error": str(e)}
+
+    def actualizar_tinaja_reserva(self, reserva_id: str, valor: int, concepto: str = "Tinaja",
+                                   email: str = None, whatsapp: str = None) -> dict:
+        """Actualiza el pago de tinaja en una reserva (extra_valor, extra_concepto, extra_email, extra_whatsapp)."""
+        if not self.connect():
+            return {"success": False, "error": "No hay conexión a MongoDB"}
+        try:
+            from bson import ObjectId
+            update = {
+                "extra_valor": valor,
+                "extra_concepto": concepto,
+                "extra_pago_confirmado": True,
+                "updated_at": datetime.utcnow()
+            }
+            if email is not None:
+                update["extra_email"] = (email or "").strip()
+            if whatsapp is not None:
+                update["extra_whatsapp"] = (whatsapp or "").strip()
             result = self.reservas.update_one(
                 {"_id": ObjectId(reserva_id)},
-                {"$set": {"extra_valor": valor, "extra_concepto": concepto, "updated_at": datetime.utcnow()}}
+                {"$set": update}
             )
             return {"success": result.matched_count > 0}
         except Exception as e:

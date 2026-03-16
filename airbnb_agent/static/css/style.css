@@ -1824,6 +1824,24 @@ header {
     font-size: 0.85em;
 }
 
+.pago-tinaja-ok {
+    color: #059669;
+    background: #d1fae5;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    margin-left: 4px;
+}
+
+.pago-tinaja-pendiente {
+    color: #d97706;
+    background: #fef3c7;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    margin-left: 4px;
+}
+
 /* Notas de la reserva */
 .notes-row {
     margin-top: 8px;
@@ -2608,6 +2626,26 @@ footer {
 .footer-link:hover {
     background: var(--airbnb-red);
     color: white;
+}
+
+.reserva-link-pago {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.reserva-link-pago .btn-copiar-link {
+    padding: 6px 12px;
+    font-size: 0.85em;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    cursor: pointer;
+}
+
+.reserva-link-pago .btn-copiar-link:hover {
+    background: #e2e8f0;
 }
 
 /* Responsive */

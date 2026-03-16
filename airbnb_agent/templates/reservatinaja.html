@@ -23,8 +23,11 @@
         .rtj-fecha-mes { font-size: 0.9em; color: #64748b; margin-top: 4px; }
         .rtj-fecha-semana { font-size: 0.8em; color: #94a3b8; margin-top: 2px; }
         .rtj-fecha-precio { font-size: 0.85em; color: var(--airbnb-dark); font-weight: 600; margin-top: 8px; }
-        .rtj-opcion-todo { border: 2px dashed #94a3b8; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; margin-top: 16px; transition: all 0.2s; }
+        .rtj-opcion-todo { position: relative; overflow: hidden; border: 2px dashed #94a3b8; border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; margin-top: 16px; transition: all 0.2s; }
         .rtj-opcion-todo:hover, .rtj-opcion-todo.selected { border-color: var(--available-color); background: #ecfdf5; }
+        .rtj-opcion-todo.selected::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(100deg, transparent 0%, transparent 40%, rgba(0, 166, 153, 0.2) 50%, transparent 60%, transparent 100%); animation: rtjLuzVerde 3s ease-in-out infinite; pointer-events: none; }
+        @keyframes rtjLuzVerde { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .rtj-opcion-todo .label, .rtj-opcion-todo .descuento { position: relative; z-index: 1; }
         .rtj-opcion-todo .label { font-weight: 600; color: var(--airbnb-dark); }
         .rtj-opcion-todo .descuento { font-size: 0.85em; color: var(--available-color); margin-top: 4px; }
         .rtj-btn { width: 100%; padding: 14px 24px; border-radius: 12px; font-weight: 600; font-size: 1em; cursor: pointer; border: none; margin-top: 20px; transition: all 0.2s; }
@@ -34,15 +37,61 @@
         .rtj-total { font-size: 1.3em; font-weight: 700; color: var(--airbnb-dark); text-align: center; margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; display: none; }
         .rtj-total.visible { display: block; }
         .rtj-leña-grid { display: flex; flex-direction: column; gap: 12px; }
-        .rtj-leña-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; }
+        .rtj-leña-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; flex-wrap: wrap; gap: 8px; }
         .rtj-leña-fecha { font-weight: 500; color: var(--airbnb-dark); }
-        .rtj-leña-select { padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; min-width: 140px; }
+        .rtj-leña-select { padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; min-width: 160px; }
+        .rtj-leña-precio { font-size: 0.9em; font-weight: 600; color: var(--available-color); }
+        .rtj-leña-significado { margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 10px; font-size: 0.9em; color: #64748b; line-height: 1.4; }
+        .rtj-total-paso2 { font-size: 1.1em; font-weight: 700; color: var(--airbnb-dark); text-align: center; margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; }
         .rtj-resumen { background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
         .rtj-resumen-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .rtj-resumen-row:last-child { margin-bottom: 0; font-weight: 700; font-size: 1.1em; }
         .rtj-error { color: #dc2626; text-align: center; padding: 20px; }
         .rtj-success { text-align: center; padding: 24px; }
         .rtj-success .icon { font-size: 3em; margin-bottom: 12px; }
+        .rtj-pago-botones { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+        .rtj-pago-boton { flex: 1; min-width: 100px; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; font-weight: 600; font-size: 0.9em; color: var(--airbnb-dark); transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .rtj-pago-boton:hover { border-color: var(--today-color); background: #f0fdfa; }
+        .rtj-pago-boton.selected { border-color: var(--available-color); background: #ecfdf5; }
+        .rtj-pago-boton .pago-logo { width: 24px; height: 24px; object-fit: contain; }
+        .rtj-contacto-form { margin-top: 16px; }
+        .rtj-form-group { margin-bottom: 16px; }
+        .rtj-form-group label { display: block; font-weight: 600; color: var(--airbnb-dark); margin-bottom: 6px; font-size: 0.95em; }
+        .rtj-input { width: 100%; padding: 12px 14px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 1em; color: var(--airbnb-dark); }
+        .rtj-input:focus { outline: none; border-color: var(--today-color); }
+        .rtj-input::placeholder { color: #94a3b8; }
+        .rtj-pago-descripcion { margin-top: 20px; padding: 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; display: none; }
+        .rtj-pago-descripcion.visible { display: block; }
+        .rtj-pago-descripcion h4 { font-size: 1em; margin: 0 0 8px 0; color: var(--airbnb-dark); display: flex; align-items: center; gap: 8px; }
+        .rtj-pago-descripcion p { font-size: 0.85em; color: #64748b; margin: 4px 0; line-height: 1.4; }
+        .rtj-pago-descripcion .detalle { font-family: monospace; font-size: 0.9em; background: white; padding: 8px 12px; border-radius: 8px; margin-top: 8px; }
+        .rtj-pago-descripcion .detalle-row { margin: 4px 0; }
+        .rtj-pago-descripcion a { color: var(--today-color); text-decoration: none; font-weight: 500; }
+        .rtj-pago-descripcion a:hover { text-decoration: underline; }
+        .rtj-total-pagar { font-size: 1.2em; font-weight: 700; color: var(--airbnb-dark); margin-bottom: 8px; }
+        .rtj-fotos-tinaja { display: flex; flex-direction: row; gap: 12px; justify-content: center; align-items: stretch; flex-wrap: nowrap; margin-bottom: 24px; }
+        .rtj-fotos-tinaja img { flex: 1 1 0; width: 0; min-width: 0; aspect-ratio: 4/3; border-radius: 12px; object-fit: cover; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        .rtj-btn-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+        .rtj-btn-row .rtj-btn { margin-top: 0; flex: 1; min-width: 120px; }
+        .rtj-btn-secondary { background: #e2e8f0; color: var(--airbnb-dark); }
+        .rtj-btn-secondary:hover { background: #cbd5e1; }
+        .rtj-pago-botones-chicos { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        .rtj-pago-boton-chico { padding: 8px 14px; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; font-size: 0.85em; font-weight: 600; color: var(--airbnb-dark); transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+        .rtj-pago-boton-chico:hover { border-color: var(--today-color); background: #f0fdfa; }
+        .rtj-pago-boton-chico.selected { border-color: var(--available-color); background: #ecfdf5; }
+        .rtj-pago-boton-chico .pago-logo-chico { width: 18px; height: 18px; object-fit: contain; }
+        .rtj-pago-boton-chico .pago-icono-banco { font-size: 1.1em; line-height: 1; }
+        .rtj-pago-glosa { margin-top: 12px; padding: 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; display: none; }
+        .rtj-pago-glosa.visible { display: block; }
+        .rtj-pago-glosa .rtj-pago-glosa-content { padding: 0; }
+        .rtj-pago-glosa h4 { font-size: 1em; margin: 0 0 8px 0; color: var(--airbnb-dark); display: flex; align-items: center; gap: 8px; }
+        .rtj-pago-glosa p { font-size: 0.85em; color: #64748b; margin: 4px 0; line-height: 1.4; }
+        .rtj-pago-glosa .detalle { font-family: monospace; font-size: 0.9em; background: white; padding: 8px 12px; border-radius: 8px; margin-top: 8px; }
+        .rtj-pago-glosa .detalle-row { margin: 4px 0; }
+        .rtj-pago-glosa a { color: var(--today-color); text-decoration: none; font-weight: 500; }
+        .rtj-pago-glosa a:hover { text-decoration: underline; }
+        .rtj-pago-glosa .pago-logo { width: 24px; height: 24px; object-fit: contain; }
+        .rtj-pago-opcion .pago-logo { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
     </style>
 </head>
 <body>
@@ -57,76 +106,188 @@
         {% else %}
         <div class="rtj-header">
             <h1>🛁 Reservar Tinaja</h1>
-            <p style="color:#64748b;font-size:0.95em;">{{ property_name }}</p>
+            <p style="color:#64748b;font-size:0.95em;">{{ property_name }} v{{ version }}</p>
         </div>
 
         <div class="rtj-steps">
             <span class="rtj-step-dot active" id="step-dot-1"></span>
             <span class="rtj-step-dot" id="step-dot-2"></span>
             <span class="rtj-step-dot" id="step-dot-3"></span>
+            <span class="rtj-step-dot" id="step-dot-4"></span>
         </div>
 
         <div class="rtj-card">
             <!-- Paso 1: Elegir fechas -->
             <div id="paso-1" class="rtj-paso">
+                <div class="rtj-fotos-tinaja">
+                    <img src="{{ url_for('static', filename='images/tinaja-1.png') }}" alt="Tinaja al aire libre">
+                    <img src="{{ url_for('static', filename='images/tinaja-2.png') }}" alt="Tinaja en el bosque">
+                </div>
                 <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 1: Elige tus noches</h2>
-                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">$14.000 por noche. Selecciona las noches que deseas usar la tinaja.</p>
+                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">$20.000 por noche. Selecciona las noches que deseas usar la tinaja.</p>
                 <div class="rtj-fechas-grid" id="fechas-grid">
                     {% for f in fechas %}
-                    <div class="rtj-fecha-item" data-fecha="{{ f.fecha }}" data-precio="14000">
+                    <div class="rtj-fecha-item" data-fecha="{{ f.fecha }}">
                         <div class="rtj-fecha-dia">{{ f.dia }}</div>
                         <div class="rtj-fecha-mes">{{ f.mes }} {{ f.anio }}</div>
                         <div class="rtj-fecha-semana">{{ f.dia_semana }}</div>
-                        <div class="rtj-fecha-precio">$14.000</div>
+                        <div class="rtj-fecha-precio">$20.000</div>
                     </div>
                     {% endfor %}
                 </div>
                 <div class="rtj-opcion-todo" id="opcion-todo" data-noches="{{ noches }}">
                     <div class="label">Todo el hospedaje ({{ noches }} noche{{ 's' if noches != 1 else '' }})</div>
-                    <div class="descuento">20% de descuento</div>
+                    <div class="descuento">Oferta: 30% de descuento</div>
                 </div>
                 <div class="rtj-total" id="total-paso1"></div>
-                <button class="rtj-btn rtj-btn-primary" id="btn-paso1" disabled>Continuar al Paso 2</button>
+                <div class="rtj-btn-row">
+                    <a href="/" class="rtj-btn rtj-btn-secondary" style="text-align:center;text-decoration:none;max-width:120px;">← Volver</a>
+                    <button class="rtj-btn rtj-btn-primary" id="btn-paso1" disabled>Continuar al Paso 2</button>
+                </div>
             </div>
 
-            <!-- Paso 2: Paquetes de leña -->
+            <!-- Paso 2: Paquete de leña -->
             <div id="paso-2" class="rtj-paso" style="display:none;">
                 <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 2: Paquete de leña</h2>
-                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">Elige un paquete de leña para cada noche seleccionada.</p>
+                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">Elige el paquete de leña para tu estadía.</p>
                 <div class="rtj-leña-grid" id="leña-grid"></div>
-                <button class="rtj-btn rtj-btn-primary" id="btn-paso2">Continuar al Paso 3</button>
+                <div class="rtj-leña-significado" id="leña-significado"></div>
+                <div class="rtj-total-paso2" id="total-paso2"></div>
+                <div class="rtj-btn-row">
+                    <button type="button" class="rtj-btn rtj-btn-secondary" onclick="mostrarPaso(1)">← Volver</button>
+                    <button class="rtj-btn rtj-btn-primary" id="btn-paso2">Continuar al Paso 3</button>
+                </div>
             </div>
 
-            <!-- Paso 3: Confirmación -->
+            <!-- Paso 3: Contacto (Email y WhatsApp) -->
             <div id="paso-3" class="rtj-paso" style="display:none;">
-                <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 3: Confirmar</h2>
-                <div class="rtj-resumen" id="resumen-final"></div>
-                <button class="rtj-btn rtj-btn-primary" id="btn-confirmar">Confirmar y generar pago</button>
+                <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 3: Datos de contacto</h2>
+                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">Indica tu email y/o WhatsApp para enviarte los datos de pago.</p>
+                <div class="rtj-total-pagar" id="total-paso3"></div>
+                <div class="rtj-contacto-form">
+                    <div class="rtj-form-group">
+                        <label for="rtj-email">📧 Email</label>
+                        <input type="email" id="rtj-email" class="rtj-input" placeholder="ejemplo@correo.com" value="{{ reserva.get('extra_email', reserva.get('email', '')) if reserva else '' }}">
+                    </div>
+                    <div class="rtj-form-group">
+                        <label for="rtj-whatsapp">💬 WhatsApp</label>
+                        <input type="text" id="rtj-whatsapp" class="rtj-input" placeholder="Ej: +56912345678" value="{{ reserva.get('extra_whatsapp', reserva.get('whatsapp', '')) if reserva else '' }}">
+                    </div>
+                    <p style="font-size:0.85em;color:#94a3b8;margin-top:8px;">Completa al menos uno. Te enviaremos los datos de pago según el medio que elijas.</p>
+                </div>
+                <div class="rtj-medios-pago" style="margin-top:24px;">
+                    <h4 style="font-size:1em;margin-bottom:12px;color:var(--airbnb-dark);">¿Cómo vas a pagar?</h4>
+                    <div class="rtj-pago-botones-chicos">
+                        <button type="button" class="rtj-pago-boton-chico" data-forma="airbnb"><img src="https://www.airbnb.com/favicon.ico" alt="" class="pago-logo-chico"> Airbnb</button>
+                        <button type="button" class="rtj-pago-boton-chico" data-forma="transferencia"><span class="pago-icono-banco">🏦</span> Transferencia</button>
+                        <button type="button" class="rtj-pago-boton-chico" data-forma="mercadopago"><img src="https://www.mercadopago.cl/favicon.ico" alt="" class="pago-logo-chico"> MercadoPago</button>
+                    </div>
+                    <div class="rtj-pago-glosa" id="rtj-pago-glosa">
+                        <div class="rtj-pago-glosa-content" id="glosa-airbnb" style="display:none;">
+                            <h4><img src="https://www.airbnb.com/favicon.ico" alt="Airbnb" class="pago-logo"> Pago con la App de Airbnb</h4>
+                            <p>Opción de cargo directo en la app de Airbnb. Se envía una solicitud de cobro dentro de las 24 hrs. Debe ser cancelada si no se paga dentro de 72 hrs.</p>
+                        </div>
+                        <div class="rtj-pago-glosa-content" id="glosa-transferencia" style="display:none;">
+                            <h4>Transferencia bancaria (Cuenta corriente)</h4>
+                            <p>La transacción se confirma en 24 hrs.</p>
+                            <div class="detalle">
+                                <div class="detalle-row"><strong>Banco:</strong> BCI</div>
+                                <div class="detalle-row"><strong>Nº cuenta:</strong> 70427160</div>
+                                <div class="detalle-row"><strong>Titular:</strong> Edgar Rodrigo Sánchez</div>
+                                <div class="detalle-row"><strong>RUT:</strong> 17.536.222-3</div>
+                                <div class="detalle-row"><strong>Email:</strong> grineldosanchez@yahoo.es</div>
+                                <div class="detalle-row"><strong>WhatsApp:</strong> <a href="https://wa.me/56986825231" target="_blank" rel="noopener" onclick="event.stopPropagation()">+56 9 8682 5231</a></div>
+                            </div>
+                        </div>
+                        <div class="rtj-pago-glosa-content" id="glosa-mercadopago" style="display:none;">
+                            <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> MercadoPago</h4>
+                            <p>Con MercadoPago la reserva es inmediata. La transacción se confirma de forma automática.</p>
+                            {% if mercadopago_habilitado %}
+                            <p>Al continuar se generará el link de pago.</p>
+                            {% else %}
+                            <p>Contacta por WhatsApp para recibir el link de pago MercadoPago.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="rtj-btn-row">
+                    <button type="button" class="rtj-btn rtj-btn-secondary" onclick="mostrarPaso(2)">← Volver</button>
+                    <button class="rtj-btn rtj-btn-primary" id="btn-paso3" disabled>Continuar al Paso 4</button>
+                </div>
             </div>
 
-            <!-- Éxito -->
+            <!-- Paso 4: Pantalla de pago (según forma elegida en Paso 3) - sin confirmar aún -->
+            <div id="paso-4" class="rtj-paso" style="display:none;">
+                <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 4: Confirmar</h2>
+                <div class="rtj-resumen" id="resumen-final"></div>
+                <!-- Contenido dinámico según forma de pago (Transferencia / Airbnb / MercadoPago) -->
+                <div id="paso4-transferencia" class="rtj-paso4-forma" style="display:none;">
+                    <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
+                        <h4>Transferencia bancaria (Cuenta corriente)</h4>
+                        <p>La transacción se confirma en 24 hrs.</p>
+                        <div class="detalle">
+                            <div class="detalle-row"><strong>Banco:</strong> BCI</div>
+                            <div class="detalle-row"><strong>Nº cuenta:</strong> 70427160</div>
+                            <div class="detalle-row"><strong>Titular:</strong> Edgar Rodrigo Sánchez</div>
+                            <div class="detalle-row"><strong>RUT:</strong> 17.536.222-3</div>
+                            <div class="detalle-row"><strong>Email:</strong> grineldosanchez@yahoo.es</div>
+                            <div class="detalle-row"><strong>WhatsApp:</strong> <a href="https://wa.me/56986825231" target="_blank" rel="noopener">+56 9 8682 5231</a></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="paso4-airbnb" class="rtj-paso4-forma" style="display:none;">
+                    <p style="margin-top:16px;color:#64748b;">Pago con la App de Airbnb. Se enviará solicitud de cobro en 24 hrs.</p>
+                </div>
+                <div id="paso4-mercadopago" class="rtj-paso4-forma" style="display:none;">
+                    <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
+                        <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> MercadoPago</h4>
+                        <p>Con MercadoPago la reserva es inmediata. La transacción se confirma de forma automática.</p>
+                        <p id="paso4-mercadopago-link-wrap"><a href="#" id="paso4-mercadopago-link" target="_blank" rel="noopener" class="rtj-btn rtj-btn-primary" style="display:inline-block;margin-top:12px;text-decoration:none;">Abrir página de MercadoPago →</a></p>
+                        <p id="paso4-mercadopago-loading" style="display:none;color:#64748b;">Generando link de pago...</p>
+                        <p id="paso4-mercadopago-sin-url" style="display:none;color:#64748b;">Contacta por WhatsApp para recibir el link de pago MercadoPago.</p>
+                    </div>
+                </div>
+                <div class="rtj-btn-row" style="margin-top:24px;">
+                    <button type="button" class="rtj-btn rtj-btn-secondary" onclick="mostrarPaso(3)">← Volver</button>
+                    <button class="rtj-btn rtj-btn-primary" id="btn-confirmar">Confirmar</button>
+                </div>
+            </div>
+
+            <!-- Éxito (después del pago) -->
             <div id="paso-exito" class="rtj-paso" style="display:none;">
                 <div class="rtj-success">
                     <div class="icon">✅</div>
-                    <h3>¡Pago registrado!</h3>
-                    <p style="color:#64748b;margin-top:8px;">Tu reserva de tinaja ha sido confirmada.</p>
+                    <h3>¡Reserva confirmada!</h3>
+                    <p style="color:#64748b;margin-top:8px;">Tu reserva de tinaja ha sido registrada. Datos de pago según el medio elegido:</p>
                 </div>
+                <div class="rtj-total-pagar" id="total-pagar-texto"></div>
+                <div id="pago-opciones-exito" class="rtj-pago-descripcion visible" style="margin-top:16px;"></div>
+                <a href="/" class="rtj-btn rtj-btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:24px;">Volver al inicio</a>
             </div>
         </div>
         {% endif %}
     </div>
 
     <script>
-        const PRECIO_NOCHE = 14000;
-        const DESCUENTO_TODO = 0.20;
+        const PRECIO_PRIMERA = 20000;
+        const PRECIO_RESTANTES = 14000;
+        const DESCUENTO_TODO = 0.30;
+        const LEÑA_EXTREMA_1DIA = 3000;
         const codigoReserva = "{{ reserva.codigo_reserva if reserva else '' }}";
+        const mercadopagoHabilitado = {{ 'true' if mercadopago_habilitado else 'false' }};
 
         let paso = 1;
         let seleccionTodo = false;
         let nochesSeleccionadas = [];
+        let tinajaTotal = 0;
+        let leñaTotal = 0;
         let totalCalculado = 0;
+        let contactoEmail = '';
+        let contactoWhatsapp = '';
+        let formaPago = '';
 
         const fechasData = {{ fechas | tojson if fechas else '[]' }};
+        const totalNoches = fechasData.length;
 
         function mostrarPaso(p) {
             paso = p;
@@ -135,8 +296,12 @@
             if (el) el.style.display = 'block';
             document.querySelectorAll('.rtj-step-dot').forEach((dot, i) => {
                 dot.classList.remove('active', 'done');
-                if (i + 1 < p) dot.classList.add('done');
-                if (i + 1 === p) dot.classList.add('active');
+                if (p === 'exito') {
+                    dot.classList.add('done');
+                } else {
+                    if (i + 1 < p) dot.classList.add('done');
+                    if (i + 1 === p) dot.classList.add('active');
+                }
             });
         }
 
@@ -151,64 +316,236 @@
 
         document.getElementById('opcion-todo')?.addEventListener('click', () => {
             const opcion = document.getElementById('opcion-todo');
-            document.querySelectorAll('.rtj-fecha-item').forEach(i => i.classList.remove('selected'));
             opcion.classList.toggle('selected');
+            if (opcion.classList.contains('selected')) {
+                document.querySelectorAll('.rtj-fecha-item').forEach(i => i.classList.add('selected'));
+            } else {
+                document.querySelectorAll('.rtj-fecha-item').forEach(i => i.classList.remove('selected'));
+            }
             actualizarSeleccionPaso1();
         });
 
+        function actualizarPreciosDias() {
+            const opcionTodo = document.getElementById('opcion-todo');
+            const todoSeleccionado = opcionTodo?.classList.contains('selected') || false;
+            const items = document.querySelectorAll('.rtj-fecha-item');
+            const seleccionados = Array.from(items).filter(i => i.classList.contains('selected')).map(i => i.dataset.fecha);
+            const haySeleccionados = seleccionados.length > 0;
+
+            const precioConDescuento = Math.round(PRECIO_PRIMERA * (1 - DESCUENTO_TODO));
+
+            items.forEach(item => {
+                const fecha = item.dataset.fecha;
+                const precioEl = item.querySelector('.rtj-fecha-precio');
+                if (!precioEl) return;
+
+                if (todoSeleccionado) {
+                    precioEl.textContent = '$' + precioConDescuento.toLocaleString('es-CL');
+                } else if (!haySeleccionados) {
+                    precioEl.textContent = '$20.000';
+                } else {
+                    const esPrimera = seleccionados.indexOf(fecha) === 0;
+                    precioEl.textContent = esPrimera ? '$20.000' : '$14.000';
+                }
+            });
+        }
+
         function actualizarSeleccionPaso1() {
             const opcionTodo = document.getElementById('opcion-todo');
-            seleccionTodo = opcionTodo?.classList.contains('selected') || false;
             const items = document.querySelectorAll('.rtj-fecha-item.selected');
             nochesSeleccionadas = Array.from(items).map(i => i.dataset.fecha);
 
+            if (nochesSeleccionadas.length === totalNoches && totalNoches > 0) {
+                opcionTodo?.classList.add('selected');
+                document.querySelectorAll('.rtj-fecha-item').forEach(i => i.classList.add('selected'));
+                seleccionTodo = true;
+                nochesSeleccionadas = fechasData.map(f => f.fecha);
+                const subtotal = PRECIO_PRIMERA * nochesSeleccionadas.length;
+                tinajaTotal = Math.round(subtotal * (1 - DESCUENTO_TODO));
+                totalCalculado = tinajaTotal;
+                document.getElementById('total-paso1').textContent = 'Total: $' + tinajaTotal.toLocaleString('es-CL') + ' (Todo el hospedaje, 30% desc.)';
+                document.getElementById('total-paso1').classList.add('visible');
+                actualizarPreciosDias();
+                return;
+            }
+
+            seleccionTodo = opcionTodo?.classList.contains('selected') || false;
+
             if (seleccionTodo) {
                 nochesSeleccionadas = fechasData.map(f => f.fecha);
-                const subtotal = PRECIO_NOCHE * nochesSeleccionadas.length;
-                totalCalculado = Math.round(subtotal * (1 - DESCUENTO_TODO));
-                document.getElementById('total-paso1').textContent = 'Total: $' + totalCalculado.toLocaleString('es-CL');
+                const subtotal = PRECIO_PRIMERA * nochesSeleccionadas.length;
+                tinajaTotal = Math.round(subtotal * (1 - DESCUENTO_TODO));
+                totalCalculado = tinajaTotal;
+                document.getElementById('total-paso1').textContent = 'Total: $' + tinajaTotal.toLocaleString('es-CL') + ' (Todo el hospedaje, 30% desc.)';
                 document.getElementById('total-paso1').classList.add('visible');
+                actualizarPreciosDias();
             } else if (nochesSeleccionadas.length > 0) {
-                totalCalculado = PRECIO_NOCHE * nochesSeleccionadas.length;
-                document.getElementById('total-paso1').textContent = 'Total: $' + totalCalculado.toLocaleString('es-CL');
+                tinajaTotal = PRECIO_PRIMERA + (nochesSeleccionadas.length - 1) * PRECIO_RESTANTES;
+                totalCalculado = tinajaTotal;
+                document.getElementById('total-paso1').textContent = 'Total: $' + tinajaTotal.toLocaleString('es-CL');
                 document.getElementById('total-paso1').classList.add('visible');
+                actualizarPreciosDias();
             } else {
                 document.getElementById('total-paso1').classList.remove('visible');
+                tinajaTotal = 0;
                 totalCalculado = 0;
+                actualizarPreciosDias();
             }
 
             document.getElementById('btn-paso1').disabled = totalCalculado === 0;
         }
 
+        const LEÑA_SIGNIFICADOS = {
+            regular: 'Leña Regular (estándar): Paquete básico de leña para una noche. Incluido sin costo adicional.',
+            extrema: 'Leña Extrema: Paquete mayor de leña. Con 2 o más noches está incluido. Con 1 noche tiene un costo adicional de $3.000.'
+        };
+
         document.getElementById('btn-paso1')?.addEventListener('click', () => {
-            // Renderizar paso 2: paquetes leña por cada noche seleccionada
             const grid = document.getElementById('leña-grid');
             grid.innerHTML = '';
-            const paquetes = ['Sin leña', 'Paquete Básico', 'Paquete Estándar', 'Paquete Premium'];
-            nochesSeleccionadas.forEach(fecha => {
-                const f = fechasData.find(x => x.fecha === fecha);
-                const label = f ? `${f.dia} ${f.mes} - ${f.dia_semana}` : fecha;
-                const div = document.createElement('div');
-                div.className = 'rtj-leña-item';
-                div.innerHTML = `
-                    <span class="rtj-leña-fecha">${label}</span>
-                    <select class="rtj-leña-select">
-                        ${paquetes.map(p => `<option value="${p}">${p}</option>`).join('')}
-                    </select>
-                `;
-                grid.appendChild(div);
+            const es1Dia = nochesSeleccionadas.length === 1;
+            const precioExtrema = es1Dia ? LEÑA_EXTREMA_1DIA : 0;
+            const paquetes = [
+                { id: 'regular', nombre: 'Leña Regular', precio: 0 },
+                { id: 'extrema', nombre: 'Leña Extrema', precio: precioExtrema }
+            ];
+            const div = document.createElement('div');
+            div.className = 'rtj-leña-item';
+            div.innerHTML = `
+                <span class="rtj-leña-fecha">Paquete de leña</span>
+                <select class="rtj-leña-select">
+                    ${paquetes.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre}${p.precio > 0 ? ' — $' + p.precio.toLocaleString('es-CL') : ' — $0'}</option>`).join('')}
+                </select>
+            `;
+            grid.appendChild(div);
+            const sel = grid.querySelector('.rtj-leña-select');
+            if (nochesSeleccionadas.length > 1) {
+                sel.value = 'extrema';
+            }
+            sel.addEventListener('change', () => {
+                actualizarTotalLeña();
+                actualizarSignificadoLeña();
             });
+            actualizarTotalLeña();
+            actualizarSignificadoLeña();
             mostrarPaso(2);
         });
 
+        function actualizarSignificadoLeña() {
+            const sel = document.querySelector('.rtj-leña-select');
+            const el = document.getElementById('leña-significado');
+            if (sel && el) {
+                const id = sel.value || 'regular';
+                el.textContent = LEÑA_SIGNIFICADOS[id] || '';
+            }
+        }
+
+        function actualizarTotalLeña() {
+            leñaTotal = 0;
+            const sel = document.querySelector('.rtj-leña-select');
+            if (sel) {
+                leñaTotal = parseInt(sel.selectedOptions[0]?.dataset.precio || 0, 10);
+            }
+            totalCalculado = tinajaTotal + leñaTotal;
+            const el = document.getElementById('total-paso2');
+            if (el) {
+                el.innerHTML = leñaTotal > 0
+                    ? `Tinaja: $${tinajaTotal.toLocaleString('es-CL')} + Leña: $${leñaTotal.toLocaleString('es-CL')} = <strong>Total: $${totalCalculado.toLocaleString('es-CL')}</strong>`
+                    : `Total: $${totalCalculado.toLocaleString('es-CL')}`;
+            }
+        }
+
         document.getElementById('btn-paso2')?.addEventListener('click', () => {
+            document.getElementById('total-paso3').textContent = 'Total a pagar: $' + totalCalculado.toLocaleString('es-CL');
+            document.getElementById('rtj-email').value = contactoEmail || '';
+            document.getElementById('rtj-whatsapp').value = contactoWhatsapp || '';
+            formaPago = '';
+            document.querySelectorAll('.rtj-pago-boton-chico').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.rtj-pago-glosa-content').forEach(g => g.style.display = 'none');
+            document.getElementById('rtj-pago-glosa').classList.remove('visible');
+            actualizarBtnPaso3();
+            mostrarPaso(3);
+        });
+
+        document.querySelectorAll('.rtj-pago-boton-chico').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.rtj-pago-boton-chico').forEach(x => x.classList.remove('selected'));
+                btn.classList.add('selected');
+                formaPago = btn.dataset.forma || '';
+                document.querySelectorAll('.rtj-pago-glosa-content').forEach(g => g.style.display = 'none');
+                const glosa = document.getElementById('glosa-' + formaPago);
+                if (glosa) glosa.style.display = 'block';
+                document.getElementById('rtj-pago-glosa').classList.add('visible');
+                actualizarBtnPaso3();
+            });
+        });
+
+        function actualizarBtnPaso3() {
+            const email = (document.getElementById('rtj-email')?.value || '').trim();
+            const whatsapp = (document.getElementById('rtj-whatsapp')?.value || '').trim();
+            const tieneContacto = !!email || !!whatsapp;
+            const tieneFormaPago = !!formaPago;
+            document.getElementById('btn-paso3').disabled = !tieneContacto || !tieneFormaPago;
+        }
+        document.getElementById('rtj-email')?.addEventListener('input', actualizarBtnPaso3);
+        document.getElementById('rtj-whatsapp')?.addEventListener('input', actualizarBtnPaso3);
+
+        document.getElementById('btn-paso3')?.addEventListener('click', () => {
+            contactoEmail = (document.getElementById('rtj-email')?.value || '').trim();
+            contactoWhatsapp = (document.getElementById('rtj-whatsapp')?.value || '').trim();
             const resumen = document.getElementById('resumen-final');
-            const desc = seleccionTodo ? 'Todo el hospedaje (20% desc.)' : nochesSeleccionadas.length + ' noche(s)';
-            resumen.innerHTML = `
-                <div class="rtj-resumen-row"><span>Tinaja</span><span>${desc}</span></div>
+            const desc = seleccionTodo ? 'Todo el hospedaje (30% desc.)' : nochesSeleccionadas.length + ' noche(s)';
+            let rows = `
+                <div class="rtj-resumen-row"><span>Tinaja</span><span>${desc} — $${tinajaTotal.toLocaleString('es-CL')}</span></div>
+            `;
+            if (leñaTotal > 0) {
+                rows += `<div class="rtj-resumen-row"><span>Leña</span><span>$${leñaTotal.toLocaleString('es-CL')}</span></div>`;
+            }
+            const formaNombre = { airbnb: 'App Airbnb', transferencia: 'Transferencia', mercadopago: 'MercadoPago' }[formaPago] || formaPago;
+            if (contactoEmail) rows += `<div class="rtj-resumen-row"><span>Email</span><span>${contactoEmail}</span></div>`;
+            if (contactoWhatsapp) rows += `<div class="rtj-resumen-row"><span>WhatsApp</span><span>${contactoWhatsapp}</span></div>`;
+            rows += `<div class="rtj-resumen-row"><span>Forma de pago</span><span>${formaNombre}</span></div>`;
+            rows += `
                 <div class="rtj-resumen-row"><span>Total</span><span>$${totalCalculado.toLocaleString('es-CL')}</span></div>
             `;
-            mostrarPaso(3);
+            resumen.innerHTML = rows;
+
+            // Paso 4 dinámico según forma de pago (pantalla de pago sin confirmar aún)
+            document.querySelectorAll('.rtj-paso4-forma').forEach(el => el.style.display = 'none');
+            const formaEl = document.getElementById('paso4-' + formaPago);
+            if (formaEl) formaEl.style.display = 'block';
+            if (formaPago === 'mercadopago') {
+                const link = document.getElementById('paso4-mercadopago-link');
+                const linkWrap = document.getElementById('paso4-mercadopago-link-wrap');
+                const loading = document.getElementById('paso4-mercadopago-loading');
+                const sinUrl = document.getElementById('paso4-mercadopago-sin-url');
+                if (mercadopagoHabilitado && link) {
+                    if (linkWrap) linkWrap.style.display = 'none';
+                    if (loading) loading.style.display = 'block';
+                    if (sinUrl) sinUrl.style.display = 'none';
+                    fetch('/api/reservatinaja/' + encodeURIComponent(codigoReserva) + '/mercadopago-preferencia', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ valor: totalCalculado })
+                    }).then(r => r.json()).then(data => {
+                        if (loading) loading.style.display = 'none';
+                        if (data.success && data.init_point) {
+                            link.href = data.init_point;
+                            if (linkWrap) linkWrap.style.display = 'block';
+                        } else {
+                            if (sinUrl) { sinUrl.style.display = 'block'; sinUrl.textContent = data.error || 'Error al generar link. Contacta por WhatsApp.'; }
+                        }
+                    }).catch(() => {
+                        if (loading) loading.style.display = 'none';
+                        if (sinUrl) { sinUrl.style.display = 'block'; sinUrl.textContent = 'Error de conexión. Contacta por WhatsApp.'; }
+                    });
+                } else {
+                    if (linkWrap) linkWrap.style.display = 'none';
+                    if (loading) loading.style.display = 'none';
+                    if (sinUrl) sinUrl.style.display = 'block';
+                }
+            }
+            mostrarPaso(4);
         });
 
         document.getElementById('btn-confirmar')?.addEventListener('click', async () => {
@@ -219,20 +556,28 @@
                 const res = await fetch('/api/reservatinaja/' + codigoReserva + '/confirmar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ valor: totalCalculado, concepto: 'Tinaja' })
+                    body: JSON.stringify({ valor: totalCalculado, concepto: 'Tinaja', email: contactoEmail, whatsapp: contactoWhatsapp, forma_pago: formaPago })
                 });
                 const data = await res.json();
                 if (data.success) {
+                    document.getElementById('total-pagar-texto').textContent = 'Total a pagar: $' + totalCalculado.toLocaleString('es-CL');
+                    const exitoEl = document.getElementById('pago-opciones-exito');
+                    if (exitoEl) {
+                        let html = '<p>Te enviaremos los datos de pago a:</p>';
+                        if (contactoEmail) html += `<p><strong>Email:</strong> ${contactoEmail}</p>`;
+                        if (contactoWhatsapp) html += `<p><strong>WhatsApp:</strong> ${contactoWhatsapp}</p>`;
+                        exitoEl.innerHTML = html;
+                    }
                     mostrarPaso('exito');
                 } else {
                     alert(data.error || 'Error al confirmar');
                     btn.disabled = false;
-                    btn.textContent = 'Confirmar y generar pago';
+                    btn.textContent = 'Confirmar';
                 }
             } catch (err) {
                 alert('Error de conexión');
                 btn.disabled = false;
-                btn.textContent = 'Confirmar y generar pago';
+                btn.textContent = 'Confirmar';
             }
         });
     </script>

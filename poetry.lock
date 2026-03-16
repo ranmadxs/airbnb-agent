@@ -403,6 +403,24 @@ files = [
 ]
 
 [[package]]
+name = "mercadopago"
+version = "2.3.0"
+description = "Mercadopago SDK module for Payments integration"
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "mercadopago-2.3.0-py3-none-any.whl", hash = "sha256:2502cb005ab90343d60e577107b422daeff27511f85c45a7bf0784ac2083f2c7"},
+    {file = "mercadopago-2.3.0.tar.gz", hash = "sha256:8537e9de5d987b545841b05bb35675553b22e661b96ffc4fb178ffba846ff2d7"},
+]
+
+[package.dependencies]
+requests = "*"
+
+[package.extras]
+testing = ["unittest"]
+
+[[package]]
 name = "packaging"
 version = "26.0"
 description = "Core utilities for Python packages"
@@ -623,4 +641,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11"
-content-hash = "50f16743e31616ffd894fbab690e16d8ed4f4cccca52b7b50dd6b5611df0eb94"
+content-hash = "126e7f96ecd472d509409bac96d0e11cdac4b45cad4338730e4d8ac8c3b62077"

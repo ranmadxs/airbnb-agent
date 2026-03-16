@@ -1,6 +1,6 @@
 [project]
 name = "airbnb-agent"
-version = "2.34.0"
+version = "2.35.19"
 description = "Agente visual de calendario Airbnb"
 requires-python = ">=3.11"
 authors = [{name = "edgsanchez"}]
@@ -12,6 +12,7 @@ dependencies = [
     "requests>=2.31.0",
     "pymongo>=4.0.0",
     "gunicorn>=23.0.0",
+    "mercadopago>=2.0.0",
 ]
 
 [tool.poetry]

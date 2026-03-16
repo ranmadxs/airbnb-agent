@@ -260,6 +260,8 @@
                     <select name="estado" required>
                         <option value="reservado" {{ 'selected' if reserva and reserva.estado == 'reservado' else '' }}>🏠 Reserva</option>
                         <option value="bloqueado" {{ 'selected' if reserva and reserva.estado == 'bloqueado' else '' }}>🚫 Bloqueo</option>
+                        <option value="cancelado" {{ 'selected' if reserva and reserva.estado == 'cancelado' else '' }}>❌ Cancelado</option>
+                        <option value="eliminado" {{ 'selected' if reserva and reserva.estado == 'eliminado' else '' }}>🗑️ Eliminado</option>
                     </select>
                 </div>
                 
@@ -339,6 +341,12 @@
                         <label>➕ Extra valor (CLP)</label>
                         <input type="number" name="extra_valor" min="0" value="{{ reserva.extra_valor if reserva and reserva.extra_valor else 0 }}" placeholder="Ej: 20000">
                     </div>
+                </div>
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" name="extra_pago_confirmado" {{ 'checked' if reserva and reserva.extra_pago_confirmado else '' }}>
+                        Pago confirmado (Tinaja)
+                    </label>
                 </div>
                 
                 <div class="form-row">

@@ -44,6 +44,8 @@ except Exception:
 
 # Config
 PROPERTY_NAME = os.getenv('PROPERTY_NAME', 'Posada en el Bosque')
+MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN', '')
+MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY', '')
 TIMEZONE = os.getenv('TIMEZONE', 'America/Santiago')
 
 
@@ -276,17 +278,32 @@ def home():
                          now_time=now.strftime('%H:%M'))
 
 
+@app.route('/reservatinaja-ingresar')
+@login_required
+def reservatinaja_ingresar():
+    """Página admin: ingresar código para obtener link de pago tinaja."""
+    return render_template('reservatinaja_ingresar.html',
+                         version=APP_VERSION,
+                         property_name=PROPERTY_NAME)
+
+
 @app.route('/reservatinaja/<codigo_reserva>')
 def reservatinaja(codigo_reserva):
     """Página pública: tutorial 3 pasos para reservar tinaja por código de reserva."""
     reserva = db_service.obtener_reserva_por_codigo(codigo_reserva)
+    # Reintentar una vez si falla (p. ej. conexión MongoDB no lista en cold start)
+    if not reserva:
+        db_service.get_status()  # fuerza reconexión si hace falta
+        reserva = db_service.obtener_reserva_por_codigo(codigo_reserva)
     if not reserva or reserva.get('estado') != 'reservado':
         return render_template('reservatinaja.html',
                              reserva=None,
                              fechas=[],
                              error='Reserva no encontrada o no disponible',
                              version=APP_VERSION,
-                             property_name=PROPERTY_NAME)
+                             property_name=PROPERTY_NAME,
+                             mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN),
+                             )
 
     start = date.fromisoformat(reserva['event_start'])
     end = date.fromisoformat(reserva['event_end'])
@@ -310,12 +327,16 @@ def reservatinaja(codigo_reserva):
                          noches=noches,
                          paso=1,
                          version=APP_VERSION,
-                         property_name=PROPERTY_NAME)
+                         property_name=PROPERTY_NAME,
+                         mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN))
 
 
-@app.route('/api/reservatinaja/<codigo_reserva>/confirmar', methods=['POST'])
-def api_reservatinaja_confirmar(codigo_reserva):
-    """API: Confirma y registra el pago de tinaja en la reserva."""
+@app.route('/api/reservatinaja/<codigo_reserva>/mercadopago-preferencia', methods=['POST'])
+def api_reservatinaja_mercadopago_preferencia(codigo_reserva):
+    """API: Crea preferencia MercadoPago y retorna init_point (link de pago)."""
+    if not MERCADOPAGO_ACCESS_TOKEN:
+        return jsonify({"success": False, "error": "MercadoPago no configurado"}), 500
+
     data = request.get_json() or {}
     valor = int(data.get('valor', 0) or 0)
     if valor <= 0:
@@ -325,8 +346,76 @@ def api_reservatinaja_confirmar(codigo_reserva):
     if not reserva or reserva.get('estado') != 'reservado':
         return jsonify({"success": False, "error": "Reserva no encontrada"})
 
+    try:
+        import mercadopago
+        sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
+        preference_data = {
+            "items": [
+                {
+                    "title": "Tinaja - Posada en el Bosque",
+                    "quantity": 1,
+                    "unit_price": valor,
+                    "currency_id": "CLP"
+                }
+            ]
+        }
+        response = sdk.preference().create(preference_data)
+        result = response.get("response", {})
+        init_point = result.get("init_point")
+        if init_point:
+            return jsonify({"success": True, "init_point": init_point})
+        return jsonify({"success": False, "error": result.get("message", "Error al crear preferencia")}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/reservatinaja/<codigo_reserva>/confirmar', methods=['POST'])
+def api_reservatinaja_confirmar(codigo_reserva):
+    """API: Confirma y registra el pago de tinaja: crea/busca persona, transacción, actualiza reserva."""
+    data = request.get_json() or {}
+    valor = int(data.get('valor', 0) or 0)
+    if valor <= 0:
+        return jsonify({"success": False, "error": "Valor inválido"})
+
+    reserva = db_service.obtener_reserva_por_codigo(codigo_reserva)
+    if not reserva or reserva.get('estado') != 'reservado':
+        return jsonify({"success": False, "error": "Reserva no encontrada"})
+
+    email = (data.get('email') or '').strip()
+    whatsapp = (data.get('whatsapp') or '').strip()
+    forma_pago = data.get('forma_pago') or 'transferencia'
+    if forma_pago not in ('airbnb', 'transferencia', 'mercadopago'):
+        forma_pago = 'transferencia'
+
+    if not email and not whatsapp:
+        return jsonify({"success": False, "error": "Indica al menos email o WhatsApp"})
+
+    # 1. Crear o buscar persona (contacto)
+    persona_id = db_service.crear_o_buscar_persona(
+        email=email or None,
+        whatsapp=whatsapp or None,
+        nombre=reserva.get('nombre_huesped')
+    )
+    if not persona_id:
+        return jsonify({"success": False, "error": "No se pudo crear el contacto"})
+
+    # 2. Crear transacción
+    res_tx = db_service.registrar_transaccion_tinaja(
+        reserva_id=str(reserva['_id']),
+        persona_id=persona_id,
+        valor=valor,
+        concepto=data.get('concepto', 'Tinaja'),
+        forma_pago=forma_pago,
+        extra_email=email or None,
+        extra_whatsapp=whatsapp or None,
+    )
+    if not res_tx.get('success'):
+        return jsonify(res_tx)
+
+    # 3. Actualizar reserva (extra_valor, extra_email, extra_whatsapp)
     resultado = db_service.actualizar_tinaja_reserva(
-        str(reserva['_id']), valor, data.get('concepto', 'Tinaja')
+        str(reserva['_id']), valor, data.get('concepto', 'Tinaja'),
+        email=email or None, whatsapp=whatsapp or None
     )
     return jsonify(resultado)
 
@@ -628,6 +717,7 @@ def _reserva_to_json(reserva) -> dict:
         "precio": reserva.get('precio', 0),
         "extra_concepto": reserva.get('extra_concepto', ''),
         "extra_valor": reserva.get('extra_valor', 0),
+        "extra_pago_confirmado": reserva.get('extra_pago_confirmado', False),
         "comuna": reserva.get('comuna', ''),
         "pais": reserva.get('pais', '')
     }
@@ -678,6 +768,7 @@ def api_guardar_reserva():
         'precio': data.get('precio', 0),
         'extra_concepto': data.get('extra_concepto', ''),
         'extra_valor': data.get('extra_valor', 0),
+        'extra_pago_confirmado': data.get('extra_pago_confirmado', False),
         'comuna': data.get('comuna', ''),
         'pais': data.get('pais', '')
     }
@@ -755,6 +846,7 @@ def admin_reserva():
                 'precio': int(_get('precio', 0) or 0),
                 'extra_concepto': _get('extra_concepto', ''),
                 'extra_valor': int(_get('extra_valor', 0) or 0),
+                'extra_pago_confirmado': request.form.get('extra_pago_confirmado') == 'on',
                 'comuna': _get('comuna', ''),
                 'pais': _get('pais', ''),
             }

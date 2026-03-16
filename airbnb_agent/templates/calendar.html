@@ -360,7 +360,10 @@
                                     <span class="price-value price-main">💰 ${{ "{:,.0f}".format(event.precio).replace(",", ".") }}</span>
                                     {% endif %}
                                     {% if event.extra_valor %}
-                                    <span class="price-value price-extra" title="{{ event.extra_concepto or 'Extra' }}">➕ {{ event.extra_concepto or 'Extra' }}: ${{ "{:,.0f}".format(event.extra_valor).replace(",", ".") }}</span>
+                                    <span class="price-value price-extra" title="{{ event.extra_concepto or 'Extra' }}">
+                                        ➕ {{ event.extra_concepto or 'Extra' }}: ${{ "{:,.0f}".format(event.extra_valor).replace(",", ".") }}
+                                        {% if event.extra_pago_confirmado %}<span class="pago-tinaja-ok" title="Tinaja pagada">✓</span>{% else %}<span class="pago-tinaja-pendiente" title="Tinaja pendiente de pago">⏳</span>{% endif %}
+                                    </span>
                                     {% endif %}
                                 </div>
                                 {% endif %}
@@ -454,6 +457,9 @@
             </div>
             <p>🏠 {{ property_name }} v{{ version }}</p>
             <p class="footer-links">
+                {% if is_logged_in %}
+                <a href="/reservatinaja-ingresar" class="footer-link">🔗 Link pago Tinaja</a>
+                {% endif %}
                 <a href="/tinaja" class="footer-link">🛁 Tinaja</a>
                 <a href="https://airbnb.cl/h/posadaenelbosque" target="_blank" class="footer-link">
                     <img src="https://www.airbnb.com/favicon.ico" alt="Airbnb" width="16" height="16">
@@ -502,12 +508,18 @@
                     <select id="reserva-estado" name="estado">
                         <option value="reservado">Reserva</option>
                         <option value="bloqueado">Bloqueo</option>
+                        <option value="cancelado">Cancelado</option>
+                        <option value="eliminado">Eliminado</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
                     <label>🔖 Código de reserva</label>
                     <input type="text" id="reserva-codigo" name="codigo_reserva" placeholder="Ej: HM123456 o RES-202503101430">
+                    <div id="reserva-link-pago" class="reserva-link-pago" style="display:none; margin-top:8px;">
+                        <a id="reserva-link-pago-url" href="#" target="_blank" class="footer-link">🔗 Abrir link de pago Tinaja</a>
+                        <button type="button" class="btn-copiar-link" onclick="copiarLinkPagoTinaja()">Copiar</button>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -572,6 +584,12 @@
                         <label>➕ Extra valor (CLP)</label>
                         <input type="number" id="reserva-extra-valor" name="extra_valor" min="0" placeholder="Ej: 20000" inputmode="numeric">
                     </div>
+                </div>
+                <div class="form-group checkbox-group" id="reserva-extra-pago-group">
+                    <label>
+                        <input type="checkbox" id="reserva-extra-pago-confirmado" name="extra_pago_confirmado">
+                        Pago confirmado (Tinaja)
+                    </label>
                 </div>
                 
                 <div class="form-group">
@@ -1571,6 +1589,7 @@
             document.getElementById('reserva-precio').value = data.precio || '';
             document.getElementById('reserva-extra-concepto').value = data.extra_concepto || '';
             document.getElementById('reserva-extra-valor').value = data.extra_valor || '';
+            document.getElementById('reserva-extra-pago-confirmado').checked = !!data.extra_pago_confirmado;
             document.getElementById('reserva-comuna').value = data.comuna || '';
             document.getElementById('reserva-pais').value = data.pais || '';
             const urlLink = document.getElementById('reserva-url-link');
@@ -1580,6 +1599,7 @@
             } else {
                 urlLink.style.display = 'none';
             }
+            actualizarLinkPagoTinaja();
         }
         
         async function abrirModalReserva(fecha) {
@@ -1593,6 +1613,7 @@
             document.getElementById('reserva-end').value = '';
             document.getElementById('reserva-url-link').style.display = 'none';
             document.getElementById('reserva-codigo').value = 'RES-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + new Date().toTimeString().slice(0,5).replace(':','');
+            actualizarLinkPagoTinaja();
             btnEliminar.style.display = 'none';
             document.getElementById('btn-cancelar-reserva').style.display = 'none';
             title.textContent = 'Nueva Reserva/Bloqueo';
@@ -1644,6 +1665,29 @@
             modal.style.display = 'flex';
         }
         
+        function actualizarLinkPagoTinaja() {
+            const codigo = (document.getElementById('reserva-codigo').value || '').trim();
+            const linkDiv = document.getElementById('reserva-link-pago');
+            const linkEl = document.getElementById('reserva-link-pago-url');
+            if (codigo && isAdmin) {
+                const url = window.location.origin + '/reservatinaja/' + encodeURIComponent(codigo);
+                linkEl.href = url;
+                linkEl.textContent = '🔗 Abrir link de pago Tinaja';
+                linkDiv.style.display = 'block';
+            } else {
+                linkDiv.style.display = 'none';
+            }
+        }
+
+        function copiarLinkPagoTinaja() {
+            const codigo = (document.getElementById('reserva-codigo').value || '').trim();
+            if (!codigo) return;
+            const url = window.location.origin + '/reservatinaja/' + encodeURIComponent(codigo);
+            navigator.clipboard.writeText(url).then(() => alert('Link copiado al portapapeles')).catch(() => alert('No se pudo copiar'));
+        }
+
+        document.getElementById('reserva-codigo')?.addEventListener('input', actualizarLinkPagoTinaja);
+
         // Auto-extraer código de reserva al pegar URL (Airbnb ?code= o último segmento)
         document.getElementById('reserva-url').addEventListener('input', function() {
             const url = this.value;
@@ -1688,6 +1732,7 @@
                 precio: parseInt(document.getElementById('reserva-precio').value) || 0,
                 extra_concepto: document.getElementById('reserva-extra-concepto').value,
                 extra_valor: parseInt(document.getElementById('reserva-extra-valor').value) || 0,
+                extra_pago_confirmado: document.getElementById('reserva-extra-pago-confirmado').checked,
                 comuna: document.getElementById('reserva-comuna').value,
                 pais: document.getElementById('reserva-pais').value
             };

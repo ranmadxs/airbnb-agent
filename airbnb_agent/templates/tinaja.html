@@ -107,7 +107,7 @@
                                 </div>
                                 {% if event.extra_valor %}
                                 <div class="price-row">
-                                    <span class="price-value price-extra">Tinaja: ${{ "{:,.0f}".format(event.extra_valor).replace(",", ".") }}</span>
+                                    <span class="price-value price-extra">Tinaja: ${{ "{:,.0f}".format(event.extra_valor).replace(",", ".") }}{% if event.extra_pago_confirmado %} <span class="pago-tinaja-ok" title="Pagada">✓</span>{% else %} <span class="pago-tinaja-pendiente" title="Pendiente">⏳</span>{% endif %}</span>
                                 </div>
                                 {% endif %}
                                 <div class="reservation-info">

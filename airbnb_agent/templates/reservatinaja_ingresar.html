@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔗 Link de pago Tinaja - {{ property_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}">
+    <style>
+        .rtj-ingresar { max-width: 480px; margin: 40px auto; padding: 24px; }
+        .rtj-ingresar h2 { font-size: 1.3em; margin-bottom: 8px; }
+        .rtj-ingresar p { color: #64748b; font-size: 0.95em; margin-bottom: 20px; }
+        .rtj-ingresar input { width: 100%; padding: 12px 16px; border-radius: 10px; border: 2px solid #e2e8f0; font-size: 1em; }
+        .rtj-ingresar input:focus { outline: none; border-color: var(--today-color); }
+        .rtj-ingresar .btn { margin-top: 16px; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; }
+        .rtj-ingresar .btn-primary { background: var(--today-color); color: white; width: 100%; }
+        .rtj-ingresar .btn-primary:hover { background: #006d72; }
+        .rtj-ingresar .link-result { margin-top: 20px; padding: 16px; background: #f8fafc; border-radius: 10px; display: none; }
+        .rtj-ingresar .link-result.visible { display: block; }
+        .rtj-ingresar .link-result a { color: var(--today-color); word-break: break-all; }
+        .rtj-ingresar .btn-copiar { margin-top: 12px; padding: 8px 16px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="container rtj-ingresar">
+        <a href="/" class="footer-link" style="margin-bottom:16px;display:inline-block;">← Volver al calendario</a>
+        <h2>Ingresar el código de la reserva.</h2>
+        <p>Ingresa el código de reserva para generar el link que puedes enviar al huésped.</p>
+        <input type="text" id="codigo-input" placeholder="Ej: HM123456789" autocomplete="off">
+        <button type="button" class="btn btn-primary" onclick="generarLink()">Generar link</button>
+        <div id="link-result" class="link-result">
+            <strong>Link para el huésped:</strong>
+            <a id="link-url" href="#" target="_blank"></a>
+            <div>
+                <button type="button" class="btn btn-copiar" onclick="copiarLink()">Copiar link</button>
+                <a id="link-abrir" href="#" target="_blank" class="footer-link" style="margin-left:8px;">Abrir</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        const codigoInput = document.getElementById('codigo-input');
+        const linkResult = document.getElementById('link-result');
+        const linkUrl = document.getElementById('link-url');
+        const linkAbrir = document.getElementById('link-abrir');
+
+        function generarLink() {
+            const codigo = (codigoInput.value || '').trim();
+            if (!codigo) {
+                alert('Ingresa un código de reserva');
+                return;
+            }
+            const url = window.location.origin + '/reservatinaja/' + encodeURIComponent(codigo);
+            linkUrl.href = url;
+            linkUrl.textContent = url;
+            linkAbrir.href = url;
+            linkResult.classList.add('visible');
+        }
+
+        function copiarLink() {
+            const url = linkUrl.href;
+            navigator.clipboard.writeText(url).then(() => alert('Link copiado')).catch(() => alert('No se pudo copiar'));
+        }
+
+        codigoInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') generarLink(); });
+    </script>
+</body>
+</html>
