@@ -630,6 +630,55 @@ class DatabaseService:
         except Exception as e:
             print(f"❌ Error actualizando tinaja: {e}")
             return {"success": False, "error": str(e)}
+
+    def confirmar_pago_mercadopago(self, valor: int, email: str = None, external_reference: str = None,
+                                   mp_payment_id: str = None) -> dict:
+        """
+        Busca una transacción pendiente de MercadoPago y la marca como pagada.
+        Criterios: valor, email (si hay), external_reference (si hay), última 48h.
+        """
+        if not self.connect():
+            return {"success": False, "error": "No hay conexión a MongoDB"}
+        try:
+            from bson import ObjectId
+            desde = datetime.utcnow() - timedelta(hours=48)
+            query = {
+                "forma_pago": "mercadopago",
+                "estado": "pendiente",
+                "valor": valor,
+                "created_at": {"$gte": desde},
+            }
+            if external_reference:
+                reserva = self.reservas.find_one({"codigo_reserva": external_reference})
+                if reserva:
+                    query["reserva_id"] = str(reserva["_id"])
+            if email and email.strip():
+                em = email.strip().lower()
+                query["$or"] = [
+                    {"extra_email": {"$regex": em, "$options": "i"}},
+                    {"extra_email": em},
+                ]
+            tx = self.transacciones.find_one(query, sort=[("created_at", -1)])
+            if not tx:
+                return {"success": False, "error": "No se encontró transacción para vincular"}
+            reserva_id = tx.get("reserva_id")
+            self.transacciones.update_one(
+                {"_id": tx["_id"]},
+                {"$set": {
+                    "estado": "pagado",
+                    "mp_payment_id": mp_payment_id or "",
+                    "mp_pagado_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                }}
+            )
+            self.reservas.update_one(
+                {"_id": ObjectId(reserva_id)},
+                {"$set": {"extra_pago_confirmado": True, "updated_at": datetime.utcnow()}}
+            )
+            return {"success": True, "reserva_id": reserva_id}
+        except Exception as e:
+            print(f"❌ Error confirmando pago MP: {e}")
+            return {"success": False, "error": str(e)}
     
     def _actualizar_dias_reserva(self, datos: dict, audit: dict):
         """Actualiza la colección dias para una reserva."""

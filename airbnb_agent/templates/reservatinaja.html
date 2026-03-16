@@ -256,8 +256,6 @@
                     <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
                         <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> MercadoPago</h4>
                         <p>Con MercadoPago la reserva es inmediata. La transacción se confirma de forma automática.</p>
-                        <p id="paso4-mercadopago-loading" style="display:none;color:#64748b;">Generando link de pago...</p>
-                        <p id="paso4-mercadopago-sin-url" style="display:none;color:#64748b;">Contacta por WhatsApp para recibir el link de pago MercadoPago.</p>
                     </div>
                 </div>
                 <div class="rtj-btn-row" style="margin-top:24px;">
@@ -315,7 +313,10 @@
         function getDescuentoTodo() { return totalNoches >= 4 ? 0.30 : 0.20; }
         const codigoReserva = "{{ reserva.codigo_reserva if reserva else '' }}";
         const mercadopagoHabilitado = {{ 'true' if mercadopago_habilitado else 'false' }};
+        const mercadopagoApiHabilitado = {{ 'true' if mercadopago_api_habilitado else 'false' }};
         const MERCADOPAGO_PRUEBA_VALOR = 1500; // PRUEBA: valor fijo para MercadoPago (quitar en prod)
+        const MERCADOPAGO_LINK = {{ mercadopago_link | tojson }};
+        const MERCADOPAGO_BOTONES = {{ (mercadopago_botones or []) | tojson }};
 
         let paso = 1;
         let seleccionTodo = false;
@@ -637,38 +638,9 @@
             const formaEl = document.getElementById('paso4-' + formaPago);
             if (formaEl) formaEl.style.display = 'block';
             if (formaPago === 'mercadopago') {
-                const loading = document.getElementById('paso4-mercadopago-loading');
-                const sinUrl = document.getElementById('paso4-mercadopago-sin-url');
-                mercadopagoInitPoint = '';
-                if (mercadopagoHabilitado) {
-                    document.getElementById('btn-confirmar').disabled = true;
-                    if (loading) loading.style.display = 'block';
-                    if (sinUrl) sinUrl.style.display = 'none';
-                    const valorMp = MERCADOPAGO_PRUEBA_VALOR;
-                    fetch('/api/reservatinaja/' + encodeURIComponent(codigoReserva) + '/mercadopago-preferencia', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ valor: valorMp, email: contactoEmail })
-                    }).then(r => r.json()).then(data => {
-                        if (loading) loading.style.display = 'none';
-                        if (data.success && data.init_point) {
-                            mercadopagoInitPoint = data.init_point;
-                            document.getElementById('btn-confirmar').disabled = false;
-                        } else {
-                            if (sinUrl) { sinUrl.style.display = 'block'; sinUrl.textContent = data.error || 'Error al generar link. Contacta por WhatsApp.'; }
-                        }
-                    }).catch(() => {
-                        if (loading) loading.style.display = 'none';
-                        if (sinUrl) { sinUrl.style.display = 'block'; sinUrl.textContent = 'Error de conexión. Contacta por WhatsApp.'; }
-                    });
-                } else {
-                    document.getElementById('btn-confirmar').disabled = false;
-                    if (loading) loading.style.display = 'none';
-                    if (sinUrl) sinUrl.style.display = 'block';
-                }
-            } else {
-                document.getElementById('btn-confirmar').disabled = false;
+                mercadopagoInitPoint = (MERCADOPAGO_BOTONES.length > 0 ? MERCADOPAGO_BOTONES[0].link : MERCADOPAGO_LINK);
             }
+            document.getElementById('btn-confirmar').disabled = false;
             mostrarPaso(4);
         });
 
@@ -685,16 +657,66 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    if (formaPago === 'mercadopago' && mercadopagoInitPoint) {
+                    if (formaPago === 'mercadopago') {
                         const paso4Mp = document.getElementById('paso4-mercadopago');
                         if (paso4Mp) {
-                            paso4Mp.innerHTML = `
+                            const totalMostrar = totalCalculado;
+                            let html = `
                                 <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
                                     <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Pagar con MercadoPago</h4>
-                                    <p>Haz clic en el botón para ir a MercadoPago y completar el pago.</p>
-                                    <p style="margin:24px 0;"><a href="${mercadopagoInitPoint}" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;padding:16px 32px;font-size:18px;">Pagar Reserva</a></p>
-                                </div>
-                            `;
+                                    <p>Tu total: <strong>$${totalMostrar.toLocaleString('es-CL')}</strong>. Elige el botón que corresponda:</p>`;
+                            if (MERCADOPAGO_BOTONES.length > 0) {
+                                html += `<div style="margin:20px 0;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">`;
+                                MERCADOPAGO_BOTONES.forEach(b => {
+                                    const dest = b.link || '';
+                                    const val = b.valor || 0;
+                                    const match = val === totalMostrar ? ' border:2px solid var(--available-color);' : '';
+                                    html += `<a href="${dest}" class="rtj-btn rtj-btn-primary" style="padding:16px 24px;font-size:16px;text-decoration:none;min-width:140px;${match}">Pagar $${val.toLocaleString('es-CL')}</a>`;
+                                });
+                                html += `</div>`;
+                                if (mercadopagoApiHabilitado) {
+                                    html += `<p style="margin-top:20px;"><a href="#" id="link-pago-api" style="display:inline-block;padding:12px 20px;background:#7c3aed;color:white;font-weight:600;text-decoration:none;font-size:0.95em;border-radius:8px;">Pagar con API (monto dinámico)</a></p>`;
+                                }
+                            } else {
+                                html += `
+                                    <div style="margin:20px 0;min-height:420px;">
+                                        <iframe src="${mercadopagoInitPoint}" style="width:100%;max-width:400px;height:420px;border:1px solid #e2e8f0;border-radius:12px;" title="Pago MercadoPago"></iframe>
+                                    </div>
+                                    <p style="font-size:0.9em;color:#94a3b8;">Si no ves el formulario arriba, <a href="${mercadopagoInitPoint}" target="_blank" rel="noopener">haz clic aquí para abrir MercadoPago</a>.</p>`;
+                                if (mercadopagoApiHabilitado) {
+                                    html += `<p style="margin-top:20px;"><a href="#" id="link-pago-api" style="display:inline-block;padding:12px 20px;background:#7c3aed;color:white;font-weight:600;text-decoration:none;font-size:0.95em;border-radius:8px;">Pagar con API (monto dinámico)</a></p>`;
+                                }
+                            }
+                            html += `</div>`;
+                            paso4Mp.innerHTML = html;
+                            const linkApi = document.getElementById('link-pago-api');
+                            if (linkApi && mercadopagoApiHabilitado) {
+                                linkApi.addEventListener('click', async (e) => {
+                                    e.preventDefault();
+                                    linkApi.style.pointerEvents = 'none';
+                                    linkApi.textContent = 'Generando...';
+                                    try {
+                                        const valorApi = totalCalculado;
+                                        const r = await fetch('/api/reservatinaja/' + encodeURIComponent(codigoReserva) + '/mercadopago-preferencia', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ valor: valorApi, email: contactoEmail })
+                                        });
+                                        const d = await r.json();
+                                        if (d.success && d.init_point) {
+                                            window.location.href = d.init_point;
+                                        } else {
+                                            alert(d.error || 'Error al generar link');
+                                            linkApi.style.pointerEvents = '';
+                                            linkApi.textContent = 'Pagar con API (monto dinámico)';
+                                        }
+                                    } catch (err) {
+                                        alert('Error de conexión');
+                                        linkApi.style.pointerEvents = '';
+                                        linkApi.textContent = 'Pagar con API (monto dinámico)';
+                                    }
+                                });
+                            }
                         }
                         document.getElementById('btn-confirmar')?.remove();
                     } else {

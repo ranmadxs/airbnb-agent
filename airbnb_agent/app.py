@@ -2,6 +2,7 @@
 Airbnb Agent - Calendario Visual de Reservas
 Solo endpoints Flask - lógica en services/
 """
+import json
 import os
 import calendar
 import tomllib
@@ -46,6 +47,17 @@ except Exception:
 PROPERTY_NAME = os.getenv('PROPERTY_NAME', 'Posada en el Bosque')
 MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN', '')
 MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY', '')
+MERCADOPAGO_LINK = os.getenv('MERCADOPAGO_LINK', 'https://link.mercadopago.cl/posadaenelbosque')
+# Botones con valores fijos (modelo híbrido): valor,link por botón. JSON: [{"valor":19500,"link":"https://mpago.la/1sRuP77"},...]
+_mp_botones_default = [
+    {"valor": 19500, "link": "https://mpago.la/1sRuP77"},
+    {"valor": 22400, "link": "https://mpago.la/23E1Z2w"},
+    {"valor": 19000, "link": "https://mpago.la/2e9WCsu"},
+]
+try:
+    MERCADOPAGO_BOTONES = json.loads(os.getenv('MERCADOPAGO_BOTONES', '[]')) or _mp_botones_default
+except Exception:
+    MERCADOPAGO_BOTONES = _mp_botones_default
 TIMEZONE = os.getenv('TIMEZONE', 'America/Santiago')
 
 
@@ -302,7 +314,10 @@ def reservatinaja(codigo_reserva):
                              error='Reserva no encontrada o no disponible',
                              version=APP_VERSION,
                              property_name=PROPERTY_NAME,
-                             mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN),
+                             mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN) or bool(MERCADOPAGO_LINK) or bool(MERCADOPAGO_BOTONES),
+                             mercadopago_api_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN),
+                             mercadopago_link=MERCADOPAGO_LINK,
+                             mercadopago_botones=MERCADOPAGO_BOTONES,
                              )
 
     start = date.fromisoformat(reserva['event_start'])
@@ -329,8 +344,49 @@ def reservatinaja(codigo_reserva):
                          paso=1,
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
-                         mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN),
+                         mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN) or bool(MERCADOPAGO_LINK) or bool(MERCADOPAGO_BOTONES),
+                         mercadopago_api_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN),
+                         mercadopago_link=MERCADOPAGO_LINK,
+                         mercadopago_botones=MERCADOPAGO_BOTONES,
                          retorno_mp=ret)
+
+
+@app.route('/api/mercadopago/webhook', methods=['POST'])
+def api_mercadopago_webhook():
+    """
+    Webhook para notificaciones de MercadoPago (payment.created, payment.updated).
+    Configurar en Tus integraciones > Webhooks > Pagos.
+    URL: https://tudominio.com/api/mercadopago/webhook
+    """
+    payment_id = request.args.get('data.id') or (request.get_json() or {}).get('data', {}).get('id')
+    if not payment_id:
+        return jsonify({"ok": False, "error": "No payment id"}), 400
+    if not MERCADOPAGO_ACCESS_TOKEN:
+        return jsonify({"ok": True}), 200  # Ack para que MP no reintente
+    try:
+        import mercadopago
+        sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
+        result = sdk.payment().get(payment_id)
+        payment = result.get("response", {})
+        status = payment.get("status")
+        if status != "approved":
+            return jsonify({"ok": True, "status": status}), 200
+        valor = int(payment.get("transaction_amount", 0) or 0)
+        external_ref = (payment.get("external_reference") or "").strip()
+        payer = payment.get("payer", {})
+        email = (payer.get("email") or "").strip()
+        res = db_service.confirmar_pago_mercadopago(
+            valor=valor,
+            email=email or None,
+            external_reference=external_ref or None,
+            mp_payment_id=str(payment_id),
+        )
+        if res.get("success"):
+            return jsonify({"ok": True, "matched": True, "reserva_id": res.get("reserva_id")}), 200
+        return jsonify({"ok": True, "matched": False, "msg": res.get("error", "No match")}), 200
+    except Exception as e:
+        print(f"❌ Webhook MP error: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route('/api/reservatinaja/<codigo_reserva>/mercadopago-preferencia', methods=['POST'])
