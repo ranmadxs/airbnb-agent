@@ -375,16 +375,34 @@ def api_mercadopago_webhook():
     Configurar en Tus integraciones > Webhooks > Pagos.
     URL: https://tudominio.com/api/mercadopago/webhook
     Clave secreta: MERCADOPAGO_WEBHOOK_SECRET en .env
+    Logs: webhook_logs (debugging) y mercadopago_webhooks (historial de payload crudo).
     """
-    payment_id = request.args.get('data.id') or (request.get_json() or {}).get('data', {}).get('id')
+    raw_body = request.get_json() or {}
+    payment_id = request.args.get('data.id') or raw_body.get('data', {}).get('id')
     if not payment_id:
         return jsonify({"ok": False, "error": "No payment id"}), 400
+
+    # Historial: guardar payload crudo en mercadopago_webhooks (sin relaciones)
+    query_params = dict(request.args) if request.args else {}
+    headers_sel = {
+        "x-signature": request.headers.get("x-signature", ""),
+        "x-request-id": request.headers.get("x-request-id", ""),
+        "content-type": request.headers.get("content-type", ""),
+    }
+    db_service.guardar_webhook_mercadopago(
+        mp_payment_id=str(payment_id),
+        raw_payload=raw_body,
+        query_params=query_params,
+        headers=headers_sel,
+    )
+
     if MERCADOPAGO_WEBHOOK_SECRET:
         x_sig = request.headers.get('x-signature', '')
         x_req = request.headers.get('x-request-id', '')
         if not _validar_firma_webhook_mp(payment_id, x_sig, x_req, MERCADOPAGO_WEBHOOK_SECRET):
             return jsonify({"ok": False, "error": "Firma inválida"}), 401
     if not MERCADOPAGO_ACCESS_TOKEN:
+        db_service.log_webhook_mp(payment_id, raw_body, {}, None, False, "MERCADOPAGO_ACCESS_TOKEN no configurado")
         return jsonify({"ok": True}), 200  # Ack para que MP no reintente
     try:
         import mercadopago
@@ -393,6 +411,7 @@ def api_mercadopago_webhook():
         payment = result.get("response", {})
         status = payment.get("status")
         if status != "approved":
+            db_service.log_webhook_mp(payment_id, raw_body, payment, status or "empty", False, f"status={status}")
             return jsonify({"ok": True, "status": status}), 200
         valor = int(payment.get("transaction_amount", 0) or 0)
         external_ref = (payment.get("external_reference") or "").strip()
@@ -405,10 +424,14 @@ def api_mercadopago_webhook():
             mp_payment_id=str(payment_id),
         )
         if res.get("success"):
+            db_service.log_webhook_mp(payment_id, raw_body, payment, status, True)
             return jsonify({"ok": True, "matched": True, "reserva_id": res.get("reserva_id")}), 200
-        return jsonify({"ok": True, "matched": False, "msg": res.get("error", "No match")}), 200
+        err = res.get("error", "No match")
+        db_service.log_webhook_mp(payment_id, raw_body, payment, status, False, err)
+        return jsonify({"ok": True, "matched": False, "msg": err}), 200
     except Exception as e:
         print(f"❌ Webhook MP error: {e}")
+        db_service.log_webhook_mp(payment_id, raw_body, {}, None, False, str(e))
         return jsonify({"ok": False, "error": str(e)}), 500
 
 

@@ -48,6 +48,8 @@ class DatabaseService:
                 self.dias = self.db["dias"]
                 self.personas = self.db["personas"]
                 self.transacciones = self.db["transacciones"]
+                self.webhook_logs = self.db["webhook_logs"]
+                self.mercadopago_webhooks = self.db["mercadopago_webhooks"]
                 
                 # Crear índices
                 self.reservas.create_index([("event_start", 1), ("event_end", 1)], unique=True)
@@ -679,6 +681,50 @@ class DatabaseService:
         except Exception as e:
             print(f"❌ Error confirmando pago MP: {e}")
             return {"success": False, "error": str(e)}
+
+    def guardar_webhook_mercadopago(self, mp_payment_id: str, raw_payload: dict, query_params: dict,
+                                   headers: dict) -> bool:
+        """
+        Guarda el webhook crudo de MercadoPago en mercadopago_webhooks (historial, sin relaciones).
+        mp_payment_id: ID de pago de MercadoPago (para consultas).
+        """
+        if not self.connect():
+            return False
+        try:
+            doc = {
+                "mp_payment_id": mp_payment_id,
+                "raw_payload": raw_payload,
+                "query_params": dict(query_params) if query_params else {},
+                "headers": dict(headers) if headers else {},
+                "created_at": datetime.utcnow(),
+            }
+            self.mercadopago_webhooks.insert_one(doc)
+            return True
+        except Exception as e:
+            print(f"❌ Error guardar webhook MP: {e}")
+            return False
+
+    def log_webhook_mp(self, payment_id: str, raw_body: dict, payment: dict, status: str,
+                       matched: bool, error_msg: str = None) -> bool:
+        """Guarda un log del webhook recibido para debugging (webhook_logs)."""
+        if not self.connect():
+            return False
+        try:
+            doc = {
+                "payment_id": payment_id,
+                "raw_body": raw_body,
+                "payment_status": status,
+                "payment_valor": payment.get("transaction_amount") if payment else None,
+                "payment_email": (payment.get("payer", {}).get("email") or "") if payment else "",
+                "matched": matched,
+                "error_msg": error_msg,
+                "created_at": datetime.utcnow(),
+            }
+            self.webhook_logs.insert_one(doc)
+            return True
+        except Exception as e:
+            print(f"❌ Error log webhook: {e}")
+            return False
     
     def _actualizar_dias_reserva(self, datos: dict, audit: dict):
         """Actualiza la colección dias para una reserva."""
