@@ -315,9 +315,6 @@ def reservatinaja(codigo_reserva):
                              error='Reserva no encontrada o no disponible',
                              version=APP_VERSION,
                              property_name=PROPERTY_NAME,
-                             mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN) or bool(MERCADOPAGO_LINK) or bool(MERCADOPAGO_BOTONES),
-                             mercadopago_link=MERCADOPAGO_LINK,
-                             mercadopago_botones=MERCADOPAGO_BOTONES,
                              )
 
     start = date.fromisoformat(reserva['event_start'])
@@ -336,7 +333,6 @@ def reservatinaja(codigo_reserva):
             'dia_semana': DIAS_SEMANA[f.weekday()],
         })
 
-    ret = request.args.get('status') or request.args.get('ret')  # status/ret: approved, rejected, pending (retorno MercadoPago)
     return render_template('reservatinaja.html',
                          reserva=reserva,
                          fechas=fechas_info,
@@ -344,10 +340,7 @@ def reservatinaja(codigo_reserva):
                          paso=1,
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
-                         mercadopago_habilitado=bool(MERCADOPAGO_ACCESS_TOKEN) or bool(MERCADOPAGO_LINK) or bool(MERCADOPAGO_BOTONES),
-                         mercadopago_link=MERCADOPAGO_LINK,
-                         mercadopago_botones=MERCADOPAGO_BOTONES,
-                         retorno_mp=ret)
+                         )
 
 
 def _validar_firma_webhook_mp(payment_id: str, x_signature: str, x_request_id: str, secret: str) -> bool:
@@ -401,87 +394,7 @@ def api_mercadopago_webhook():
         x_req = request.headers.get('x-request-id', '')
         if not _validar_firma_webhook_mp(payment_id, x_sig, x_req, MERCADOPAGO_WEBHOOK_SECRET):
             return jsonify({"ok": False, "error": "Firma inválida"}), 401
-    if not MERCADOPAGO_ACCESS_TOKEN:
-        db_service.log_webhook_mp(payment_id, raw_body, {}, None, False, "MERCADOPAGO_ACCESS_TOKEN no configurado")
-        return jsonify({"ok": True}), 200  # Ack para que MP no reintente
-    try:
-        import mercadopago
-        sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
-        result = sdk.payment().get(payment_id)
-        payment = result.get("response", {})
-        status = payment.get("status")
-        if status != "approved":
-            db_service.log_webhook_mp(payment_id, raw_body, payment, status or "empty", False, f"status={status}")
-            return jsonify({"ok": True, "status": status}), 200
-        valor = int(payment.get("transaction_amount", 0) or 0)
-        external_ref = (payment.get("external_reference") or "").strip()
-        payer = payment.get("payer", {})
-        email = (payer.get("email") or "").strip()
-        res = db_service.confirmar_pago_mercadopago(
-            valor=valor,
-            email=email or None,
-            external_reference=external_ref or None,
-            mp_payment_id=str(payment_id),
-        )
-        if res.get("success"):
-            db_service.log_webhook_mp(payment_id, raw_body, payment, status, True)
-            return jsonify({"ok": True, "matched": True, "reserva_id": res.get("reserva_id")}), 200
-        err = res.get("error", "No match")
-        db_service.log_webhook_mp(payment_id, raw_body, payment, status, False, err)
-        return jsonify({"ok": True, "matched": False, "msg": err}), 200
-    except Exception as e:
-        print(f"❌ Webhook MP error: {e}")
-        db_service.log_webhook_mp(payment_id, raw_body, {}, None, False, str(e))
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
-@app.route('/api/reservatinaja/<codigo_reserva>/mercadopago-preferencia', methods=['POST'])
-def api_reservatinaja_mercadopago_preferencia(codigo_reserva):
-    """API: Crea preferencia MercadoPago y retorna init_point (link de pago)."""
-    if not MERCADOPAGO_ACCESS_TOKEN:
-        return jsonify({"success": False, "error": "MercadoPago no configurado"}), 500
-
-    data = request.get_json() or {}
-    valor = int(data.get('valor', 0) or 0)
-    if valor <= 0:
-        return jsonify({"success": False, "error": "Valor inválido"})
-
-    reserva = db_service.obtener_reserva_por_codigo(codigo_reserva)
-    if not reserva or reserva.get('estado') != 'reservado':
-        return jsonify({"success": False, "error": "Reserva no encontrada"})
-
-    try:
-        import mercadopago
-        sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
-        base_url = request.url_root.rstrip('/')
-        preference_data = {
-            "items": [
-                {
-                    "title": "Tinaja - Posada en el Bosque",
-                    "quantity": 1,
-                    "unit_price": valor,
-                    "currency_id": "CLP"
-                }
-            ],
-            "back_urls": {
-                "success": f"{base_url}/reservatinaja/{codigo_reserva}",
-                "failure": f"{base_url}/reservatinaja/{codigo_reserva}",
-                "pending": f"{base_url}/reservatinaja/{codigo_reserva}"
-            },
-            "auto_return": "approved",
-            "external_reference": codigo_reserva
-        }
-        email = (data.get("email") or "").strip()
-        if email:
-            preference_data["payer"] = {"email": email}
-        response = sdk.preference().create(preference_data)
-        result = response.get("response", {})
-        init_point = result.get("init_point")
-        if init_point:
-            return jsonify({"success": True, "init_point": init_point})
-        return jsonify({"success": False, "error": result.get("message", "Error al crear preferencia")}), 500
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"ok": True}), 200  # Solo historial, sin procesar transacciones
 
 
 @app.route('/api/reservatinaja/<codigo_reserva>/confirmar', methods=['POST'])
@@ -499,7 +412,7 @@ def api_reservatinaja_confirmar(codigo_reserva):
     email = (data.get('email') or '').strip()
     whatsapp = (data.get('whatsapp') or '').strip()
     forma_pago = data.get('forma_pago') or 'transferencia'
-    if forma_pago not in ('airbnb', 'transferencia', 'mercadopago'):
+    if forma_pago not in ('airbnb', 'transferencia'):
         forma_pago = 'transferencia'
 
     if not email and not whatsapp:

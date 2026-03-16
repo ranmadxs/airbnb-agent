@@ -180,11 +180,11 @@
                 <div class="rtj-total-pagar" id="total-paso3"></div>
                 <div class="rtj-contacto-form">
                     <div class="rtj-form-group">
-                        <label for="rtj-email">📧 Email</label>
+                        <label for="rtj-email"><img src="{{ url_for('static', filename='images/icon-email.svg') }}" alt="" class="rtj-label-icon" style="width:20px;height:20px;vertical-align:middle;margin-right:4px;"> Email</label>
                         <input type="email" id="rtj-email" class="rtj-input" placeholder="ejemplo@correo.com" value="{{ reserva.get('extra_email', reserva.get('email', '')) if reserva else '' }}">
                     </div>
                     <div class="rtj-form-group">
-                        <label for="rtj-whatsapp">💬 WhatsApp</label>
+                        <label for="rtj-whatsapp"><img src="{{ url_for('static', filename='images/icon-whatsapp.svg') }}" alt="" class="rtj-label-icon" style="width:20px;height:20px;vertical-align:middle;margin-right:4px;"> WhatsApp</label>
                         <input type="text" id="rtj-whatsapp" class="rtj-input" placeholder="Ej: +56912345678" value="{{ reserva.get('extra_whatsapp', reserva.get('whatsapp', '')) if reserva else '' }}">
                     </div>
                     <p style="font-size:0.85em;color:#94a3b8;margin-top:8px;">Completa al menos uno. Te enviaremos los datos de pago según el medio que elijas.</p>
@@ -194,7 +194,6 @@
                     <div class="rtj-pago-botones-chicos">
                         <button type="button" class="rtj-pago-boton-chico" data-forma="airbnb"><img src="https://www.airbnb.com/favicon.ico" alt="" class="pago-logo-chico"> Airbnb</button>
                         <button type="button" class="rtj-pago-boton-chico" data-forma="transferencia"><span class="pago-icono-banco">🏦</span> Transferencia</button>
-                        <button type="button" class="rtj-pago-boton-chico" data-forma="mercadopago"><img src="https://www.mercadopago.cl/favicon.ico" alt="" class="pago-logo-chico"> MercadoPago</button>
                     </div>
                     <div class="rtj-pago-glosa" id="rtj-pago-glosa">
                         <div class="rtj-pago-glosa-content" id="glosa-airbnb" style="display:none;">
@@ -212,15 +211,6 @@
                                 <div class="detalle-row"><strong>Email:</strong> grineldosanchez@yahoo.es</div>
                                 <div class="detalle-row"><strong>WhatsApp:</strong> <a href="https://wa.me/56986825231" target="_blank" rel="noopener" onclick="event.stopPropagation()">+56 9 8682 5231</a></div>
                             </div>
-                        </div>
-                        <div class="rtj-pago-glosa-content" id="glosa-mercadopago" style="display:none;">
-                            <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> MercadoPago</h4>
-                            <p>Con MercadoPago la reserva es inmediata. La transacción se confirma de forma automática.</p>
-                            {% if mercadopago_habilitado %}
-                            <p>Al continuar se generará el link de pago.</p>
-                            {% else %}
-                            <p>Contacta por WhatsApp para recibir el link de pago MercadoPago.</p>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -252,12 +242,6 @@
                 <div id="paso4-airbnb" class="rtj-paso4-forma" style="display:none;">
                     <p style="margin-top:16px;color:#64748b;">Pago con la App de Airbnb. Se enviará solicitud de cobro en 24 hrs.</p>
                 </div>
-                <div id="paso4-mercadopago" class="rtj-paso4-forma" style="display:none;">
-                    <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
-                        <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> MercadoPago</h4>
-                        <p>Con MercadoPago la reserva es inmediata. La transacción se confirma de forma automática.</p>
-                    </div>
-                </div>
                 <div class="rtj-btn-row" style="margin-top:24px;">
                     <button type="button" class="rtj-btn rtj-btn-secondary" onclick="mostrarPaso(3)">← Volver</button>
                     <button class="rtj-btn rtj-btn-primary" id="btn-confirmar">Confirmar</button>
@@ -276,33 +260,6 @@
                 <a href="/" class="rtj-btn rtj-btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:24px;">Volver al inicio</a>
             </div>
 
-            <!-- Retorno desde MercadoPago (approved / rejected / pending) -->
-            {% if retorno_mp %}
-            <div id="paso-retorno-mp" class="rtj-paso" style="display:block;">
-                {% if retorno_mp == 'approved' %}
-                <div class="rtj-success">
-                    <div class="icon">✅</div>
-                    <h3>¡Pago aprobado!</h3>
-                    <p style="color:#64748b;margin-top:8px;">Tu pago con MercadoPago fue aprobado. Te enviaremos la confirmación por email.</p>
-                </div>
-                {% elif retorno_mp == 'rejected' %}
-                <div class="rtj-success" style="color:inherit;">
-                    <div class="icon">❌</div>
-                    <h3>Pago rechazado</h3>
-                    <p style="color:#64748b;margin-top:8px;">El pago no pudo completarse. Puedes intentar de nuevo con MercadoPago o elegir otra forma de pago.</p>
-                    <p style="font-size:0.85em;color:#94a3b8;margin-top:8px;">Si estás probando, usa las <a href="https://www.mercadopago.cl/developers/es/docs/checkout-api/integration-test/test-cards" target="_blank" rel="noopener">tarjetas de prueba</a> (ej. 5031 7557 3723 0604, nombre APRO).</p>
-                    <a href="/reservatinaja/{{ reserva.codigo_reserva }}" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-align:center;text-decoration:none;margin-top:16px;">Intentar de nuevo</a>
-                </div>
-                {% else %}
-                <div class="rtj-success" style="color:inherit;">
-                    <div class="icon">⏳</div>
-                    <h3>Pago pendiente</h3>
-                    <p style="color:#64748b;margin-top:8px;">Tu pago está en proceso. Te notificaremos cuando se confirme.</p>
-                </div>
-                {% endif %}
-                <a href="/" class="rtj-btn rtj-btn-secondary" style="display:block;text-align:center;text-decoration:none;margin-top:24px;">Volver al inicio</a>
-            </div>
-            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -312,10 +269,6 @@
         function getPrecioPorNoche() { return totalNoches >= 4 ? 12000 : 14000; }
         function getDescuentoTodo() { return totalNoches >= 4 ? 0.30 : 0.20; }
         const codigoReserva = "{{ reserva.codigo_reserva if reserva else '' }}";
-        const mercadopagoHabilitado = {{ 'true' if mercadopago_habilitado else 'false' }};
-        const MERCADOPAGO_PRUEBA_VALOR = 1500; // PRUEBA: valor fijo para MercadoPago (quitar en prod)
-        const MERCADOPAGO_LINK = {{ mercadopago_link | tojson }};
-        const MERCADOPAGO_BOTONES = {{ (mercadopago_botones or []) | tojson }};
 
         let paso = 1;
         let seleccionTodo = false;
@@ -326,16 +279,18 @@
         let contactoEmail = '';
         let contactoWhatsapp = '';
         let formaPago = '';
-        let mercadopagoInitPoint = '';
 
         const fechasData = {{ fechas | tojson if fechas else '[]' }};
         const totalNoches = fechasData.length;
 
         function mostrarPaso(p) {
             paso = p;
-            document.querySelectorAll('.rtj-paso').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.rtj-paso').forEach(el => { el.style.display = 'none'; });
             const el = document.getElementById('paso-' + p);
-            if (el) el.style.display = 'block';
+            if (el) {
+                el.style.display = 'block';
+                if (p === 'exito') el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
             document.querySelectorAll('.rtj-step-dot').forEach((dot, i) => {
                 dot.classList.remove('active', 'done');
                 if (p === 'exito') {
@@ -623,7 +578,7 @@
                     ? `<div class="rtj-resumen-row"><span>Leña</span><span>$${leñaTotal.toLocaleString('es-CL')}</span></div>`
                     : `<div class="rtj-resumen-row"><span>Leña</span><span>Incluido</span></div>`;
             }
-            const formaNombre = { airbnb: 'App Airbnb', transferencia: 'Transferencia', mercadopago: 'MercadoPago' }[formaPago] || formaPago;
+            const formaNombre = { airbnb: 'App Airbnb', transferencia: 'Transferencia' }[formaPago] || formaPago;
             if (contactoEmail) rows += `<div class="rtj-resumen-row"><span>Email</span><span>${contactoEmail}</span></div>`;
             if (contactoWhatsapp) rows += `<div class="rtj-resumen-row"><span>WhatsApp</span><span>${contactoWhatsapp}</span></div>`;
             rows += `<div class="rtj-resumen-row"><span>Forma de pago</span><span>${formaNombre}</span></div>`;
@@ -636,9 +591,6 @@
             document.querySelectorAll('.rtj-paso4-forma').forEach(el => el.style.display = 'none');
             const formaEl = document.getElementById('paso4-' + formaPago);
             if (formaEl) formaEl.style.display = 'block';
-            if (formaPago === 'mercadopago') {
-                mercadopagoInitPoint = (MERCADOPAGO_BOTONES.length > 0 ? MERCADOPAGO_BOTONES[0].link : MERCADOPAGO_LINK);
-            }
             document.getElementById('btn-confirmar').disabled = false;
             mostrarPaso(4);
         });
@@ -647,7 +599,7 @@
             const btn = document.getElementById('btn-confirmar');
             btn.disabled = true;
             btn.textContent = 'Procesando...';
-            const valorConfirmar = formaPago === 'mercadopago' ? MERCADOPAGO_PRUEBA_VALOR : totalCalculado;
+            const valorConfirmar = totalCalculado;
             try {
                 const res = await fetch('/api/reservatinaja/' + codigoReserva + '/confirmar', {
                     method: 'POST',
@@ -655,41 +607,16 @@
                     body: JSON.stringify({ valor: valorConfirmar, concepto: 'Tinaja', email: contactoEmail, whatsapp: contactoWhatsapp, forma_pago: formaPago })
                 });
                 const data = await res.json();
-                if (data.success) {
-                    if (formaPago === 'mercadopago') {
-                        const paso4Mp = document.getElementById('paso4-mercadopago');
-                        if (paso4Mp) {
-                            const totalMostrar = totalCalculado;
-                            const botonMatch = MERCADOPAGO_BOTONES.find(b => (b.valor || 0) === totalMostrar);
-                            let html = `
-                                <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
-                                    <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Pagar con MercadoPago</h4>
-                                    <p>Tu total: <strong>$${totalMostrar.toLocaleString('es-CL')}</strong>.</p>`;
-                            if (botonMatch) {
-                                html += `<p style="margin:20px 0;"><a href="${botonMatch.link || ''}" class="rtj-btn rtj-btn-primary" style="display:inline-block;padding:16px 32px;font-size:18px;text-decoration:none;">Pagar $${totalMostrar.toLocaleString('es-CL')}</a></p>`;
-                            } else {
-                                html += `
-                                    <p>Ingresa el monto en el formulario de MercadoPago:</p>
-                                    <div style="margin:20px 0;min-height:420px;">
-                                        <iframe src="${MERCADOPAGO_LINK}" style="width:100%;max-width:400px;height:420px;border:1px solid #e2e8f0;border-radius:12px;" title="Pago MercadoPago"></iframe>
-                                    </div>
-                                    <p style="font-size:0.9em;color:#94a3b8;">Si no ves el formulario arriba, <a href="${MERCADOPAGO_LINK}" target="_blank" rel="noopener">haz clic aquí para abrir MercadoPago</a>.</p>`;
-                            }
-                            html += `</div>`;
-                            paso4Mp.innerHTML = html;
-                        }
-                        document.getElementById('btn-confirmar')?.remove();
-                    } else {
-                        document.getElementById('total-pagar-texto').textContent = 'Total a pagar: $' + totalCalculado.toLocaleString('es-CL');
-                        const exitoEl = document.getElementById('pago-opciones-exito');
-                        if (exitoEl) {
-                            let html = '<p>Te enviaremos los datos de pago a:</p>';
-                            if (contactoEmail) html += `<p><strong>Email:</strong> ${contactoEmail}</p>`;
-                            if (contactoWhatsapp) html += `<p><strong>WhatsApp:</strong> ${contactoWhatsapp}</p>`;
-                            exitoEl.innerHTML = html;
-                        }
-                        mostrarPaso('exito');
+                if (res.ok && data.success) {
+                    document.getElementById('total-pagar-texto').textContent = 'Total a pagar: $' + totalCalculado.toLocaleString('es-CL');
+                    const exitoEl = document.getElementById('pago-opciones-exito');
+                    if (exitoEl) {
+                        let html = '<p>Te enviaremos los datos de pago a:</p>';
+                        if (contactoEmail) html += `<p><strong>Email:</strong> ${contactoEmail}</p>`;
+                        if (contactoWhatsapp) html += `<p><strong>WhatsApp:</strong> ${contactoWhatsapp}</p>`;
+                        exitoEl.innerHTML = html;
                     }
+                    mostrarPaso('exito');
                 } else {
                     alert(data.error || 'Error al confirmar');
                     btn.disabled = false;
