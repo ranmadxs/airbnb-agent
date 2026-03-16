@@ -432,6 +432,9 @@
                 return;
             }
 
+            if (nochesSeleccionadas.length < totalNoches && opcionTodo) {
+                opcionTodo.classList.remove('selected');
+            }
             seleccionTodo = opcionTodo?.classList.contains('selected') || false;
 
             if (seleccionTodo && totalNoches > 1) {
