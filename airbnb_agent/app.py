@@ -47,6 +47,7 @@ except Exception:
 PROPERTY_NAME = os.getenv('PROPERTY_NAME', 'Posada en el Bosque')
 MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN', '')
 MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY', '')
+MERCADOPAGO_WEBHOOK_SECRET = os.getenv('MERCADOPAGO_WEBHOOK_SECRET', '')
 MERCADOPAGO_LINK = os.getenv('MERCADOPAGO_LINK', 'https://link.mercadopago.cl/posadaenelbosque')
 # Botones con valores fijos (modelo híbrido): valor,link por botón. JSON: [{"valor":19500,"link":"https://mpago.la/1sRuP77"},...]
 _mp_botones_default = [
@@ -349,16 +350,40 @@ def reservatinaja(codigo_reserva):
                          retorno_mp=ret)
 
 
+def _validar_firma_webhook_mp(payment_id: str, x_signature: str, x_request_id: str, secret: str) -> bool:
+    """Valida x-signature de MercadoPago. Manifest: id:{id};request-id:{req_id};ts:{ts};"""
+    if not secret:
+        return True  # Sin secret configurado, no validar
+    if not x_signature:
+        return False
+    import hmac
+    import hashlib
+    parts = {p.split('=')[0]: p.split('=', 1)[1] for p in x_signature.split(',') if '=' in p}
+    ts = parts.get('ts', '')
+    v1 = parts.get('v1', '')
+    if not ts or not v1:
+        return False
+    manifest = f"id:{payment_id};request-id:{x_request_id};ts:{ts};"
+    expected = hmac.new(secret.encode(), manifest.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, v1)
+
+
 @app.route('/api/mercadopago/webhook', methods=['POST'])
 def api_mercadopago_webhook():
     """
     Webhook para notificaciones de MercadoPago (payment.created, payment.updated).
     Configurar en Tus integraciones > Webhooks > Pagos.
     URL: https://tudominio.com/api/mercadopago/webhook
+    Clave secreta: MERCADOPAGO_WEBHOOK_SECRET en .env
     """
     payment_id = request.args.get('data.id') or (request.get_json() or {}).get('data', {}).get('id')
     if not payment_id:
         return jsonify({"ok": False, "error": "No payment id"}), 400
+    if MERCADOPAGO_WEBHOOK_SECRET:
+        x_sig = request.headers.get('x-signature', '')
+        x_req = request.headers.get('x-request-id', '')
+        if not _validar_firma_webhook_mp(payment_id, x_sig, x_req, MERCADOPAGO_WEBHOOK_SECRET):
+            return jsonify({"ok": False, "error": "Firma inválida"}), 401
     if not MERCADOPAGO_ACCESS_TOKEN:
         return jsonify({"ok": True}), 200  # Ack para que MP no reintente
     try:
