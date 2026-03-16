@@ -309,6 +309,7 @@
         {% endif %}
     </div>
 
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@gh-pages/qrcode.min.js"></script>
     <script>
         const PRECIO_1_NOCHE = 14500;
         function getPrecioPorNoche() { return totalNoches >= 4 ? 12000 : 14000; }
@@ -686,19 +687,25 @@
                 const data = await res.json();
                 if (data.success) {
                     if (formaPago === 'mercadopago' && mercadopagoInitPoint) {
+                        window.open(mercadopagoInitPoint, '_blank', 'noopener');
                         const paso4Mp = document.getElementById('paso4-mercadopago');
                         if (paso4Mp) {
-                            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(mercadopagoInitPoint);
                             paso4Mp.innerHTML = `
                                 <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
-                                    <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Escanea para pagar</h4>
-                                    <p>Escanea el código QR con la app de MercadoPago o la cámara de tu celular para completar el pago.</p>
+                                    <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Esperando tu pago</h4>
+                                    <p>Se abrió MercadoPago en una nueva ventana. Si no se abrió o prefieres pagar desde tu celular, escanea el QR:</p>
                                     <div style="margin:20px 0;text-align:center;">
-                                        <img src="${qrUrl}" alt="QR MercadoPago" style="max-width:220px;height:auto;border-radius:8px;">
+                                        <div id="qr-mercadopago" style="display:inline-block;padding:12px;background:#fff;border-radius:12px;"></div>
                                     </div>
-                                    <p style="font-size:0.85em;color:#94a3b8;">Si prefieres pagar en esta computadora, <a href="${mercadopagoInitPoint}" target="_blank" rel="noopener">abre el link aquí</a>.</p>
+                                    <p style="margin-top:16px;"><a href="${mercadopagoInitPoint}" target="_blank" rel="noopener" class="rtj-btn rtj-btn-primary" style="display:inline-block;text-decoration:none;">Abrir MercadoPago</a></p>
                                 </div>
                             `;
+                            const qrEl = document.getElementById('qr-mercadopago');
+                            if (qrEl && typeof QRCode !== 'undefined') {
+                                try {
+                                    new QRCode(qrEl, { text: mercadopagoInitPoint, width: 200, height: 200 });
+                                } catch (e) { qrEl.innerHTML = '<p style="color:#94a3b8;font-size:0.9em;">QR no disponible. Usa el botón de arriba.</p>'; }
+                            }
                         }
                         document.getElementById('btn-confirmar')?.remove();
                     } else {
