@@ -315,6 +315,8 @@ def reservatinaja(codigo_reserva):
                              error='Reserva no encontrada o no disponible',
                              version=APP_VERSION,
                              property_name=PROPERTY_NAME,
+                             mercadopago_botones=MERCADOPAGO_BOTONES,
+                             mercadopago_link=MERCADOPAGO_LINK,
                              )
 
     start = date.fromisoformat(reserva['event_start'])
@@ -340,6 +342,8 @@ def reservatinaja(codigo_reserva):
                          paso=1,
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
+                         mercadopago_botones=MERCADOPAGO_BOTONES,
+                         mercadopago_link=MERCADOPAGO_LINK,
                          )
 
 
@@ -394,7 +398,38 @@ def api_mercadopago_webhook():
         x_req = request.headers.get('x-request-id', '')
         if not _validar_firma_webhook_mp(payment_id, x_sig, x_req, MERCADOPAGO_WEBHOOK_SECRET):
             return jsonify({"ok": False, "error": "Firma inválida"}), 401
-    return jsonify({"ok": True}), 200  # Solo historial, sin procesar transacciones
+    if not MERCADOPAGO_ACCESS_TOKEN:
+        db_service.log_webhook_mp(payment_id, raw_body, {}, None, False, "MERCADOPAGO_ACCESS_TOKEN no configurado")
+        return jsonify({"ok": True}), 200
+    try:
+        import mercadopago
+        sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
+        result = sdk.payment().get(payment_id)
+        payment = result.get("response", {})
+        status = payment.get("status")
+        if status != "approved":
+            db_service.log_webhook_mp(payment_id, raw_body, payment, status or "empty", False, f"status={status}")
+            return jsonify({"ok": True, "status": status}), 200
+        valor = int(payment.get("transaction_amount", 0) or 0)
+        external_ref = (payment.get("external_reference") or "").strip()
+        payer = payment.get("payer", {})
+        email = (payer.get("email") or "").strip()
+        res = db_service.confirmar_pago_mercadopago(
+            valor=valor,
+            email=email or None,
+            external_reference=external_ref or None,
+            mp_payment_id=str(payment_id),
+        )
+        if res.get("success"):
+            db_service.log_webhook_mp(payment_id, raw_body, payment, status, True)
+            return jsonify({"ok": True, "matched": True, "reserva_id": res.get("reserva_id")}), 200
+        err = res.get("error", "No match")
+        db_service.log_webhook_mp(payment_id, raw_body, payment, status, False, err)
+        return jsonify({"ok": True, "matched": False, "msg": err}), 200
+    except Exception as e:
+        print(f"❌ Webhook MP error: {e}")
+        db_service.log_webhook_mp(payment_id, raw_body, {}, None, False, str(e))
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route('/api/reservatinaja/<codigo_reserva>/confirmar', methods=['POST'])
@@ -412,7 +447,7 @@ def api_reservatinaja_confirmar(codigo_reserva):
     email = (data.get('email') or '').strip()
     whatsapp = (data.get('whatsapp') or '').strip()
     forma_pago = data.get('forma_pago') or 'transferencia'
-    if forma_pago not in ('airbnb', 'transferencia'):
+    if forma_pago not in ('airbnb', 'transferencia', 'mercadopago'):
         forma_pago = 'transferencia'
 
     if not email and not whatsapp:

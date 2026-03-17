@@ -1087,8 +1087,8 @@
         // Estado de navegación - inicia en mes actual
         let currentYear = {{ current.year }};
         let currentMonth = {{ current.month }};
-        const minYear = 2025, minMonth = 12;
-        const maxYear = 2027, maxMonth = 12;
+        const minYear = {{ current.year }} - 1, minMonth = 1;
+        const maxYear = {{ current.year }} + 2, maxMonth = 12;
         
         // Variables para almacenar gastos del mes (para marcar en calendario)
         let gastosAguaMes = [];
@@ -2737,7 +2737,10 @@
         async function cargarGastosAguaMes(year, month) {
             try {
                 const res = await fetch(`/api/gastos/agua?year=${year}&month=${month}`);
-                const data = res.ok ? await res.json() : { gastos: [] };
+                let data = { gastos: [] };
+                if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+                    data = await res.json();
+                }
                 if (currentYear !== year || currentMonth !== month) return;
                 gastosAguaMes = data.gastos || [];
                 const totalMes = gastosAguaMes.reduce((sum, g) => sum + (g.valor || 0), 0);
@@ -2756,7 +2759,10 @@
         async function cargarGastosInternetMes(year, month) {
             try {
                 const res = await fetch(`/api/gastos/internet?year=${year}&month=${month}`);
-                const data = res.ok ? await res.json() : { gastos: [] };
+                let data = { gastos: [] };
+                if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+                    data = await res.json();
+                }
                 if (currentYear !== year || currentMonth !== month) return;
                 gastosInternetMes = data.gastos || [];
                 const totalMes = gastosInternetMes.reduce((sum, g) => sum + (g.valor || 0), 0);
@@ -2775,7 +2781,10 @@
         async function cargarGastosGasolinaMes(year, month) {
             try {
                 const res = await fetch(`/api/gastos/gasolina?year=${year}&month=${month}`);
-                const data = res.ok ? await res.json() : { gastos: [] };
+                let data = { gastos: [] };
+                if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+                    data = await res.json();
+                }
                 if (currentYear !== year || currentMonth !== month) return;
                 gastosGasolinaMes = data.gastos || [];
                 const totalMes = gastosGasolinaMes.reduce((sum, g) => sum + (g.valor || 0), 0);
@@ -2794,7 +2803,10 @@
         async function cargarGastosAseoMes(year, month) {
             try {
                 const res = await fetch(`/api/gastos/aseo?year=${year}&month=${month}`);
-                const data = res.ok ? await res.json() : { gastos: [] };
+                let data = { gastos: [] };
+                if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+                    data = await res.json();
+                }
                 if (currentYear !== year || currentMonth !== month) return;
                 gastosAseoMes = data.gastos || [];
                 const totalMes = gastosAseoMes.reduce((sum, g) => sum + (g.valor || 0), 0);
@@ -2812,7 +2824,10 @@
         async function cargarGastosOtrosMes(year, month) {
             try {
                 const res = await fetch(`/api/gastos/otros?year=${year}&month=${month}`);
-                const data = res.ok ? await res.json() : { gastos: [] };
+                let data = { gastos: [] };
+                if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+                    data = await res.json();
+                }
                 if (currentYear !== year || currentMonth !== month) return;
                 gastosOtrosMes = data.gastos || [];
                 const totalMes = gastosOtrosMes.reduce((sum, g) => sum + (g.valor || 0), 0);
@@ -2830,7 +2845,10 @@
         async function cargarGastosElectricidadMes(year, month) {
             try {
                 const res = await fetch(`/api/gastos/electricidad?year=${year}&month=${month}`);
-                const data = res.ok ? await res.json() : { gastos: [] };
+                let data = { gastos: [] };
+                if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+                    data = await res.json();
+                }
                 if (currentYear !== year || currentMonth !== month) return;
                 gastosElectricidadMes = data.gastos || [];
                 const totalMes = gastosElectricidadMes.reduce((sum, g) => sum + (g.valor || 0), 0);
@@ -3115,9 +3133,20 @@
         }
         
         // Inicializar: cargar mes (incluye gastos e ingresos) para tener datos al entrar
-        (async () => {
-            await cargarMes(currentYear, currentMonth);
-        })();
+        function initCalendario() {
+            (async () => {
+                try {
+                    await cargarMes(currentYear, currentMonth);
+                } catch (e) {
+                    console.error('Error inicializando calendario:', e);
+                }
+            })();
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCalendario);
+        } else {
+            initCalendario();
+        }
         
         // ============================================================
         // FILTROS DE RESERVAS

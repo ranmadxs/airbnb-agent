@@ -80,6 +80,8 @@
         .rtj-fotos-tinaja img { flex: 1 1 0; width: 0; min-width: 0; aspect-ratio: 4/3; border-radius: 12px; object-fit: cover; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
         .rtj-btn-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
         .rtj-btn-row .rtj-btn { margin-top: 0; flex: 1; min-width: 120px; }
+        .rtj-btn-mp { background: #009ee3 !important; color: #fff !important; }
+        .rtj-btn-mp:hover { background: #0088c7 !important; color: #fff !important; }
         .rtj-btn-secondary { background: #e2e8f0; color: var(--airbnb-dark); }
         .rtj-btn-secondary:hover { background: #cbd5e1; }
         .rtj-pago-botones-chicos { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -194,11 +196,16 @@
                     <div class="rtj-pago-botones-chicos">
                         <button type="button" class="rtj-pago-boton-chico" data-forma="airbnb"><img src="https://www.airbnb.com/favicon.ico" alt="" class="pago-logo-chico"> Airbnb</button>
                         <button type="button" class="rtj-pago-boton-chico" data-forma="transferencia"><span class="pago-icono-banco">🏦</span> Transferencia</button>
+                        <button type="button" class="rtj-pago-boton-chico" id="btn-mercadopago" data-forma="mercadopago" style="display:none;"><img src="https://www.mercadopago.cl/favicon.ico" alt="" class="pago-logo-chico"> MercadoPago</button>
                     </div>
                     <div class="rtj-pago-glosa" id="rtj-pago-glosa">
                         <div class="rtj-pago-glosa-content" id="glosa-airbnb" style="display:none;">
                             <h4><img src="https://www.airbnb.com/favicon.ico" alt="Airbnb" class="pago-logo"> Pago con la App de Airbnb</h4>
                             <p>Opción de cargo directo en la app de Airbnb. Se envía una solicitud de cobro dentro de las 24 hrs. Debe ser cancelada si no se paga dentro de 72 hrs.</p>
+                        </div>
+                        <div class="rtj-pago-glosa-content" id="glosa-mercadopago" style="display:none;">
+                            <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> MercadoPago</h4>
+                            <p>Con MercadoPago la reserva es inmediata. La transacción se confirma de forma automática.</p>
                         </div>
                         <div class="rtj-pago-glosa-content" id="glosa-transferencia" style="display:none;">
                             <h4>Transferencia bancaria (Cuenta corriente)</h4>
@@ -242,6 +249,12 @@
                 <div id="paso4-airbnb" class="rtj-paso4-forma" style="display:none;">
                     <p style="margin-top:16px;color:#64748b;">Pago con la App de Airbnb. Se enviará solicitud de cobro en 24 hrs.</p>
                 </div>
+                <div id="paso4-mercadopago" class="rtj-paso4-forma" style="display:none;">
+                    <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
+                        <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> MercadoPago</h4>
+                        <p>Con MercadoPago la reserva es inmediata. La transacción se confirma de forma automática.</p>
+                    </div>
+                </div>
                 <div class="rtj-btn-row" style="margin-top:24px;">
                     <button type="button" class="rtj-btn rtj-btn-secondary" onclick="mostrarPaso(3)">← Volver</button>
                     <button class="rtj-btn rtj-btn-primary" id="btn-confirmar">Confirmar</button>
@@ -269,6 +282,8 @@
         function getPrecioPorNoche() { return totalNoches >= 4 ? 12000 : 14000; }
         function getDescuentoTodo() { return totalNoches >= 4 ? 0.30 : 0.20; }
         const codigoReserva = "{{ reserva.codigo_reserva if reserva else '' }}";
+        const MERCADOPAGO_BOTONES = {{ (mercadopago_botones or []) | tojson }};
+        const MERCADOPAGO_LINK = {{ mercadopago_link | tojson }};
 
         let paso = 1;
         let seleccionTodo = false;
@@ -537,6 +552,9 @@
             document.querySelectorAll('.rtj-pago-boton-chico').forEach(el => el.classList.remove('selected'));
             document.querySelectorAll('.rtj-pago-glosa-content').forEach(g => g.style.display = 'none');
             document.getElementById('rtj-pago-glosa').classList.remove('visible');
+            const btnMp = document.getElementById('btn-mercadopago');
+            const totalCoincide = MERCADOPAGO_BOTONES.some(b => (b.valor || 0) === totalCalculado);
+            if (btnMp) btnMp.style.display = totalCoincide ? '' : 'none';
             actualizarBtnPaso3();
             mostrarPaso(3);
         });
@@ -578,7 +596,7 @@
                     ? `<div class="rtj-resumen-row"><span>Leña</span><span>$${leñaTotal.toLocaleString('es-CL')}</span></div>`
                     : `<div class="rtj-resumen-row"><span>Leña</span><span>Incluido</span></div>`;
             }
-            const formaNombre = { airbnb: 'App Airbnb', transferencia: 'Transferencia' }[formaPago] || formaPago;
+            const formaNombre = { airbnb: 'App Airbnb', transferencia: 'Transferencia', mercadopago: 'MercadoPago' }[formaPago] || formaPago;
             if (contactoEmail) rows += `<div class="rtj-resumen-row"><span>Email</span><span>${contactoEmail}</span></div>`;
             if (contactoWhatsapp) rows += `<div class="rtj-resumen-row"><span>WhatsApp</span><span>${contactoWhatsapp}</span></div>`;
             rows += `<div class="rtj-resumen-row"><span>Forma de pago</span><span>${formaNombre}</span></div>`;
@@ -587,11 +605,12 @@
             `;
             resumen.innerHTML = rows;
 
-            // Paso 4 dinámico según forma de pago (pantalla de pago sin confirmar aún)
+            // Paso 4 dinámico según forma de pago
             document.querySelectorAll('.rtj-paso4-forma').forEach(el => el.style.display = 'none');
             const formaEl = document.getElementById('paso4-' + formaPago);
             if (formaEl) formaEl.style.display = 'block';
             document.getElementById('btn-confirmar').disabled = false;
+            document.getElementById('btn-confirmar').style.display = '';
             mostrarPaso(4);
         });
 
@@ -608,15 +627,29 @@
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    document.getElementById('total-pagar-texto').textContent = 'Total a pagar: $' + totalCalculado.toLocaleString('es-CL');
-                    const exitoEl = document.getElementById('pago-opciones-exito');
-                    if (exitoEl) {
-                        let html = '<p>Te enviaremos los datos de pago a:</p>';
-                        if (contactoEmail) html += `<p><strong>Email:</strong> ${contactoEmail}</p>`;
-                        if (contactoWhatsapp) html += `<p><strong>WhatsApp:</strong> ${contactoWhatsapp}</p>`;
-                        exitoEl.innerHTML = html;
+                    if (formaPago === 'mercadopago') {
+                        const botonMatch = MERCADOPAGO_BOTONES.find(b => (b.valor || 0) === totalCalculado);
+                        const paso4Mp = document.getElementById('paso4-mercadopago');
+                        if (paso4Mp && botonMatch) {
+                            paso4Mp.innerHTML = `
+                                <div class="rtj-pago-descripcion visible" style="margin-top:16px;">
+                                    <h4><img src="https://www.mercadopago.cl/favicon.ico" alt="MercadoPago" class="pago-logo"> Pagar con MercadoPago</h4>
+                                    <p>Tu total: <strong>$${totalCalculado.toLocaleString('es-CL')}</strong>.</p>
+                                    <p style="margin:20px 0;"><a href="${botonMatch.link || ''}" class="rtj-btn rtj-btn-primary rtj-btn-mp" style="display:inline-block;padding:16px 32px;font-size:18px;text-decoration:none;">Pagar $${totalCalculado.toLocaleString('es-CL')}</a></p>
+                                </div>`;
+                        }
+                        document.getElementById('btn-confirmar')?.remove();
+                    } else {
+                        document.getElementById('total-pagar-texto').textContent = 'Total a pagar: $' + totalCalculado.toLocaleString('es-CL');
+                        const exitoEl = document.getElementById('pago-opciones-exito');
+                        if (exitoEl) {
+                            let html = '<p>Te enviaremos los datos de pago a:</p>';
+                            if (contactoEmail) html += `<p><strong>Email:</strong> ${contactoEmail}</p>`;
+                            if (contactoWhatsapp) html += `<p><strong>WhatsApp:</strong> ${contactoWhatsapp}</p>`;
+                            exitoEl.innerHTML = html;
+                        }
+                        mostrarPaso('exito');
                     }
-                    mostrarPaso('exito');
                 } else {
                     alert(data.error || 'Error al confirmar');
                     btn.disabled = false;
