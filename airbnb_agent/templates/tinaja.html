@@ -112,6 +112,11 @@
                                 {% endif %}
                                 <div class="reservation-info">
                                     <span>{% if event.nombre_huesped %}{{ event.nombre_huesped }}{% else %}{{ event.summary }}{% endif %}</span>
+                                    {% if event.codigo_reserva %}
+                                    <a href="{{ url_for('reservatinaja', codigo_reserva=event.codigo_reserva) }}" class="tinaja-link" target="_blank" rel="noopener" title="{% if event.extra_pago_confirmado %}Tinaja pagada{% else %}Reservar/ver tinaja{% endif %}">
+                                        {% if event.extra_pago_confirmado %}🔗 Pagada ✓{% else %}🔗 Pendiente{% endif %}
+                                    </a>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}

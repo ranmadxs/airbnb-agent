@@ -101,6 +101,11 @@
         .rtj-pago-glosa a:hover { text-decoration: underline; }
         .rtj-pago-glosa .pago-logo { width: 24px; height: 24px; object-fit: contain; }
         .rtj-pago-opcion .pago-logo { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+        .rtj-tinaja-reservada { padding: 24px; text-align: center; }
+        .rtj-tinaja-reservada .rtj-status-ok { color: #059669; font-size: 2.5em; margin-bottom: 12px; }
+        .rtj-tinaja-reservada .rtj-valor { font-size: 1.2em; font-weight: 700; color: var(--airbnb-dark); margin: 12px 0; }
+        .rtj-btn-cancelar { background: #dc2626 !important; color: white !important; margin-top: 16px; }
+        .rtj-btn-cancelar:hover { background: #b91c1c !important; color: white !important; }
     </style>
 </head>
 <body>
@@ -109,32 +114,64 @@
         <div class="rtj-card">
             <div class="rtj-error">
                 <p>{{ error }}</p>
-                <a href="/" class="rtj-btn rtj-btn-primary" style="margin-top:16px;display:inline-block;text-decoration:none;text-align:center;">Volver al inicio</a>
             </div>
         </div>
         {% else %}
         <div class="rtj-header">
-            <h1>🛁 Reservar Tinaja</h1>
+            <h1>🛁 {% if tinaja_reservada %}Tinaja{% else %}Reservar Tinaja{% endif %}</h1>
             <p style="color:#64748b;font-size:0.95em;">{{ property_name }} v{{ version }}</p>
         </div>
 
+        {% if tinaja_reservada %}
+        <div class="rtj-card">
+            <div class="rtj-tinaja-reservada">
+                <div class="rtj-status-ok">✅</div>
+                <h2 style="font-size:1.2em;margin-bottom:8px;">Tinaja reservada</h2>
+                <p style="color:#64748b;font-size:0.95em;">Tu reserva de tinaja está confirmada para tu estadía.</p>
+                <p class="rtj-valor">Valor: ${{ "{:,.0f}".format(reserva.extra_valor or 0).replace(",", ".") }}</p>
+                <p style="font-size:0.9em;color:#64748b;">Check-in: {{ reserva.event_start }} → Check-out: {{ reserva.event_end }}</p>
+                {% if puede_cancelar %}
+                <p style="font-size:0.85em;color:#64748b;margin-top:16px;">Puedes cancelar hasta 2 días antes del check-in ({{ fecha_cancelar_tope }}).</p>
+                <button type="button" class="rtj-btn rtj-btn-cancelar" id="btn-cancelar-tinaja">Cancelar tinaja</button>
+                {% else %}
+                <p style="font-size:0.9em;color:#dc2626;margin-top:16px;">Ya no puedes cancelar. El plazo era hasta el {{ fecha_cancelar_tope }} (2 días antes del check-in).</p>
+                {% endif %}
+            </div>
+        </div>
+        {% elif puede_reservar %}
         <div class="rtj-steps">
             <span class="rtj-step-dot active" id="step-dot-1"></span>
             <span class="rtj-step-dot" id="step-dot-2"></span>
             <span class="rtj-step-dot" id="step-dot-3"></span>
             <span class="rtj-step-dot" id="step-dot-4"></span>
         </div>
+        {% endif %}
 
+        {% if not tinaja_reservada %}
         <div class="rtj-card">
+            <!-- Bloqueado: ya pasó la fecha tope -->
+            {% if not puede_reservar %}
+            <div id="paso-1-bloqueado" class="rtj-paso">
+                <div class="rtj-error" style="padding:24px;">
+                    <p style="font-size:1.1em;margin-bottom:12px;">⏰ Ya no puedes reservar tinaja para esta estadía.</p>
+                    <p style="color:#64748b;font-size:0.95em;">El plazo para reservar era hasta el <strong>{{ fecha_tope }}</strong> (1 día antes del check-in).</p>
+                </div>
+            </div>
+            {% else %}
             <!-- Paso 1: Elegir fechas -->
             <div id="paso-1" class="rtj-paso" {% if retorno_mp %}style="display:none;"{% endif %}>
+                <div id="rtj-countdown-box" class="rtj-disclaimer" style="margin-bottom:16px;padding:12px 16px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;font-size:0.9em;">
+                    <p style="margin:0 0 6px 0;font-weight:600;color:#059669;">⏱ Plazo para reservar</p>
+                    <p id="rtj-countdown" style="margin:0;font-size:1.1em;font-weight:700;color:var(--airbnb-dark);">--</p>
+                    <p id="rtj-countdown-sub" style="margin:4px 0 0 0;font-size:0.85em;color:#64748b;">Debes reservar antes del {{ fecha_tope }} (1 día antes del check-in).</p>
+                </div>
                 <p style="color:#059669;font-size:0.95em;font-weight:600;margin-bottom:12px;">{% if noches == 1 %}1 noche: $14.500{% elif noches >= 4 %}4 o más noches: $12.000 por noche{% else %}$14.000 por noche{% endif %}</p>
                 <div class="rtj-fotos-tinaja">
                     <img src="{{ url_for('static', filename='images/tinaja-1.png') }}" alt="Tinaja al aire libre">
                     <img src="{{ url_for('static', filename='images/tinaja-2.png') }}" alt="Tinaja en el bosque">
                 </div>
                 <h2 style="font-size:1.2em;margin-bottom:8px;">Paso 1: Elige tus noches</h2>
-                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">{% if noches == 1 %}Precio: $14.500.{% elif noches >= 4 %}Precio: $12.000 por noche.{% else %}Precio: $14.000 por noche.{% endif %} Selecciona las noches que deseas usar la tinaja.</p>
+                <p style="color:#64748b;font-size:0.9em;margin-bottom:20px;">{% if noches == 1 %}Precio: $14.500.{% elif noches >= 4 %}Precio: $12.000 por noche.{% else %}Precio: $14.000 por noche.{% endif %} Selecciona las noches que deseas usar la tinaja. <em>Solo se muestran noches futuras.</em></p>
                 <div class="rtj-fechas-grid" id="fechas-grid">
                     {% for f in fechas %}
                     <div class="rtj-fecha-item" data-fecha="{{ f.fecha }}">
@@ -145,10 +182,10 @@
                     </div>
                     {% endfor %}
                 </div>
-                {% if noches > 1 %}
-                <div class="rtj-opcion-todo" id="opcion-todo" data-noches="{{ noches }}" data-descuento="{{ 0.30 if noches >= 4 else 0.20 }}">
-                    <div class="label">Todo el hospedaje ({{ noches }} noches)</div>
-                    <div class="descuento">Oferta: {{ '30' if noches >= 4 else '20' }}% de descuento</div>
+                {% if fechas|length > 1 %}
+                <div class="rtj-opcion-todo" id="opcion-todo" data-noches="{{ fechas|length }}" data-descuento="{{ 0.30 if fechas|length >= 4 else 0.20 }}">
+                    <div class="label">Todo el hospedaje ({{ fechas|length }} noches)</div>
+                    <div class="descuento">Oferta: {{ '30' if fechas|length >= 4 else '20' }}% de descuento</div>
                 </div>
                 {% endif %}
                 <div class="rtj-total" id="total-paso1"></div>
@@ -156,6 +193,7 @@
                     <button class="rtj-btn rtj-btn-primary" id="btn-paso1" disabled>Continuar al Paso 2</button>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Paso 2: Suministro de leña -->
             <div id="paso-2" class="rtj-paso" style="display:none;">
@@ -270,10 +308,10 @@
                 </div>
                 <div class="rtj-total-pagar" id="total-pagar-texto"></div>
                 <div id="pago-opciones-exito" class="rtj-pago-descripcion visible" style="margin-top:16px;"></div>
-                <a href="/" class="rtj-btn rtj-btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:24px;">Volver al inicio</a>
             </div>
 
         </div>
+        {% endif %}
         {% endif %}
     </div>
 
@@ -284,6 +322,10 @@
         const codigoReserva = "{{ reserva.codigo_reserva if reserva else '' }}";
         const MERCADOPAGO_BOTONES = {{ (mercadopago_botones or []) | tojson }};
         const MERCADOPAGO_LINK = {{ mercadopago_link | tojson }};
+        const FECHA_TOPE = "{{ fecha_tope if fecha_tope else '' }}";
+        const PUEDE_RESERVAR = {{ 'true' if puede_reservar else 'false' }};
+        const TINAJA_RESERVADA = {{ 'true' if tinaja_reservada else 'false' }};
+        const PUEDE_CANCELAR = {{ 'true' if puede_cancelar else 'false' }};
 
         let paso = 1;
         let seleccionTodo = false;
@@ -297,6 +339,61 @@
 
         const fechasData = {{ fechas | tojson if fechas else '[]' }};
         const totalNoches = fechasData.length;
+
+        // Countdown hasta fin del día de fecha tope (23:59:59)
+        function actualizarCountdown() {
+            if (!PUEDE_RESERVAR || !FECHA_TOPE) return;
+            const countEl = document.getElementById('rtj-countdown');
+            const subEl = document.getElementById('rtj-countdown-sub');
+            if (!countEl) return;
+            const [y, m, d] = FECHA_TOPE.split('-').map(Number);
+            const finTope = new Date(y, m - 1, d, 23, 59, 59);
+            const ahora = new Date();
+            if (ahora >= finTope) {
+                countEl.textContent = 'Plazo vencido';
+                if (subEl) subEl.textContent = 'Ya no puedes reservar tinaja para esta estadía.';
+                return;
+            }
+            let ms = finTope - ahora;
+            const dias = Math.floor(ms / 86400000);
+            ms %= 86400000;
+            const horas = Math.floor(ms / 3600000);
+            ms %= 3600000;
+            const mins = Math.floor(ms / 60000);
+            ms %= 60000;
+            const segs = Math.floor(ms / 1000);
+            let txt = '';
+            if (dias > 0) txt = dias + ' día' + (dias !== 1 ? 's' : '') + ', ' + horas + ' h ' + mins + ' min';
+            else if (horas > 0) txt = horas + ' h ' + mins + ' min ' + segs + ' s';
+            else txt = mins + ' min ' + segs + ' s';
+            countEl.textContent = txt;
+            setTimeout(actualizarCountdown, 1000);
+        }
+        if (PUEDE_RESERVAR && FECHA_TOPE) actualizarCountdown();
+
+        // Cancelar tinaja
+        document.getElementById('btn-cancelar-tinaja')?.addEventListener('click', async function() {
+            if (!confirm('¿Estás seguro de que deseas cancelar la tinaja? Se te reembolsará según la política acordada.')) return;
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Cancelando...';
+            try {
+                const res = await fetch('/api/reservatinaja/' + encodeURIComponent(codigoReserva) + '/cancelar', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Tinaja cancelada correctamente.');
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Error al cancelar');
+                    btn.disabled = false;
+                    btn.textContent = 'Cancelar tinaja';
+                }
+            } catch (err) {
+                alert('Error de conexión');
+                btn.disabled = false;
+                btn.textContent = 'Cancelar tinaja';
+            }
+        });
 
         function mostrarPaso(p) {
             paso = p;

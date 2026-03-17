@@ -1916,6 +1916,15 @@ header {
     gap: 6px;
 }
 
+.reservation-info .tinaja-link {
+    margin-left: 6px;
+    opacity: 0.8;
+    text-decoration: none;
+}
+.reservation-info .tinaja-link:hover {
+    opacity: 1;
+}
+
 .reservation-info .user-icon {
     width: 16px;
     height: 16px;

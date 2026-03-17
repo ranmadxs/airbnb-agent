@@ -313,6 +313,8 @@ def reservatinaja(codigo_reserva):
                              reserva=None,
                              fechas=[],
                              error='Reserva no encontrada o no disponible',
+                             tinaja_reservada=False,
+                             puede_cancelar=False,
                              version=APP_VERSION,
                              property_name=PROPERTY_NAME,
                              mercadopago_botones=MERCADOPAGO_BOTONES,
@@ -322,7 +324,55 @@ def reservatinaja(codigo_reserva):
     start = date.fromisoformat(reserva['event_start'])
     end = date.fromisoformat(reserva['event_end'])
     noches = (end - start).days
-    fechas = [start + timedelta(days=i) for i in range(noches)]
+    fechas_todas = [start + timedelta(days=i) for i in range(noches)]
+
+    # Fecha tope: 1 día antes del check-in (último día para reservar)
+    fecha_tope = start - timedelta(days=1)
+    # Fecha tope para cancelar: 2 días antes del check-in
+    fecha_cancelar_tope = start - timedelta(days=2)
+    hoy = _now_local().date()  # Usar zona horaria de la propiedad (evita desfase UTC)
+
+    # Si ya tiene tinaja reservada (extra_valor > 0): mostrar estado y opción de cancelar
+    tinaja_reservada = (reserva.get('extra_valor') or 0) > 0
+    puede_cancelar = tinaja_reservada and hoy <= fecha_cancelar_tope
+
+    if tinaja_reservada:
+        return render_template('reservatinaja.html',
+                             reserva=reserva,
+                             fechas=[],
+                             noches=noches,
+                             tinaja_reservada=True,
+                             puede_cancelar=puede_cancelar,
+                             fecha_cancelar_tope=fecha_cancelar_tope.strftime('%Y-%m-%d'),
+                             fecha_tope=fecha_tope.strftime('%Y-%m-%d'),
+                             hoy=hoy.strftime('%Y-%m-%d'),
+                             puede_reservar=False,
+                             version=APP_VERSION,
+                             property_name=PROPERTY_NAME,
+                             mercadopago_botones=MERCADOPAGO_BOTONES,
+                             mercadopago_link=MERCADOPAGO_LINK,
+                             )
+
+    # No permitir reservar si ya pasó la fecha tope
+    if hoy > fecha_tope:
+        return render_template('reservatinaja.html',
+                             reserva=reserva,
+                             fechas=[],
+                             noches=noches,
+                             fecha_tope=fecha_tope.strftime('%Y-%m-%d'),
+                             hoy=hoy.strftime('%Y-%m-%d'),
+                             puede_reservar=False,
+                             tinaja_reservada=False,
+                             puede_cancelar=False,
+                             error=None,
+                             version=APP_VERSION,
+                             property_name=PROPERTY_NAME,
+                             mercadopago_botones=MERCADOPAGO_BOTONES,
+                             mercadopago_link=MERCADOPAGO_LINK,
+                             )
+
+    # Filtrar fechas pasadas (solo noches futuras o de hoy)
+    fechas = [f for f in fechas_todas if f >= hoy]
 
     DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
     fechas_info = []
@@ -340,6 +390,11 @@ def reservatinaja(codigo_reserva):
                          fechas=fechas_info,
                          noches=noches,
                          paso=1,
+                         fecha_tope=fecha_tope.strftime('%Y-%m-%d'),
+                         hoy=hoy.strftime('%Y-%m-%d'),
+                         puede_reservar=True,
+                         tinaja_reservada=False,
+                         puede_cancelar=False,
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
                          mercadopago_botones=MERCADOPAGO_BOTONES,
@@ -430,6 +485,22 @@ def api_mercadopago_webhook():
         print(f"❌ Webhook MP error: {e}")
         db_service.log_webhook_mp(payment_id, raw_body, {}, None, False, str(e))
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route('/api/reservatinaja/<codigo_reserva>/cancelar', methods=['POST'])
+def api_reservatinaja_cancelar(codigo_reserva):
+    """API: Cancela la tinaja de una reserva. Solo si hoy <= check-in - 2 días."""
+    reserva = db_service.obtener_reserva_por_codigo(codigo_reserva)
+    if not reserva or reserva.get('estado') != 'reservado':
+        return jsonify({"success": False, "error": "Reserva no encontrada"})
+    if not reserva.get('extra_pago_confirmado') or (reserva.get('extra_valor') or 0) <= 0:
+        return jsonify({"success": False, "error": "No hay tinaja reservada para cancelar"})
+    start = date.fromisoformat(reserva['event_start'])
+    fecha_cancelar_tope = start - timedelta(days=2)
+    if _now_local().date() > fecha_cancelar_tope:
+        return jsonify({"success": False, "error": "Ya no puedes cancelar. El plazo era hasta 2 días antes del check-in."})
+    resultado = db_service.cancelar_tinaja_reserva(str(reserva['_id']))
+    return jsonify(resultado)
 
 
 @app.route('/api/reservatinaja/<codigo_reserva>/confirmar', methods=['POST'])

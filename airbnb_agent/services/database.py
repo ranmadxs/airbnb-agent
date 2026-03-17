@@ -633,6 +633,25 @@ class DatabaseService:
             print(f"❌ Error actualizando tinaja: {e}")
             return {"success": False, "error": str(e)}
 
+    def cancelar_tinaja_reserva(self, reserva_id: str) -> dict:
+        """Cancela la tinaja de una reserva (extra_valor=0, extra_pago_confirmado=False)."""
+        if not self.connect():
+            return {"success": False, "error": "No hay conexión a MongoDB"}
+        try:
+            from bson import ObjectId
+            result = self.reservas.update_one(
+                {"_id": ObjectId(reserva_id)},
+                {"$set": {
+                    "extra_valor": 0,
+                    "extra_pago_confirmado": False,
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+            return {"success": result.matched_count > 0}
+        except Exception as e:
+            print(f"❌ Error cancelando tinaja: {e}")
+            return {"success": False, "error": str(e)}
+
     def confirmar_pago_mercadopago(self, valor: int, email: str = None, external_reference: str = None,
                                    mp_payment_id: str = None) -> dict:
         """Busca transacción pendiente MP y la marca como pagada. Criterios: valor, email, última 48h."""
