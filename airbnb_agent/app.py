@@ -945,6 +945,18 @@ def admin_reserva():
 
 
 # ============================================================
+# API GASTOS (todos en un endpoint)
+# ============================================================
+
+@app.route('/api/gastos', methods=['GET'])
+@login_required
+def obtener_gastos_mes():
+    """Obtiene todos los gastos del mes (agua, internet, gasolina, aseo, otros, electricidad) en un solo llamado."""
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    return jsonify(db_service.obtener_gastos_mes(year, month))
+
+# ============================================================
 # API GASTOS DE AGUA
 # ============================================================
 

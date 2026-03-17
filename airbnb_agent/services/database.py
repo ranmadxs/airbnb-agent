@@ -998,6 +998,17 @@ class DatabaseService:
             print(f"❌ Error obteniendo gastos agregados: {e}")
         return meses
     
+    def obtener_gastos_mes(self, year: int, month: int) -> dict:
+        """Obtiene todos los gastos del mes en un solo llamado. Retorna dict con agua, internet, gasolina, aseo, otros, electricidad."""
+        return {
+            'agua': self.obtener_gastos_agua(year, month),
+            'internet': self.obtener_gastos_internet(year, month),
+            'gasolina': self.obtener_gastos_gasolina(year, month),
+            'aseo': self.obtener_gastos_aseo(year, month),
+            'otros': self.obtener_gastos_otros(year, month),
+            'electricidad': self.obtener_gastos_electricidad(year, month),
+        }
+    
     # ============================================================
     # GASTOS DE AGUA
     # ============================================================
