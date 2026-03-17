@@ -28,6 +28,10 @@
         </header>
 
         <main>
+            <div id="loading-overlay" class="calendar-loading-overlay">
+                <div class="calendar-loading-spinner"></div>
+                <span class="calendar-loading-text">Cargando...</span>
+            </div>
             <div class="calendar-layout">
             
             <!-- Widgets de Ingresos (solo admin) - Lado izquierdo -->
@@ -1126,6 +1130,12 @@
         
         // Cargar mes desde API
         async function cargarMes(year, month) {
+            const overlay = document.getElementById('loading-overlay');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            if (overlay) overlay.style.display = 'flex';
+            if (prevBtn) prevBtn.disabled = true;
+            if (nextBtn) nextBtn.disabled = true;
             try {
                 currentYear = year;
                 currentMonth = month;
@@ -1159,6 +1169,10 @@
                 }
             } catch (e) {
                 console.error('Error cargando mes:', e);
+            } finally {
+                if (overlay) overlay.style.display = 'none';
+                if (prevBtn) prevBtn.disabled = false;
+                if (nextBtn) nextBtn.disabled = false;
             }
         }
         
