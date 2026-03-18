@@ -384,7 +384,7 @@
         function fetchConTimeout(url, ms = 25000) {
             const ctrl = new AbortController();
             const id = setTimeout(() => ctrl.abort(), ms);
-            return fetch(url, { signal: ctrl.signal, credentials: 'same-origin' }).finally(() => clearTimeout(id));
+            return fetch(url, { signal: ctrl.signal, credentials: 'include' }).finally(() => clearTimeout(id));
         }
 
         function mensajeError(err) {
@@ -425,6 +425,10 @@
             } catch (err) {
                 console.error('Error cargando desempeño:', err);
                 mesesData = [];
+                if (err.status === 401) {
+                    window.location.href = '/login?next=' + encodeURIComponent('/desempeno');
+                    return;
+                }
                 const errMsg = mensajeError(err);
                 const errEl = document.getElementById('desempeno-error');
                 if (errEl) { errEl.textContent = errMsg; errEl.classList.remove('hidden'); }

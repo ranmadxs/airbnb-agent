@@ -25,8 +25,10 @@ app = Flask(__name__,
             template_folder=str(BASE_DIR / 'templates'),
             static_folder=str(BASE_DIR / 'static'))
 
-# Secret key para sesiones
+# Secret key para sesiones (debe ser fija en producción para que la sesión persista)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_PATH'] = '/'
 
 # Autenticación
 AUTH_USERNAME = os.getenv('AUTH_USERNAME', 'admin')
@@ -230,6 +232,9 @@ def login_required(f):
 def login():
     """Página de login."""
     error = None
+    next_url = request.args.get('next', '').strip()
+    if next_url and not next_url.startswith('/'):
+        next_url = ''
     if request.method == 'POST':
         username = request.form.get('username', '')
         password = request.form.get('password', '')
@@ -237,11 +242,16 @@ def login():
         if username == AUTH_USERNAME and password == AUTH_PASSWORD:
             session['logged_in'] = True
             session['username'] = username
+            next_from_form = request.form.get('next', '').strip()
+            if next_from_form and next_from_form.startswith('/'):
+                return redirect(next_from_form)
+            if next_url:
+                return redirect(next_url)
             return redirect(url_for('home'))
         else:
             error = 'Usuario o contraseña incorrectos'
     
-    return render_template('login.html', error=error, version=APP_VERSION)
+    return render_template('login.html', error=error, version=APP_VERSION, next_url=next_url)
 
 
 @app.route('/logout')

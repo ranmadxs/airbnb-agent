@@ -1144,7 +1144,7 @@
                     resetearWidgetsGastos();
                 }
                 
-                const res = await fetch(`/api/month?year=${year}&month=${month}`);
+                const res = await fetch(`/api/month?year=${year}&month=${month}`, { credentials: 'include' });
                 const data = await res.json();
                 if (data.ingresos) {
                     ingresosMesCache[year + '-' + month] = data.ingresos;
@@ -1630,7 +1630,7 @@
             title.textContent = 'Nueva Reserva/Bloqueo';
             
             try {
-                const res = await fetch(`/api/reserva/por-fecha/${fecha}`);
+                const res = await fetch(`/api/reserva/por-fecha/${fecha}`, { credentials: 'include' });
                 const data = await res.json();
                 if (data.found) {
                     title.textContent = 'Editar Reserva';
@@ -1657,7 +1657,7 @@
             title.textContent = 'Editar Reserva';
             
             try {
-                const res = await fetch(`/api/reserva/${id}`);
+                const res = await fetch(`/api/reserva/${id}`, { credentials: 'include' });
                 const data = await res.json();
                 if (data.found) {
                     populateModalForm(data);
@@ -1751,6 +1751,7 @@
             try {
                 const res = await fetch('/api/reserva/guardar', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
@@ -1773,7 +1774,7 @@
             
             if (confirm('¿Eliminar esta reserva?')) {
                 try {
-                    const res = await fetch(`/api/reserva/${id}/eliminar`, { method: 'POST' });
+                    const res = await fetch(`/api/reserva/${id}/eliminar`, { method: 'POST', credentials: 'include' });
                     const result = await res.json();
                     
                     if (result.success) {
@@ -1836,7 +1837,7 @@
         
         async function cargarProveedores() {
             try {
-                const res = await fetch('/api/proveedores?tipo=agua');
+                const res = await fetch('/api/proveedores?tipo=agua', { credentials: 'include' });
                 if (!res.ok) {
                     console.error('Error API proveedores:', res.status, res.statusText);
                     return;
@@ -1873,7 +1874,7 @@
         
         async function togglePagadoGasto(tipo, gastoId, recargarFn) {
             try {
-                const res = await fetch(`/api/gastos/${tipo}/${gastoId}`, { method: 'PATCH' });
+                const res = await fetch(`/api/gastos/${tipo}/${gastoId}`, { method: 'PATCH', credentials: 'include' });
                 const data = await res.json();
                 if (data.success && recargarFn) {
                     await recargarFn();
@@ -1887,7 +1888,7 @@
         async function eliminarGasto(tipo, gastoId, recargarFn) {
             if (!confirm('¿Eliminar este gasto?')) return;
             try {
-                const res = await fetch(`/api/gastos/${tipo}/${gastoId}`, { method: 'DELETE' });
+                const res = await fetch(`/api/gastos/${tipo}/${gastoId}`, { method: 'DELETE', credentials: 'include' });
                 const data = await res.json();
                 if (data.success && recargarFn) {
                     await recargarFn();
@@ -1901,7 +1902,7 @@
         async function cargarHistorialAgua() {
             try {
                 console.log('Cargando historial agua:', currentYear, currentMonth);
-                const res = await fetch(`/api/gastos/agua?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/agua?year=${currentYear}&month=${currentMonth}`, { credentials: 'include' });
                 if (!res.ok) {
                     console.error('Error API gastos agua:', res.status, res.statusText);
                     return;
@@ -1979,6 +1980,7 @@
             try {
                 const res = await fetch('/api/gastos/agua', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
@@ -2041,7 +2043,7 @@
         
         async function cargarProveedoresInternet() {
             try {
-                const res = await fetch('/api/proveedores?tipo=internet');
+                const res = await fetch('/api/proveedores?tipo=internet', { credentials: 'include' });
                 if (!res.ok) return;
                 const data = await res.json();
                 proveedoresInternet = data.proveedores || [];
@@ -2070,7 +2072,7 @@
         
         async function cargarHistorialInternet() {
             try {
-                const res = await fetch(`/api/gastos/internet?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/internet?year=${currentYear}&month=${currentMonth}`, { credentials: 'include' });
                 if (!res.ok) return;
                 const data = await res.json();
                 gastosInternet = data.gastos || [];
@@ -2144,6 +2146,7 @@
             try {
                 const res = await fetch('/api/gastos/internet', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
@@ -2202,7 +2205,7 @@
         
         async function cargarProveedoresGasolina() {
             try {
-                const res = await fetch('/api/proveedores?tipo=gasolinera');
+                const res = await fetch('/api/proveedores?tipo=gasolinera', { credentials: 'include' });
                 if (!res.ok) return;
                 const data = await res.json();
                 proveedoresGasolina = data.proveedores || [];
@@ -2231,7 +2234,7 @@
         
         async function cargarHistorialGasolina() {
             try {
-                const res = await fetch(`/api/gastos/gasolina?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/gasolina?year=${currentYear}&month=${currentMonth}`, { credentials: 'include' });
                 if (!res.ok) return;
                 const data = await res.json();
                 gastosGasolina = data.gastos || [];
@@ -2304,6 +2307,7 @@
             try {
                 const res = await fetch('/api/gastos/gasolina', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
@@ -2362,7 +2366,7 @@
         
         async function cargarProveedoresAseo() {
             try {
-                const res = await fetch('/api/proveedores?tipo=aseo');
+                const res = await fetch('/api/proveedores?tipo=aseo', { credentials: 'include' });
                 if (!res.ok) return;
                 const data = await res.json();
                 proveedoresAseo = data.proveedores || [];
@@ -2391,7 +2395,7 @@
         
         async function cargarHistorialAseo() {
             try {
-                const res = await fetch(`/api/gastos/aseo?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/aseo?year=${currentYear}&month=${currentMonth}`, { credentials: 'include' });
                 if (!res.ok) return;
                 const data = await res.json();
                 gastosAseo = data.gastos || [];
@@ -2464,6 +2468,7 @@
             try {
                 const res = await fetch('/api/gastos/aseo', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
@@ -2515,7 +2520,7 @@
         
         async function cargarProveedoresOtros() {
             try {
-                const res = await fetch('/api/proveedores?tipo=otros');
+                const res = await fetch('/api/proveedores?tipo=otros', { credentials: 'include' });
                 const data = await res.json();
                 proveedoresOtros = data.proveedores || [];
                 const select = document.getElementById('otros-proveedor');
@@ -2537,7 +2542,7 @@
         
         async function cargarHistorialOtros() {
             try {
-                const res = await fetch(`/api/gastos/otros?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/otros?year=${currentYear}&month=${currentMonth}`, { credentials: 'include' });
                 const data = await res.json();
                 gastosOtros = data.gastos || [];
                 const lista = document.getElementById('otros-historial-lista');
@@ -2588,7 +2593,7 @@
                 proveedor_id: document.getElementById('otros-proveedor').value
             };
             try {
-                const res = await fetch('/api/gastos/otros', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                const res = await fetch('/api/gastos/otros', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
                 const result = await res.json();
                 if (result.success) {
                     await cargarHistorialOtros();
@@ -2631,7 +2636,7 @@
         
         async function cargarProveedoresElectricidad() {
             try {
-                const res = await fetch('/api/proveedores?tipo=electricidad');
+                const res = await fetch('/api/proveedores?tipo=electricidad', { credentials: 'include' });
                 const data = await res.json();
                 proveedoresElectricidad = data.proveedores || [];
                 const select = document.getElementById('electricidad-proveedor');
@@ -2653,7 +2658,7 @@
         
         async function cargarHistorialElectricidad() {
             try {
-                const res = await fetch(`/api/gastos/electricidad?year=${currentYear}&month=${currentMonth}`);
+                const res = await fetch(`/api/gastos/electricidad?year=${currentYear}&month=${currentMonth}`, { credentials: 'include' });
                 const data = await res.json();
                 gastosElectricidad = data.gastos || [];
                 const lista = document.getElementById('electricidad-historial-lista');
@@ -2704,7 +2709,7 @@
                 proveedor_id: document.getElementById('electricidad-proveedor').value
             };
             try {
-                const res = await fetch('/api/gastos/electricidad', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                const res = await fetch('/api/gastos/electricidad', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
                 const result = await res.json();
                 if (result.success) {
                     await cargarHistorialElectricidad();
@@ -2736,7 +2741,7 @@
         // Cargar todos los gastos del mes en un solo endpoint
         async function cargarGastosMes(year, month) {
             try {
-                const res = await fetch(`/api/gastos?year=${year}&month=${month}`);
+                const res = await fetch(`/api/gastos?year=${year}&month=${month}`, { credentials: 'include' });
                 let data = {};
                 if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
                     data = await res.json();
@@ -2889,7 +2894,8 @@
             
             // 3. Colores según desviaciones estándar (necesitamos API)
             try {
-                const res = await fetch(`/api/estadisticas-total-mes?year=${currentYear}`);
+                const res = await fetch(`/api/estadisticas-total-mes?year=${currentYear}`, { credentials: 'include' });
+                if (res.status === 401) { window.location.href = '/login?next=' + encodeURIComponent('/'); return; }
                 const data = res.ok ? await res.json() : {};
                 const mean = data.mean || 0;
                 const std = data.std || 1;
@@ -2975,7 +2981,7 @@
                 }
                 
                 // Obtener promedio anual desde la API (FIJO basado en fecha de HOY)
-                const res = await fetch('/api/promedio-anual');
+                const res = await fetch('/api/promedio-anual', { credentials: 'include' });
                 const data = await res.json();
                 
                 const promedioIngresos = data.promedio || 0;
@@ -3113,7 +3119,7 @@
         
         function eliminarReserva(id) {
             if (confirm('¿Eliminar esta reserva? Podrás restaurarla después.')) {
-                fetch(`/api/reserva/${id}/eliminar`, { method: 'POST' })
+                fetch(`/api/reserva/${id}/eliminar`, { method: 'POST', credentials: 'include' })
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
@@ -3127,7 +3133,7 @@
         
         function restaurarReserva(id) {
             if (confirm('¿Restaurar esta reserva?')) {
-                fetch(`/api/reserva/${id}/restaurar`, { method: 'POST' })
+                fetch(`/api/reserva/${id}/restaurar`, { method: 'POST', credentials: 'include' })
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
@@ -3141,7 +3147,7 @@
         
         function registrarCheckout(id) {
             if (confirm('¿Registrar checkout? El cliente se retiró de la propiedad.')) {
-                fetch(`/api/reserva/${id}/finalizar`, { method: 'POST' })
+                fetch(`/api/reserva/${id}/finalizar`, { method: 'POST', credentials: 'include' })
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
@@ -3155,7 +3161,7 @@
         
         function cancelarReserva(id) {
             if (confirm('¿Cancelar esta reserva? Se generará un gasto de devolución por el total del arriendo.')) {
-                fetch(`/api/reserva/${id}/cancelar`, { method: 'POST' })
+                fetch(`/api/reserva/${id}/cancelar`, { method: 'POST', credentials: 'include' })
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
