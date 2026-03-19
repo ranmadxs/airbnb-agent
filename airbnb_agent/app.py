@@ -2,11 +2,11 @@
 Airbnb Agent - Calendario Visual de Reservas
 Solo endpoints Flask - lógica en services/
 """
+import hashlib
 import json
 import os
 import calendar
 import tomllib
-import secrets
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from functools import wraps
@@ -25,10 +25,15 @@ app = Flask(__name__,
             template_folder=str(BASE_DIR / 'templates'),
             static_folder=str(BASE_DIR / 'static'))
 
-# Secret key para sesiones (debe ser fija en producción para que la sesión persista)
-app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(32))
+# Secret key FIJA: en serverless (Vercel) cada cold start = nuevo proceso.
+# Si SECRET_KEY cambia, la cookie firmada no se puede verificar → logout inesperado.
+# Fallback determinista para que la sesión persista entre cold starts.
+app.secret_key = os.getenv('SECRET_KEY') or hashlib.sha256(b"airbnb-agent-session-v1").hexdigest()
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_PATH'] = '/'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = bool(os.getenv('VERCEL'))  # HTTPS en Vercel
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 # Autenticación
 AUTH_USERNAME = os.getenv('AUTH_USERNAME', 'admin')
@@ -240,6 +245,7 @@ def login():
         password = request.form.get('password', '')
         
         if username == AUTH_USERNAME and password == AUTH_PASSWORD:
+            session.permanent = True
             session['logged_in'] = True
             session['username'] = username
             next_from_form = request.form.get('next', '').strip()
