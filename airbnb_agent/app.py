@@ -39,7 +39,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 AUTH_USERNAME = os.getenv('AUTH_USERNAME', 'admin')
 AUTH_PASSWORD = os.getenv('AUTH_PASSWORD', 'admin')
 
-# Leer versión
+# Leer versión + git hash para cache busting
 PROJECT_ROOT = BASE_DIR.parent
 APP_VERSION = "1.0.0"
 try:
@@ -47,6 +47,15 @@ try:
         pyproject = tomllib.load(f)
         APP_VERSION = pyproject.get("project", {}).get("version") or \
                       pyproject.get("tool", {}).get("poetry", {}).get("version", APP_VERSION)
+except Exception:
+    pass
+try:
+    import subprocess
+    _git_hash = subprocess.check_output(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=PROJECT_ROOT, stderr=subprocess.DEVNULL, text=True
+    ).strip()
+    APP_VERSION = f"{APP_VERSION}.{_git_hash}"
 except Exception:
     pass
 
