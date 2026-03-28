@@ -2867,16 +2867,16 @@ footer {
         right: auto !important;
         width: 55% !important;
         border-radius: 0 11px 11px 0 !important;
-        background: #222222 !important;
+        background: var(--airbnb-red) !important;
     }
-    
+
     /* Día con checkout E inicio al mismo tiempo (responsive) */
     .day-cell.checkin.checkout-day::before {
         height: 22px !important;
         left: -3px !important;
         width: 45% !important;
         border-radius: 0 11px 11px 0 !important;
-        background: #222222 !important;
+        background: var(--airbnb-red) !important;
     }
     
     .day-cell.checkin.checkout-day::after {
