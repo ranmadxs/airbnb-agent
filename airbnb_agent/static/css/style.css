@@ -2864,8 +2864,8 @@ footer {
     .day-cell.blocked.checkout-day::after {
         height: 22px !important;
         left: -3px !important;
-        right: auto !important;
-        width: 55% !important;
+        right: 15% !important;
+        width: auto !important;
         border-radius: 0 11px 11px 0 !important;
         background: var(--airbnb-red) !important;
     }
@@ -2874,14 +2874,14 @@ footer {
     .day-cell.checkin.checkout-day::before {
         height: 22px !important;
         left: -3px !important;
-        width: 45% !important;
+        width: 50% !important;
         border-radius: 0 11px 11px 0 !important;
         background: var(--airbnb-red) !important;
     }
-    
+
     .day-cell.checkin.checkout-day::after {
         height: 22px !important;
-        left: 55% !important;
+        left: 50% !important;
         right: -3px !important;
         width: auto !important;
         border-radius: 11px 0 0 11px !important;
