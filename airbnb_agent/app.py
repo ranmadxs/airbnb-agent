@@ -39,7 +39,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 AUTH_USERNAME = os.getenv('AUTH_USERNAME', 'admin')
 AUTH_PASSWORD = os.getenv('AUTH_PASSWORD', 'admin')
 
-# Leer versión + git hash para cache busting
+# Leer versión desde pyproject.toml
 PROJECT_ROOT = BASE_DIR.parent
 APP_VERSION = "1.0.0"
 try:
@@ -47,11 +47,6 @@ try:
         pyproject = tomllib.load(f)
         APP_VERSION = pyproject.get("project", {}).get("version") or \
                       pyproject.get("tool", {}).get("poetry", {}).get("version", APP_VERSION)
-except Exception:
-    pass
-try:
-    _css = (BASE_DIR / "static" / "css" / "style.css").read_bytes()
-    APP_VERSION = f"{APP_VERSION}.{hashlib.md5(_css).hexdigest()[:8]}"
 except Exception:
     pass
 
