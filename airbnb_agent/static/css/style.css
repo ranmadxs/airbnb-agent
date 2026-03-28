@@ -1286,7 +1286,7 @@ header {
     background: #3B82F6;
 }
 
-/* Día de checkout (colita negra que termina) */
+/* Día de checkout (colita roja Airbnb que termina) */
 .day-cell.checkout-day {
     position: relative;
     background: #f0f0f0;
@@ -1297,19 +1297,19 @@ header {
     position: absolute !important;
     top: 50% !important;
     left: -3px !important;
-    width: 55% !important;
+    right: 15% !important;
+    width: auto !important;
     height: 28px !important;
-    background: #222222 !important;
+    background: var(--airbnb-red) !important;
     transform: translateY(-50%) !important;
     border-radius: 0 14px 14px 0 !important;
     z-index: 1 !important;
-    right: unset !important;
 }
 
 .day-cell.checkout-day .day-number {
     position: relative;
     z-index: 2;
-    color: white;
+    color: white !important;
     font-weight: 600;
 }
 
@@ -1319,9 +1319,9 @@ header {
     position: absolute !important;
     top: 50% !important;
     left: -3px !important;
-    width: 45% !important;
+    width: 50% !important;
     height: 28px !important;
-    background: #222222 !important;
+    background: var(--airbnb-red) !important;
     transform: translateY(-50%) !important;
     border-radius: 0 14px 14px 0 !important;
     z-index: 1 !important;
@@ -1336,7 +1336,7 @@ header {
     height: 28px !important;
     z-index: 1 !important;
     border-radius: 14px 0 0 14px !important;
-    left: 55% !important;
+    left: 50% !important;
     right: -2px !important;
     background: #3B82F6 !important;
 }
@@ -1859,6 +1859,13 @@ header {
     background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
     border: 1px solid #3b82f6;
     font-size: 0.85em;
+}
+
+.price-extra-reserved {
+    color: #1d4ed8;
+    background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+    border: 1px solid #3b82f6;
+    font-size: 0.88em;
 }
 
 .pago-tinaja-ok {

@@ -358,17 +358,23 @@
                                     <span class="guest-badge children" title="Niños">👶 {{ event.ninos or 0 }}</span>
                                     <span class="guest-badge pets" title="Mascotas"><span class="pet-icon">🐾</span> {{ event.mascotas or 0 }}</span>
                                 </div>
-                                {% if event.precio or event.extra_valor %}
+                                {% if is_logged_in %}
+                                    {% if event.precio or event.extra_valor %}
+                                    <div class="price-row">
+                                        {% if event.precio %}
+                                        <span class="price-value price-main">💰 ${{ "{:,.0f}".format(event.precio).replace(",", ".") }}</span>
+                                        {% endif %}
+                                        {% if event.extra_valor %}
+                                        <span class="price-value price-extra" title="{{ event.extra_concepto or 'Extra' }}">
+                                            ➕ {{ event.extra_concepto or 'Extra' }}: ${{ "{:,.0f}".format(event.extra_valor).replace(",", ".") }}
+                                            {% if event.extra_pago_confirmado %}<span class="pago-tinaja-ok" title="Tinaja pagada">✓</span>{% else %}<span class="pago-tinaja-pendiente" title="Tinaja pendiente de pago">⏳</span>{% endif %}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                {% elif event.extra_valor %}
                                 <div class="price-row">
-                                    {% if event.precio %}
-                                    <span class="price-value price-main">💰 ${{ "{:,.0f}".format(event.precio).replace(",", ".") }}</span>
-                                    {% endif %}
-                                    {% if event.extra_valor %}
-                                    <span class="price-value price-extra" title="{{ event.extra_concepto or 'Extra' }}">
-                                        ➕ {{ event.extra_concepto or 'Extra' }}: ${{ "{:,.0f}".format(event.extra_valor).replace(",", ".") }}
-                                        {% if event.extra_pago_confirmado %}<span class="pago-tinaja-ok" title="Tinaja pagada">✓</span>{% else %}<span class="pago-tinaja-pendiente" title="Tinaja pendiente de pago">⏳</span>{% endif %}
-                                    </span>
-                                    {% endif %}
+                                    <span class="price-value price-extra-reserved">🛁 Tinaja Reservada</span>
                                 </div>
                                 {% endif %}
                                 {% endif %}

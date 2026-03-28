@@ -51,7 +51,7 @@ except Exception:
     pass
 
 # Config
-PROPERTY_NAME = os.getenv('PROPERTY_NAME', 'Posada en el Bosque')
+PROPERTY_NAME = os.getenv('PROPERTY_NAME', 'Posada del Bosque')
 MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN', '')
 MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY', '')
 MERCADOPAGO_WEBHOOK_SECRET = os.getenv('MERCADOPAGO_WEBHOOK_SECRET', '')
@@ -257,7 +257,11 @@ def login():
         else:
             error = 'Usuario o contraseña incorrectos'
     
-    return render_template('login.html', error=error, version=APP_VERSION, next_url=next_url)
+    return render_template('login.html',
+                         error=error,
+                         version=APP_VERSION,
+                         next_url=next_url,
+                         property_name=PROPERTY_NAME)
 
 
 @app.route('/logout')
