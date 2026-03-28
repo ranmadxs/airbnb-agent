@@ -1,6 +1,6 @@
 [project]
 name = "airbnb-agent"
-version = "2.35.75"
+version = "2.36.0"
 description = "Agente visual de calendario Airbnb"
 requires-python = ">=3.11"
 authors = [{name = "edgsanchez"}]
