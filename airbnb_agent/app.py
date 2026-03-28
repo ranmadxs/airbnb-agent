@@ -50,12 +50,8 @@ try:
 except Exception:
     pass
 try:
-    import subprocess
-    _git_hash = subprocess.check_output(
-        ["git", "rev-parse", "--short", "HEAD"],
-        cwd=PROJECT_ROOT, stderr=subprocess.DEVNULL, text=True
-    ).strip()
-    APP_VERSION = f"{APP_VERSION}.{_git_hash}"
+    _css = (BASE_DIR / "static" / "css" / "style.css").read_bytes()
+    APP_VERSION = f"{APP_VERSION}.{hashlib.md5(_css).hexdigest()[:8]}"
 except Exception:
     pass
 
