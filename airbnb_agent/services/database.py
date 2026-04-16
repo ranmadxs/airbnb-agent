@@ -119,19 +119,25 @@ class DatabaseService:
     
     def guardar_eventos(self, eventos: list, audit: dict = None):
         """Guarda eventos en airbnb-dias y días en 'dias' usando bulk operations.
-        
+
         - Eventos de iCal se guardan con source: "airbnb"
-        - Eventos en BD que no vienen en iCal se marcan como source: "cache_airbnb"
+        - Eventos en BD que no vienen en iCal se marcan como source: "cache_airbnb" y se eliminan
         - Datos históricos (< hoy) no se modifican
+        - NUNCA ejecutar con lista vacía: podría marcar todo como stale
         """
         from pymongo import UpdateOne
-        
+
+        # Guard crítico: nunca sincronizar con lista vacía (indicaría fallo de iCal)
+        if not eventos:
+            print("⚠️ guardar_eventos: lista vacía, abortando sync para proteger datos")
+            return 0
+
         if not self.connect():
             return 0
-        
+
         if audit is None:
             audit = {"user_origin": "system", "user_agent": "system"}
-        
+
         hoy = datetime.now().strftime("%Y-%m-%d")
         
         # 1. Obtener eventos actuales de iCal (claves)
@@ -323,12 +329,35 @@ class DatabaseService:
         # 4. Ejecutar bulk días
         try:
             if dias_ops:
-                resultado = self.dias.bulk_write(dias_ops)
-                return resultado.upserted_count + resultado.modified_count
+                self.dias.bulk_write(dias_ops)
         except Exception as e:
             print(f"❌ Error bulk días: {e}")
 
-        return 0
+        # 5. Borrar físicamente los que quedaron como cache_airbnb (ya no están en iCal)
+        #    Safe: el guard de lista vacía al inicio garantiza que eventos_ical_keys no está vacío
+        try:
+            stale = list(self.reservas.find(
+                {"event_end": {"$gte": hoy}, "source": "cache_airbnb", "readonly": {"$ne": True}},
+                {"_id": 1, "event_start": 1, "event_end": 1}
+            ))
+            # Doble verificación: solo borrar si la clave realmente no está en iCal
+            realmente_stale = [d for d in stale if f"{d['event_start']}_{d['event_end']}" not in eventos_ical_keys]
+            if realmente_stale:
+                ids = [d["_id"] for d in realmente_stale]
+                rangos = [(d["event_start"], d["event_end"]) for d in realmente_stale]
+                self.reservas.delete_many({"_id": {"$in": ids}})
+                for ev_start, ev_end in rangos:
+                    self.dias.delete_many({
+                        "fecha": {"$gte": hoy},
+                        "event_start": ev_start,
+                        "event_end": ev_end,
+                        "readonly": {"$ne": True}
+                    })
+                print(f"🗑️ Eliminados {len(ids)} eventos Airbnb obsoletos (no están en iCal)")
+        except Exception as e:
+            print(f"❌ Error eliminando stale: {e}")
+
+        return eventos_guardados
     
     def obtener_dias(self, anio: int = None, mes: int = None) -> list:
         """Obtiene días desde MongoDB."""

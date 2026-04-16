@@ -832,6 +832,8 @@ def api_eventos_db():
 def api_sync():
     """API: Forzar sincronización (bloqueante)."""
     events = airbnb_service.fetch_events()
+    if not events:
+        return jsonify({"mensaje": "iCal no disponible o vacío, sync abortado", "eventos_airbnb": 0})
     result = db_service.forzar_sync(events, get_audit_info())
     return jsonify({
         "mensaje": "Sincronización completada",
