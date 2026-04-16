@@ -1503,6 +1503,28 @@ class DatabaseService:
             print(f"❌ Error guardando proveedor: {e}")
             return {"success": False, "error": str(e)}
 
+    def seed_proveedores_otros(self):
+        if not self.connect():
+            return
+        try:
+            defaults = [
+                {'nombre': 'GAS', 'servicio': 'gas'},
+                {'nombre': 'Hernan Harce', 'servicio': 'mantencion'},
+            ]
+            for p in defaults:
+                if not self.db.proveedores.find_one({'nombre': p['nombre'], 'tipo': 'otros'}):
+                    self.db.proveedores.insert_one({
+                        'nombre': p['nombre'],
+                        'servicio': p['servicio'],
+                        'tipo': 'otros',
+                        'banco': '', 'rut': '', 'tipo_cuenta': '',
+                        'numero_cuenta': '', 'email': '', 'whatsapp': '',
+                        'fecha_creacion': datetime.utcnow().isoformat()
+                    })
+                    print(f"✅ Proveedor '{p['nombre']}' creado")
+        except Exception as e:
+            print(f"❌ Error seeding proveedores: {e}")
+
 
 # Instancia singleton
 db_service = DatabaseService()

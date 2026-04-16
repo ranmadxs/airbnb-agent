@@ -3277,23 +3277,28 @@ footer {
         font-size: 0.75em;
     }
     
-    /* Modal responsive - centrado en celulares */
+    /* Modal responsive - anclado en celulares para evitar salto con teclado virtual */
     .modal-overlay {
         padding: 12px;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
         overflow-y: auto;
+        overscroll-behavior: none;
     }
-    
+
     .modal-content,
     .modal-agua,
     .modal-internet,
     .modal-gasolina,
+    .modal-aseo,
+    .modal-otros,
+    .modal-electricidad,
     .modal-aseo {
         width: 100%;
         max-width: calc(100vw - 24px);
-        margin: auto;
-        align-self: center;
+        margin: 16px auto;
+        align-self: flex-start;
+        max-height: none;
     }
     
     /* Form row responsive */

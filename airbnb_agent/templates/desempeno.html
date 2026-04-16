@@ -1115,7 +1115,9 @@
                     }
                 }
             }
-            const stepTick = Math.max(100000, Math.ceil(Math.max(rangePos, rangeNeg) / 5));
+            const rawStep = Math.max(rangePos, rangeNeg) / 5 || 1000;
+            const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            const stepTick = Math.ceil(rawStep / mag) * mag;
             const yTicks = [];
             for (let v = Math.ceil(minY / stepTick) * stepTick; v <= maxY; v += stepTick) {
                 if (v >= minY) yTicks.push({ v, y: toY(v) });
