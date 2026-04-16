@@ -324,28 +324,11 @@ class DatabaseService:
         try:
             if dias_ops:
                 resultado = self.dias.bulk_write(dias_ops)
+                return resultado.upserted_count + resultado.modified_count
         except Exception as e:
             print(f"❌ Error bulk días: {e}")
 
-        # 5. Eliminar físicamente los eventos y días que quedaron como cache_airbnb
-        #    (removidos de Airbnb y no re-confirmados por iCal)
-        try:
-            res_del = self.reservas.delete_many({
-                "event_end": {"$gte": hoy},
-                "source": "cache_airbnb",
-                "readonly": {"$ne": True}
-            })
-            dias_del = self.dias.delete_many({
-                "fecha": {"$gte": hoy},
-                "source": "cache_airbnb",
-                "readonly": {"$ne": True}
-            })
-            if res_del.deleted_count or dias_del.deleted_count:
-                print(f"🗑️ Eliminados {res_del.deleted_count} reservas y {dias_del.deleted_count} días obsoletos de Airbnb")
-        except Exception as e:
-            print(f"❌ Error eliminando cache_airbnb: {e}")
-
-        return eventos_guardados
+        return 0
     
     def obtener_dias(self, anio: int = None, mes: int = None) -> list:
         """Obtiene días desde MongoDB."""
