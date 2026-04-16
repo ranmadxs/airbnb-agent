@@ -1766,6 +1766,7 @@
                 const result = await res.json();
                 
                 if (result.success) {
+                    localStorage.setItem('cal_updated', Date.now());
                     cerrarModal();
                     window.location.reload();
                 } else {
@@ -1786,6 +1787,7 @@
                     const result = await res.json();
                     
                     if (result.success) {
+                        localStorage.setItem('cal_updated', Date.now());
                         cerrarModal();
                         window.location.reload();
                     } else {
@@ -2741,6 +2743,8 @@
                 await cargarGastosMes(currentYear, currentMonth);
                 calcularTotalMes();
                 marcarDiasConGastos();
+                await calcularRentabilidad();
+                localStorage.setItem('cal_updated', Date.now());
             } catch (err) {
                 console.error('Error refrescando gastos:', err);
             }
@@ -3131,6 +3135,7 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
+                            localStorage.setItem('cal_updated', Date.now());
                             window.location.reload();
                         } else {
                             alert('Error al eliminar');
@@ -3145,6 +3150,7 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
+                            localStorage.setItem('cal_updated', Date.now());
                             window.location.reload();
                         } else {
                             alert('Error al restaurar');
@@ -3159,6 +3165,7 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
+                            localStorage.setItem('cal_updated', Date.now());
                             window.location.reload();
                         } else {
                             alert('Error al registrar checkout: ' + (data.error || 'Error desconocido'));
@@ -3173,6 +3180,7 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
+                            localStorage.setItem('cal_updated', Date.now());
                             window.location.reload();
                         } else {
                             alert('Error: ' + (data.error || 'No se pudo cancelar'));

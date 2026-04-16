@@ -1225,6 +1225,20 @@
 
         poblarSelectorAnio();
         cargarDatos();
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && mesesData.length > 0) {
+                ultimaCargaDatos = null;
+                cargarDatos();
+            }
+        });
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'cal_updated' && mesesData.length > 0) {
+                ultimaCargaDatos = null;
+                cargarDatos();
+            }
+        });
     </script>
 </body>
 </html>
