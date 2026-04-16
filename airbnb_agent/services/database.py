@@ -324,11 +324,28 @@ class DatabaseService:
         try:
             if dias_ops:
                 resultado = self.dias.bulk_write(dias_ops)
-                return resultado.upserted_count + resultado.modified_count
         except Exception as e:
             print(f"❌ Error bulk días: {e}")
-        
-        return 0
+
+        # 5. Eliminar físicamente los eventos y días que quedaron como cache_airbnb
+        #    (removidos de Airbnb y no re-confirmados por iCal)
+        try:
+            res_del = self.reservas.delete_many({
+                "event_end": {"$gte": hoy},
+                "source": "cache_airbnb",
+                "readonly": {"$ne": True}
+            })
+            dias_del = self.dias.delete_many({
+                "fecha": {"$gte": hoy},
+                "source": "cache_airbnb",
+                "readonly": {"$ne": True}
+            })
+            if res_del.deleted_count or dias_del.deleted_count:
+                print(f"🗑️ Eliminados {res_del.deleted_count} reservas y {dias_del.deleted_count} días obsoletos de Airbnb")
+        except Exception as e:
+            print(f"❌ Error eliminando cache_airbnb: {e}")
+
+        return eventos_guardados
     
     def obtener_dias(self, anio: int = None, mes: int = None) -> list:
         """Obtiene días desde MongoDB."""
@@ -336,10 +353,11 @@ class DatabaseService:
             return []
         
         try:
-            query = {}
+            query = {"source": {"$ne": "cache_airbnb"}, "estado": {"$ne": "eliminado"}}
             if anio and mes:
-                query = {"anio": anio, "mes": mes}
-            
+                query["anio"] = anio
+                query["mes"] = mes
+
             cursor = self.dias.find(query, {"_id": 0}).sort("fecha", 1)
             
             dias = []
@@ -384,7 +402,10 @@ class DatabaseService:
             return []
         
         try:
-            cursor = self.reservas.find().sort("event_start", 1)
+            cursor = self.reservas.find({
+                "source": {"$ne": "cache_airbnb"},
+                "estado": {"$ne": "eliminado"}
+            }).sort("event_start", 1)
             
             eventos = []
             for doc in cursor:
