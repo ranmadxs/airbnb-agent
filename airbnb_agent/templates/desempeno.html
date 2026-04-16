@@ -66,6 +66,8 @@
         .desempeno-nav-btn:hover { border-color: #FF5A5F; color: #FF5A5F; }
         .desempeno-nav-mes { padding: 8px 16px; border-radius: 20px; font-size: 0.9em; font-weight: 600; background: #222; color: white; }
         .desempeno-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .desempeno-card-header { display: flex; align-items: center; justify-content: space-between; margin: 0 0 16px 0; }
+        .desempeno-card-header h3 { font-size: 1.1em; font-weight: 700; color: #222; margin: 0; flex: 1; text-align: center; }
         .desempeno-card h3 { font-size: 1.1em; font-weight: 700; color: #222; margin: 0 0 16px 0; }
         .desempeno-line { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
         .desempeno-line-dot { width: 8px; height: 8px; border-radius: 50%; background: #ec4899; flex-shrink: 0; margin-right: 10px; }
@@ -197,7 +199,11 @@
         </div>
 
         <div class="desempeno-card hidden" id="desempeno-card">
-            <h3 id="card-title">marzo de 2026</h3>
+            <div class="desempeno-card-header">
+                <button type="button" class="desempeno-nav-btn" id="card-nav-prev">←</button>
+                <h3 id="card-title">marzo de 2026</h3>
+                <button type="button" class="desempeno-nav-btn" id="card-nav-next">→</button>
+            </div>
             <div class="desempeno-line">
                 <span class="desempeno-line-dot"></span>
                 <span class="desempeno-line-label">Pagado</span>
@@ -898,20 +904,18 @@
             return yearsNeeded.some(y => !yearsWeHave.includes(y));
         }
 
-        document.getElementById('nav-prev').onclick = () => {
-            selectedMonth--;
+        function navegarMes(delta) {
+            selectedMonth += delta;
             if (selectedMonth < 1) { selectedMonth = 12; currentYear--; }
-            poblarSelectorAnio();
-            if (mesesData.length === 0 || necesitaRecargar()) cargarDatos();
-            else { renderizarChart(); actualizarCard(); }
-        };
-        document.getElementById('nav-next').onclick = () => {
-            selectedMonth++;
             if (selectedMonth > 12) { selectedMonth = 1; currentYear++; }
             poblarSelectorAnio();
             if (mesesData.length === 0 || necesitaRecargar()) cargarDatos();
             else { renderizarChart(); actualizarCard(); }
-        };
+        }
+        document.getElementById('nav-prev').onclick = () => navegarMes(-1);
+        document.getElementById('nav-next').onclick = () => navegarMes(1);
+        document.getElementById('card-nav-prev').onclick = () => navegarMes(-1);
+        document.getElementById('card-nav-next').onclick = () => navegarMes(1);
 
         document.getElementById('toggle-desglose').onclick = () => {
             const c = document.getElementById('desglose-content');
