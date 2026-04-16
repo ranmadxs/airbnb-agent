@@ -443,13 +443,11 @@
         function formatShort(val) {
             const neg = val < 0;
             const v = Math.abs(val);
-            let s = v >= 1000000 ? `$${(v/1000000).toFixed(1)} M` : v >= 1000 ? `$${(v/1000).toFixed(0)} k` : `$${v}`;
+            let s = `$${Math.round(v / 1000)}K`;
             return neg ? '-' + s : s;
         }
         function formatMillones(val) {
-            const v = Math.abs(val);
-            if (v >= 1000000) return (val < 0 ? '-' : '') + '$' + (v/1000000).toFixed(3).replace('.', ',') + ' M';
-            return (val < 0 ? '-' : '') + '$' + Math.abs(val).toLocaleString('es-CL');
+            return `${val < 0 ? '-' : ''}$${Math.round(Math.abs(val) / 1000)}K`;
         }
 
         const SEG_BARRA_INGRESO = { key: 'total_ingresos', clase: 'ingreso' };
@@ -519,7 +517,7 @@
                 const pctDelMax = maxScale > 0 ? (total / maxScale) * 100 : 0;
                 const valorMostrar = sinGastos() ? (m.total_ingresos || 0) : ((m.total_ingresos || 0) - (m.total_gastos || 0));
                 const valorClase = valorMostrar < 0 ? 'desempeno-bar-total negativo' : 'desempeno-bar-total';
-                const valorStr = Math.abs(valorMostrar) >= 1000000 ? `$${(valorMostrar/1000000).toFixed(1)} M` : `$${valorMostrar.toLocaleString('es-CL')}`;
+                const valorStr = `${valorMostrar < 0 ? '-' : ''}$${Math.round(Math.abs(valorMostrar) / 1000)}K`;
                 const segsHtml = segs.map(s => {
                     const val = m[s.key] || 0;
                     const pct = total > 0 ? (val / total) * 100 : 0;
@@ -604,7 +602,7 @@
             const toX = (i) => pad.left + (i / Math.max(1, meses.length - 1)) * chartW;
             const toY = (v) => pad.top + chartH - (v / maxY) * chartH;
             const pts = (arr) => arr.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
-            const fmtPesos = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(1)} M` : v >= 1000 ? `$${(v/1000).toFixed(0)} k` : `$${v}`;
+            const fmtPesos = (v) => `$${Math.round(v / 1000)}K`;
             const circles = (arr, color, acum, nombre) => arr.map((v, i) => {
                 const acumVal = acum[i] ?? 0;
                 const tit = `${labels[i]}: ${nombre} acumulado ${fmtPesos(acumVal)} CLP`;
@@ -690,7 +688,7 @@
             const toX = (i) => pad.left + (i / Math.max(1, meses.length - 1)) * chartW;
             const toY = (v) => pad.top + chartH - (v / maxY) * chartH;
             const pts = (arr) => arr.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
-            const fmtPesos = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(1)} M` : v >= 1000 ? `$${(v/1000).toFixed(0)} k` : `$${v}`;
+            const fmtPesos = (v) => `$${Math.round(v / 1000)}K`;
             const circles = (arr, color, acum, nombre) => arr.map((v, i) => {
                 const acumVal = acum[i] ?? 0;
                 const tit = `${labels[i]}: ${nombre} acumulado ${fmtPesos(acumVal)} CLP`;
@@ -763,7 +761,7 @@
                 return zeroY + (Math.abs(v) / maxYNeg) * (pad.top + chartH - zeroY);
             };
             const pts = (arr) => arr.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
-            const fmtPesos = (v) => v >= 1000000 ? `$${(v/1000000).toFixed(1)} M` : v >= 1000 ? `$${(v/1000).toFixed(0)} k` : `$${v}`;
+            const fmtPesos = (v) => `$${Math.round(v / 1000)}K`;
             const circles = (arr, color, nombre) => arr.map((v, i) => {
                 const tit = `${labels[i]}: ${nombre} ${v >= 0 ? fmtPesos(v) : '-' + fmtPesos(-v)} CLP`;
                 return `<circle cx="${toX(i)}" cy="${toY(v)}" r="6" fill="${color}" stroke="white" stroke-width="2"><title>${tit}</title></circle>`;
