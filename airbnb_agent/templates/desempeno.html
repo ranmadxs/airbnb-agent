@@ -381,6 +381,8 @@
         let currentYear = {{ current_year }};
         let selectedMonth = {{ current_month }};
         let mesesData = [];
+        let ultimaCargaDatos = null;
+        const CACHE_TTL_MS = 5 * 60 * 1000;
         let chartDataForModal = { meses: [], maxScale: 0, labels: [] };
         let chartDataForModalEgresos = { meses: [], maxScale: 0, labels: [] };
         let chartDataForModalNeto = { meses: [], maxYPos: 0, maxYNeg: 0, labels: [] };
@@ -427,6 +429,7 @@
                 }
                 const allData = await Promise.all(allRes.map(r => r.json()));
                 mesesData = allData.flatMap(d => d.meses || []);
+                ultimaCargaDatos = Date.now();
                 renderizarChart();
                 actualizarCard();
                 const errEl = document.getElementById('desempeno-error');
@@ -907,6 +910,7 @@
         }
 
         function necesitaRecargar() {
+            if (ultimaCargaDatos === null || Date.now() - ultimaCargaDatos > CACHE_TTL_MS) return true;
             const yearsWeHave = [...new Set(mesesData.map(m => m.anio))];
             const mesesNecesarios = getMesesParaMostrar();
             const yearsNeeded = [...new Set(mesesNecesarios.map(x => x.anio))];

@@ -616,6 +616,10 @@ def api_desempeno():
     """API: Datos de desempeño mensual (ingresos, gastos, pagado/próximos)."""
     year = request.args.get('year', datetime.now().year, type=int)
 
+    ical_events = airbnb_service.fetch_events()
+    if ical_events:
+        db_service.sync_en_background(ical_events, get_audit_info())
+
     all_events = db_service.obtener_eventos_formato_ical()
     gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
 
