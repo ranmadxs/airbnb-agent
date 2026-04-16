@@ -743,59 +743,91 @@
             document.getElementById('modal-egresos').classList.add('visible');
         }
 
-        function renderScatterChartNeto() {
-            const { meses, maxYPos, maxYNeg, labels } = chartDataForModalNeto;
+        async function renderScatterChartNeto() {
             const container = document.getElementById('scatter-chart-neto-container');
-            if (!meses.length || !container) return;
-            const ingreso = meses.map(m => m.ingreso || 0);
-            const gastos = meses.map(m => -(m.gastos || 0));
-            const neto = meses.map(m => (m.ingreso || 0) - (m.gastos || 0));
+            if (!container) return;
+            container.innerHTML = '<p style="text-align:center;color:#6b7280;padding:24px">Cargando...</p>';
+
+            const resp = await fetch(`/api/month?year=${currentYear}&month=${selectedMonth}`);
+            const data = await resp.json();
+            const events = (data.events || []).filter(ev => ev.estado === 'reservado');
+
+            const diasEnMes = new Date(currentYear, selectedMonth, 0).getDate();
+            const days = Array.from({length: diasEnMes}, (_, i) => i + 1);
+            const mm = String(selectedMonth).padStart(2, '0');
+
+            const ingreso = days.map(d => {
+                const dStr = `${currentYear}-${mm}-${String(d).padStart(2, '0')}`;
+                return events.reduce((sum, ev) => {
+                    if (!ev.start || !ev.end || dStr < ev.start || dStr > ev.end) return sum;
+                    const [sy, sm, sd] = ev.start.split('-').map(Number);
+                    const [ey, em, ed] = ev.end.split('-').map(Number);
+                    const numDays = Math.max(1, Math.round((new Date(ey, em-1, ed) - new Date(sy, sm-1, sd)) / 86400000) + 1);
+                    return sum + Math.round(((ev.precio || 0) + (ev.extra_valor || 0)) / numDays);
+                }, 0);
+            });
+
+            const mesData = mesesData.find(m => m.mes === selectedMonth && m.anio === currentYear) || {};
+            const gastoDiario = Math.round((mesData.total_gastos || 0) / diasEnMes);
+            const gastos = days.map(() => -gastoDiario);
+            const neto = days.map((_, i) => ingreso[i] - gastoDiario);
+
+            const maxPos = Math.max(1, ...ingreso, ...neto.filter(v => v > 0)) + 10000;
+            const maxNeg = Math.max(1, gastoDiario, ...neto.filter(v => v < 0).map(v => -v)) + 10000;
+
             const pad = { left: 52, right: 16, top: 20, bottom: 32 };
             const w = 480, h = 260;
             const chartW = w - pad.left - pad.right;
             const chartH = h - pad.top - pad.bottom;
-            const zeroY = pad.top + chartH * (maxYPos / (maxYPos + maxYNeg));
-            const toX = (i) => pad.left + (i / Math.max(1, meses.length - 1)) * chartW;
+            const zeroY = pad.top + chartH * (maxPos / (maxPos + maxNeg));
+            const toX = (i) => pad.left + (i / Math.max(1, days.length - 1)) * chartW;
             const toY = (v) => {
-                if (v >= 0) return zeroY - (v / maxYPos) * (zeroY - pad.top);
-                return zeroY + (Math.abs(v) / maxYNeg) * (pad.top + chartH - zeroY);
+                if (v >= 0) return zeroY - (v / maxPos) * (zeroY - pad.top);
+                return zeroY + (Math.abs(v) / maxNeg) * (pad.top + chartH - zeroY);
             };
             const pts = (arr) => arr.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
             const fmtPesos = (v) => `$${Math.round(v / 1000)}K`;
             const circles = (arr, color, nombre) => arr.map((v, i) => {
-                const tit = `${labels[i]}: ${nombre} ${v >= 0 ? fmtPesos(v) : '-' + fmtPesos(-v)} CLP`;
-                return `<circle cx="${toX(i)}" cy="${toY(v)}" r="6" fill="${color}" stroke="white" stroke-width="2"><title>${tit}</title></circle>`;
+                const tit = `Día ${days[i]}: ${nombre} ${v >= 0 ? fmtPesos(v) : '-' + fmtPesos(-v)} CLP`;
+                return `<circle cx="${toX(i)}" cy="${toY(v)}" r="4" fill="${color}" stroke="white" stroke-width="1.5"><title>${tit}</title></circle>`;
             }).join('');
+
             const grid = [];
-            for (let x = 0; x <= meses.length - 1; x++) {
-                const xp = toX(x);
-                grid.push(`<line x1="${xp}" y1="${pad.top}" x2="${xp}" y2="${pad.top + chartH}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
+            for (let i = 0; i < days.length; i += 5) {
+                grid.push(`<line x1="${toX(i)}" y1="${pad.top}" x2="${toX(i)}" y2="${pad.top + chartH}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
             }
             grid.push(`<line x1="${pad.left}" y1="${zeroY}" x2="${pad.left + chartW}" y2="${zeroY}" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4 4"/>`);
             for (let y = 1; y <= 4; y++) {
-                const vPos = (y / 4) * maxYPos;
+                const vPos = (y / 4) * maxPos;
                 const ypPos = toY(vPos);
                 if (ypPos > pad.top) grid.push(`<line x1="${pad.left}" y1="${ypPos}" x2="${pad.left + chartW}" y2="${ypPos}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
             }
             for (let y = 1; y <= 4; y++) {
-                const vNeg = -(y / 4) * maxYNeg;
+                const vNeg = -(y / 4) * maxNeg;
                 const ypNeg = toY(vNeg);
                 if (ypNeg < pad.top + chartH) grid.push(`<line x1="${pad.left}" y1="${ypNeg}" x2="${pad.left + chartW}" y2="${ypNeg}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
             }
+
             const labelsY = [];
             labelsY.push(`<text x="${pad.left - 6}" y="${zeroY + 4}" text-anchor="end" font-size="9" fill="#6b7280">$0</text>`);
             for (let y = 1; y <= 4; y++) {
-                const v = (y / 4) * maxYPos;
+                const v = (y / 4) * maxPos;
                 labelsY.push(`<text x="${pad.left - 6}" y="${toY(v) + 4}" text-anchor="end" font-size="9" fill="#6b7280">${fmtPesos(v)}</text>`);
             }
             for (let y = 1; y <= 4; y++) {
-                const v = -(y / 4) * maxYNeg;
+                const v = -(y / 4) * maxNeg;
                 labelsY.push(`<text x="${pad.left - 6}" y="${toY(v) + 4}" text-anchor="end" font-size="9" fill="#6b7280">-${fmtPesos(-v)}</text>`);
             }
+
             const axisY = `<line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>
                 <line x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>`;
-            const labelsX = labels.map((l, i) => `<text x="${toX(i)}" y="${h - 4}" text-anchor="middle" font-size="10" fill="#6b7280">${l}</text>`).join('');
-            const svg = `<svg class="desempeno-scatter-svg" viewBox="0 0 ${w} ${h}">
+            const labelsX = days.map((d, i) =>
+                (i % 5 === 0 || i === days.length - 1)
+                    ? `<text x="${toX(i)}" y="${h - 4}" text-anchor="middle" font-size="10" fill="#6b7280">${d}</text>`
+                    : ''
+            ).join('');
+
+            container.innerHTML = `<svg class="desempeno-scatter-svg" viewBox="0 0 ${w} ${h}">
                 ${grid.join('')}
                 ${axisY}
                 ${labelsY.join('')}
@@ -807,12 +839,13 @@
                 ${circles(neto, '#d4af37', 'Neto')}
                 ${labelsX}
             </svg>`;
-            container.innerHTML = svg;
         }
 
-        function abrirModalNeto() {
-            renderScatterChartNeto();
+        async function abrirModalNeto() {
+            const titleEl = document.querySelector('#modal-neto .desempeno-modal-title');
+            if (titleEl) titleEl.textContent = `Pagos diarios — ${MESES_FULL[selectedMonth]} ${currentYear}`;
             document.getElementById('modal-neto').classList.add('visible');
+            await renderScatterChartNeto();
         }
 
         function actualizarCard() {
