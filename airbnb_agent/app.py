@@ -657,6 +657,40 @@ def api_desempeno():
     return jsonify({'meses': meses_data, 'year': year})
 
 
+@app.route('/api/desempeno-dias')
+@login_required
+def api_desempeno_dias():
+    """API: Eventos diarios de ingresos (checkout) y gastos (fecha_pago) para un mes."""
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    inicio_mes = f"{year}-{str(month).zfill(2)}-01"
+    fin_mes = f"{year + 1}-01-01" if month == 12 else f"{year}-{str(month + 1).zfill(2)}-01"
+
+    eventos = []
+
+    all_events = db_service.obtener_eventos_formato_ical()
+    for ev in all_events:
+        if ev.get('estado') != 'reservado':
+            continue
+        ev_end = ev.get('end', '')
+        if ev_end and inicio_mes <= ev_end < fin_mes:
+            precio = ev.get('precio', 0) or 0
+            extra = ev.get('extra_valor', 0) or 0
+            if precio + extra > 0:
+                eventos.append({'dia': ev_end, 'tipo': 'ingreso', 'concepto': 'reserva', 'valor': precio + extra})
+
+    gastos_mes = db_service.obtener_gastos_mes(year, month)
+    for concepto, lista in gastos_mes.items():
+        for g in lista:
+            fp = g.get('fecha_pago', '')
+            if fp and inicio_mes <= fp < fin_mes:
+                val = g.get('valor', 0) or 0
+                if val > 0:
+                    eventos.append({'dia': fp, 'tipo': 'gasto', 'concepto': concepto, 'valor': val})
+
+    return jsonify({'eventos': eventos, 'year': year, 'month': month})
+
+
 @app.route('/api/month')
 def api_month():
     """API: Datos de un mes específico con eventos."""

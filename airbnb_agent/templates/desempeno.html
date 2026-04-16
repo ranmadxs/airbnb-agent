@@ -748,9 +748,9 @@
             if (!container) return;
             container.innerHTML = '<p style="text-align:center;color:#6b7280;padding:24px">Cargando...</p>';
 
-            const resp = await fetch(`/api/month?year=${currentYear}&month=${selectedMonth}`);
+            const resp = await fetch(`/api/desempeno-dias?year=${currentYear}&month=${selectedMonth}`);
             const data = await resp.json();
-            const events = (data.events || []).filter(ev => ev.estado === 'reservado');
+            const eventos = data.eventos || [];
 
             const diasEnMes = new Date(currentYear, selectedMonth, 0).getDate();
             const days = Array.from({length: diasEnMes}, (_, i) => i + 1);
@@ -758,22 +758,19 @@
 
             const ingreso = days.map(d => {
                 const dStr = `${currentYear}-${mm}-${String(d).padStart(2, '0')}`;
-                return events.reduce((sum, ev) => {
-                    if (!ev.start || !ev.end || dStr < ev.start || dStr > ev.end) return sum;
-                    const [sy, sm, sd] = ev.start.split('-').map(Number);
-                    const [ey, em, ed] = ev.end.split('-').map(Number);
-                    const numDays = Math.max(1, Math.round((new Date(ey, em-1, ed) - new Date(sy, sm-1, sd)) / 86400000) + 1);
-                    return sum + Math.round(((ev.precio || 0) + (ev.extra_valor || 0)) / numDays);
-                }, 0);
+                return eventos.filter(e => e.tipo === 'ingreso' && e.dia === dStr)
+                              .reduce((s, e) => s + (e.valor || 0), 0);
             });
-
-            const mesData = mesesData.find(m => m.mes === selectedMonth && m.anio === currentYear) || {};
-            const gastoDiario = Math.round((mesData.total_gastos || 0) / diasEnMes);
-            const gastos = days.map(() => -gastoDiario);
-            const neto = days.map((_, i) => ingreso[i] - gastoDiario);
+            const gastosPos = days.map(d => {
+                const dStr = `${currentYear}-${mm}-${String(d).padStart(2, '0')}`;
+                return eventos.filter(e => e.tipo === 'gasto' && e.dia === dStr)
+                              .reduce((s, e) => s + (e.valor || 0), 0);
+            });
+            const gastos = gastosPos.map(v => -v);
+            const neto = days.map((_, i) => ingreso[i] - gastosPos[i]);
 
             const maxPos = Math.max(1, ...ingreso, ...neto.filter(v => v > 0)) + 10000;
-            const maxNeg = Math.max(1, gastoDiario, ...neto.filter(v => v < 0).map(v => -v)) + 10000;
+            const maxNeg = Math.max(1, ...gastosPos, ...neto.filter(v => v < 0).map(v => -v)) + 10000;
 
             const pad = { left: 52, right: 16, top: 20, bottom: 32 };
             const w = 480, h = 260;
@@ -785,18 +782,29 @@
                 if (v >= 0) return zeroY - (v / maxPos) * (zeroY - pad.top);
                 return zeroY + (Math.abs(v) / maxNeg) * (pad.top + chartH - zeroY);
             };
-            const pts = (arr) => arr.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
             const fmtPesos = (v) => `$${Math.round(v / 1000)}K`;
-            const circles = (arr, color, nombre) => arr.map((v, i) => {
+
+            const spikes = (arr, color, nombre) => arr.map((v, i) => {
+                if (v === 0) return '';
                 const tit = `Día ${days[i]}: ${nombre} ${v >= 0 ? fmtPesos(v) : '-' + fmtPesos(-v)} CLP`;
-                return `<circle cx="${toX(i)}" cy="${toY(v)}" r="4" fill="${color}" stroke="white" stroke-width="1.5"><title>${tit}</title></circle>`;
+                return `<line x1="${toX(i)}" y1="${zeroY}" x2="${toX(i)}" y2="${toY(v)}" stroke="${color}" stroke-width="3" opacity="0.85"/>
+                    <circle cx="${toX(i)}" cy="${toY(v)}" r="5" fill="${color}" stroke="white" stroke-width="1.5"><title>${tit}</title></circle>`;
             }).join('');
+
+            const netoSpikes = neto.map((v, i) => {
+                if (v === 0) return '';
+                const tit = `Día ${days[i]}: Neto ${v >= 0 ? fmtPesos(v) : '-' + fmtPesos(-v)} CLP`;
+                return `<circle cx="${toX(i)}" cy="${toY(v)}" r="4" fill="#d4af37" stroke="white" stroke-width="1.5"><title>${tit}</title></circle>`;
+            }).join('');
+            const netoLine = (() => {
+                const pts = neto.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
+                return `<polyline points="${pts}" fill="none" stroke="#d4af37" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.7"/>`;
+            })();
 
             const grid = [];
             for (let i = 0; i < days.length; i += 5) {
                 grid.push(`<line x1="${toX(i)}" y1="${pad.top}" x2="${toX(i)}" y2="${pad.top + chartH}" stroke="#e5e7eb" stroke-dasharray="4 4"/>`);
             }
-            grid.push(`<line x1="${pad.left}" y1="${zeroY}" x2="${pad.left + chartW}" y2="${zeroY}" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4 4"/>`);
             for (let y = 1; y <= 4; y++) {
                 const vPos = (y / 4) * maxPos;
                 const ypPos = toY(vPos);
@@ -809,7 +817,7 @@
             }
 
             const labelsY = [];
-            labelsY.push(`<text x="${pad.left - 6}" y="${zeroY + 4}" text-anchor="end" font-size="9" fill="#6b7280">$0</text>`);
+            labelsY.push(`<text x="${pad.left - 6}" y="${zeroY + 4}" text-anchor="end" font-size="9" font-weight="bold" fill="#374151">$0</text>`);
             for (let y = 1; y <= 4; y++) {
                 const v = (y / 4) * maxPos;
                 labelsY.push(`<text x="${pad.left - 6}" y="${toY(v) + 4}" text-anchor="end" font-size="9" fill="#6b7280">${fmtPesos(v)}</text>`);
@@ -821,6 +829,7 @@
 
             const axisY = `<line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>
                 <line x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}" stroke="#9ca3af" stroke-width="1"/>`;
+            const zeroLine = `<line x1="${pad.left}" y1="${zeroY}" x2="${pad.left + chartW}" y2="${zeroY}" stroke="#374151" stroke-width="2"/>`;
             const labelsX = days.map((d, i) =>
                 (i % 5 === 0 || i === days.length - 1)
                     ? `<text x="${toX(i)}" y="${h - 4}" text-anchor="middle" font-size="10" fill="#6b7280">${d}</text>`
@@ -830,13 +839,12 @@
             container.innerHTML = `<svg class="desempeno-scatter-svg" viewBox="0 0 ${w} ${h}">
                 ${grid.join('')}
                 ${axisY}
+                ${zeroLine}
                 ${labelsY.join('')}
-                <polyline points="${pts(ingreso)}" fill="none" stroke="#111" stroke-width="2.5"/>
-                ${circles(ingreso, '#111', 'Ingreso')}
-                <polyline points="${pts(gastos)}" fill="none" stroke="#dc2626" stroke-width="2.5"/>
-                ${circles(gastos, '#dc2626', 'Gastos')}
-                <polyline points="${pts(neto)}" fill="none" stroke="#d4af37" stroke-width="2.5"/>
-                ${circles(neto, '#d4af37', 'Neto')}
+                ${spikes(ingreso, '#111', 'Ingreso')}
+                ${spikes(gastos, '#dc2626', 'Gastos')}
+                ${netoLine}
+                ${netoSpikes}
                 ${labelsX}
             </svg>`;
         }
