@@ -363,7 +363,7 @@
             <div class="desempeno-scatter-leyenda" id="scatter-leyenda-neto">
                 <span><span class="dot" style="background:#111"></span>Ingreso</span>
                 <span><span class="dot" style="background:#dc2626"></span>Gastos</span>
-                <span><span class="dot" style="background:#d4af37"></span>Ingreso − Gastos</span>
+                <span><span class="dot" style="background:#7c3aed"></span>Tendencia neto</span>
             </div>
         </div>
     </div>
@@ -787,18 +787,23 @@
             const spikes = (arr, color, nombre) => arr.map((v, i) => {
                 if (v === 0) return '';
                 const tit = `Día ${days[i]}: ${nombre} ${v >= 0 ? fmtPesos(v) : '-' + fmtPesos(-v)} CLP`;
-                return `<line x1="${toX(i)}" y1="${zeroY}" x2="${toX(i)}" y2="${toY(v)}" stroke="${color}" stroke-width="3" opacity="0.85"/>
+                return `<line x1="${toX(i)}" y1="${zeroY}" x2="${toX(i)}" y2="${toY(v)}" stroke="${color}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.7"/>
                     <circle cx="${toX(i)}" cy="${toY(v)}" r="5" fill="${color}" stroke="white" stroke-width="1.5"><title>${tit}</title></circle>`;
             }).join('');
 
-            const netoSpikes = neto.map((v, i) => {
-                if (v === 0) return '';
-                const tit = `Día ${days[i]}: Neto ${v >= 0 ? fmtPesos(v) : '-' + fmtPesos(-v)} CLP`;
-                return `<circle cx="${toX(i)}" cy="${toY(v)}" r="4" fill="#d4af37" stroke="white" stroke-width="1.5"><title>${tit}</title></circle>`;
-            }).join('');
-            const netoLine = (() => {
-                const pts = neto.map((v, i) => `${toX(i)},${toY(v)}`).join(' ');
-                return `<polyline points="${pts}" fill="none" stroke="#d4af37" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.7"/>`;
+            const trendLine = (() => {
+                const n = neto.length;
+                const sumX = n * (n - 1) / 2;
+                const sumY = neto.reduce((s, v) => s + v, 0);
+                const sumXY = neto.reduce((s, v, i) => s + i * v, 0);
+                const sumX2 = n * (n - 1) * (2 * n - 1) / 6;
+                const denom = n * sumX2 - sumX * sumX;
+                const slope = denom ? (n * sumXY - sumX * sumY) / denom : 0;
+                const intercept = (sumY - slope * sumX) / n;
+                const y0 = Math.max(pad.top, Math.min(pad.top + chartH, toY(intercept)));
+                const y1 = Math.max(pad.top, Math.min(pad.top + chartH, toY(intercept + slope * (n - 1))));
+                const slopeLabel = slope > 0 ? '↑ tendencia positiva' : slope < 0 ? '↓ tendencia negativa' : '→ tendencia plana';
+                return `<line x1="${toX(0)}" y1="${y0}" x2="${toX(n - 1)}" y2="${y1}" stroke="#7c3aed" stroke-width="2.5" opacity="0.9"><title>${slopeLabel}</title></line>`;
             })();
 
             const grid = [];
@@ -843,8 +848,7 @@
                 ${labelsY.join('')}
                 ${spikes(ingreso, '#111', 'Ingreso')}
                 ${spikes(gastos, '#dc2626', 'Gastos')}
-                ${netoLine}
-                ${netoSpikes}
+                ${trendLine}
                 ${labelsX}
             </svg>`;
         }
