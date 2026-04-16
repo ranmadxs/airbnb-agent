@@ -798,18 +798,22 @@
             }).join('');
 
             const trendLine = (() => {
-                const n = neto.length;
-                const sumX = n * (n - 1) / 2;
-                const sumY = neto.reduce((s, v) => s + v, 0);
-                const sumXY = neto.reduce((s, v, i) => s + i * v, 0);
-                const sumX2 = n * (n - 1) * (2 * n - 1) / 6;
+                const pts = neto.map((v, i) => ({ v, i })).filter(p => p.v !== 0);
+                if (pts.length < 2) return '';
+                const n = pts.length;
+                const sumX = pts.reduce((s, p) => s + p.i, 0);
+                const sumY = pts.reduce((s, p) => s + p.v, 0);
+                const sumXY = pts.reduce((s, p) => s + p.i * p.v, 0);
+                const sumX2 = pts.reduce((s, p) => s + p.i * p.i, 0);
                 const denom = n * sumX2 - sumX * sumX;
                 const slope = denom ? (n * sumXY - sumX * sumY) / denom : 0;
                 const intercept = (sumY - slope * sumX) / n;
-                const y0 = Math.max(pad.top, Math.min(pad.top + chartH, toY(intercept)));
-                const y1 = Math.max(pad.top, Math.min(pad.top + chartH, toY(intercept + slope * (n - 1))));
+                const iMin = pts[0].i;
+                const iMax = pts[pts.length - 1].i;
+                const y0 = Math.max(pad.top, Math.min(pad.top + chartH, toY(intercept + slope * iMin)));
+                const y1 = Math.max(pad.top, Math.min(pad.top + chartH, toY(intercept + slope * iMax)));
                 const slopeLabel = slope > 0 ? '↑ tendencia positiva' : slope < 0 ? '↓ tendencia negativa' : '→ tendencia plana';
-                return `<line x1="${toX(0)}" y1="${y0}" x2="${toX(n - 1)}" y2="${y1}" stroke="#7c3aed" stroke-width="2.5" opacity="0.9"><title>${slopeLabel}</title></line>`;
+                return `<line x1="${toX(iMin)}" y1="${y0}" x2="${toX(iMax)}" y2="${y1}" stroke="#7c3aed" stroke-width="2.5" opacity="0.9"><title>${slopeLabel}</title></line>`;
             })();
 
             const grid = [];
