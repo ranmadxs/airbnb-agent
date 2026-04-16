@@ -1381,9 +1381,9 @@
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 const esCache = event.source === 'cache_airbnb';
-                
+
                 let current = new Date(start);
-                while (current <= end) {
+                while (current < end) {
                     const dateStr = formatDate(current);
                     const cell = document.querySelector(`[data-date="${dateStr}"]`);
                     if (cell) {
