@@ -578,7 +578,7 @@ class DatabaseService:
             print(f"❌ Error guardando reserva: {e}")
             return {"success": False, "error": str(e)}
 
-    def crear_o_buscar_persona(self, email: str = None, whatsapp: str = None, nombre: str = None) -> str | None:
+    def crear_o_buscar_persona(self, email: str = None, whatsapp: str = None, nombre: str = None):
         """Busca persona por email o whatsapp; si no existe, la crea. Retorna persona_id o None."""
         if not self.connect():
             return None

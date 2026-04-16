@@ -23,51 +23,56 @@ class AirbnbCalendarService:
         self.cached_events = []
         self.status = {"connected": False, "last_check": None, "events_count": 0}
     
-    def fetch_events(self) -> list:
-        """Obtiene eventos del calendario iCal de Airbnb."""
+    def fetch_events(self):
+        """Obtiene eventos del calendario iCal de Airbnb.
+
+        Retorna:
+          - list (puede ser vacía): fetch exitoso, esos son los eventos actuales
+          - None: fetch falló (red, timeout, HTTP error, parse error) — no tocar BD
+        """
         if not self.url:
             self.status = {
-                "connected": False, 
-                "last_check": datetime.now().isoformat(), 
+                "connected": False,
+                "last_check": datetime.now().isoformat(),
                 "events_count": 0,
                 "error": "URL no configurada"
             }
-            return []
-        
+            return None
+
         try:
             response = requests.get(self.url, timeout=10)
             response.raise_for_status()
-            
+
             cal = Calendar.from_ical(response.content)
             events = []
-            
+
             for component in cal.walk():
                 if component.name == "VEVENT":
                     event = self._parse_event(component)
                     if event:
                         events.append(event)
-            
+
             events.sort(key=lambda x: x['start'])
-            
+
             self.cached_events = events
             self.last_fetch = datetime.now()
             self.status = {
-                "connected": True, 
-                "last_check": datetime.now().isoformat(), 
+                "connected": True,
+                "last_check": datetime.now().isoformat(),
                 "events_count": len(events)
             }
-            
+
             return events
-            
+
         except Exception as e:
             print(f"❌ Error obteniendo calendario Airbnb: {e}")
             self.status = {
-                "connected": False, 
-                "last_check": datetime.now().isoformat(), 
+                "connected": False,
+                "last_check": datetime.now().isoformat(),
                 "events_count": 0,
                 "error": str(e)
             }
-            return []
+            return None
     
     def _parse_event(self, component) -> dict:
         """Parsea un componente VEVENT a diccionario."""

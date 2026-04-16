@@ -280,13 +280,13 @@ def home():
     """Página principal."""
     # 1. Sincronizar desde iCal en background (si está disponible)
     ical_events = airbnb_service.fetch_events()
-    if ical_events:
+    if ical_events is not None:
         db_service.sync_en_background(ical_events, get_audit_info())
-    
+
     # 2. Mostrar siempre desde MongoDB (fuente principal)
     events = db_service.obtener_eventos_formato_ical()
-    
-    # 3. Fallback a iCal solo si MongoDB está vacío
+
+    # 3. Fallback a iCal solo si MongoDB está vacío y el fetch fue exitoso
     if not events and ical_events:
         events = ical_events
     
@@ -617,7 +617,7 @@ def api_desempeno():
     year = request.args.get('year', datetime.now().year, type=int)
 
     ical_events = airbnb_service.fetch_events()
-    if ical_events:
+    if ical_events is not None:
         db_service.sync_en_background(ical_events, get_audit_info())
 
     all_events = db_service.obtener_eventos_formato_ical()
@@ -832,8 +832,8 @@ def api_eventos_db():
 def api_sync():
     """API: Forzar sincronización (bloqueante)."""
     events = airbnb_service.fetch_events()
-    if not events:
-        return jsonify({"mensaje": "iCal no disponible o vacío, sync abortado", "eventos_airbnb": 0})
+    if events is None:
+        return jsonify({"mensaje": "iCal no disponible, sync abortado", "eventos_airbnb": 0})
     result = db_service.forzar_sync(events, get_audit_info())
     return jsonify({
         "mensaje": "Sincronización completada",
