@@ -407,9 +407,12 @@
             const chartEl = document.getElementById('desempeno-chart-content');
             const cardEl = document.getElementById('desempeno-card');
             if (!loadingEl || !chartEl) return;
-            loadingEl.classList.remove('hidden');
-            chartEl.classList.add('hidden');
-            cardEl.classList.add('hidden');
+            const cargaInicial = mesesData.length === 0;
+            if (cargaInicial) {
+                loadingEl.classList.remove('hidden');
+                chartEl.classList.add('hidden');
+                cardEl.classList.add('hidden');
+            }
             try {
                 const yearsToFetch = [currentYear];
                 if (selectedMonth <= 5) yearsToFetch.unshift(currentYear - 1);
@@ -430,7 +433,7 @@
                 if (errEl) { errEl.classList.add('hidden'); errEl.textContent = ''; }
             } catch (err) {
                 console.error('Error cargando desempeño:', err);
-                mesesData = [];
+                if (cargaInicial) mesesData = [];
                 if (err.status === 401) {
                     window.location.href = '/login?next=' + encodeURIComponent('/desempeno');
                     return;
@@ -440,9 +443,11 @@
                 if (errEl) { errEl.textContent = errMsg; errEl.classList.remove('hidden'); }
                 try { renderizarChart(); actualizarCard(); } catch (_) {}
             } finally {
-                loadingEl.classList.add('hidden');
-                chartEl.classList.remove('hidden');
-                if (cardEl) cardEl.classList.remove('hidden');
+                if (cargaInicial) {
+                    loadingEl.classList.add('hidden');
+                    chartEl.classList.remove('hidden');
+                    if (cardEl) cardEl.classList.remove('hidden');
+                }
             }
         }
 
@@ -913,8 +918,9 @@
             if (selectedMonth < 1) { selectedMonth = 12; currentYear--; }
             if (selectedMonth > 12) { selectedMonth = 1; currentYear++; }
             poblarSelectorAnio();
-            if (mesesData.length === 0 || necesitaRecargar()) cargarDatos();
-            else { renderizarChart(); actualizarCard(); }
+            renderizarChart();
+            actualizarCard();
+            if (necesitaRecargar()) cargarDatos();
         }
         document.getElementById('nav-prev').onclick = () => navegarMes(-1);
         document.getElementById('nav-next').onclick = () => navegarMes(1);
