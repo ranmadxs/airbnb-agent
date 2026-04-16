@@ -754,7 +754,7 @@
             const w = 480, h = 260;
             const chartW = w - pad.left - pad.right;
             const chartH = h - pad.top - pad.bottom;
-            const zeroY = pad.top + chartH * (maxYNeg / (maxYPos + maxYNeg));
+            const zeroY = pad.top + chartH * (maxYPos / (maxYPos + maxYNeg));
             const toX = (i) => pad.left + (i / Math.max(1, meses.length - 1)) * chartW;
             const toY = (v) => {
                 if (v >= 0) return zeroY - (v / maxYPos) * (zeroY - pad.top);
