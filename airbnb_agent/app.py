@@ -643,6 +643,21 @@ def api_desempeno():
         total_ingresos = ingreso_arriendo + ingreso_tinaja
         total_gastos = gasto_agua + gasto_internet + gasto_gasolina + gasto_aseo + gasto_otros
 
+        # Contar reservas y personas por mes de CHECKIN (evita doble conteo en reservas cruzadas)
+        mes_str = f'{year}-{str(mes).zfill(2)}'
+        num_reservas = 0
+        total_adultos = 0
+        total_ninos = 0
+        total_mascotas = 0
+        for ev in all_events:
+            if ev.get('estado') != 'reservado':
+                continue
+            if (ev.get('start') or '').startswith(mes_str):
+                num_reservas += 1
+                total_adultos += ev.get('adultos', 0) or 0
+                total_ninos += ev.get('ninos', 0) or 0
+                total_mascotas += ev.get('mascotas', 0) or 0
+
         meses_data.append({
             'mes': mes,
             'anio': year,
@@ -653,6 +668,10 @@ def api_desempeno():
             'gasolina': gasto_gasolina,
             'aseo': gasto_aseo,
             'otros': gasto_otros,
+            'num_reservas': num_reservas,
+            'adultos': total_adultos,
+            'ninos': total_ninos,
+            'mascotas': total_mascotas,
             'ingreso_pagado': ingreso_pagado,
             'ingreso_proximos': ingreso_proximos,
             'gasto_pagado': gasto_pagado,
@@ -762,6 +781,7 @@ def api_estadisticas_total_mes():
 
     balances = []
     gastos_list = []
+    ingresos_list = []
     for mes in range(1, 13):
         arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(all_events, year, mes)
         g = gastos_por_mes.get(mes, {})
@@ -772,6 +792,7 @@ def api_estadisticas_total_mes():
         balance = (arriendo + tinaja) - total_gastos
         balances.append({'mes': mes, 'anio': year, 'balance': balance})
         gastos_list.append({'mes': mes, 'anio': year, 'total_gastos': total_gastos})
+        ingresos_list.append({'mes': mes, 'anio': year, 'total_ingresos': arriendo + tinaja})
 
     valores = [b['balance'] for b in balances]
     n = len(valores)
@@ -783,15 +804,20 @@ def api_estadisticas_total_mes():
     ordenado = sorted(balances, key=lambda x: x['balance'], reverse=True)
     ranking = [{'mes': b['mes'], 'anio': b['anio'], 'posicion': i + 1} for i, b in enumerate(ordenado)]
 
-    # Ranking por gastos ascendente (menor gasto = mayor eficiencia = 1°)
-    # Solo se consideran meses ya finalizados (el mes actual puede seguir acumulando gastos)
     hoy = date.today()
-    gastos_finalizados = [
-        g for g in gastos_list
-        if g['anio'] < hoy.year or (g['anio'] == hoy.year and g['mes'] < hoy.month)
-    ]
+
+    def mes_finalizado(m, a):
+        return a < hoy.year or (a == hoy.year and m < hoy.month)
+
+    # Ranking por gastos ascendente (menor gasto = mayor eficiencia = 1°), solo meses finalizados
+    gastos_finalizados = [g for g in gastos_list if mes_finalizado(g['mes'], g['anio'])]
     ordenado_gastos = sorted(gastos_finalizados, key=lambda x: x['total_gastos'])
     ranking_gastos = [{'mes': b['mes'], 'anio': b['anio'], 'posicion': i + 1} for i, b in enumerate(ordenado_gastos)]
+
+    # Ranking por ingresos descendente (mayor ingreso = 1°), solo meses finalizados
+    ingresos_finalizados = [i for i in ingresos_list if mes_finalizado(i['mes'], i['anio'])]
+    ordenado_ingresos = sorted(ingresos_finalizados, key=lambda x: x['total_ingresos'], reverse=True)
+    ranking_ingresos = [{'mes': b['mes'], 'anio': b['anio'], 'posicion': i + 1} for i, b in enumerate(ordenado_ingresos)]
 
     return jsonify({
         'year': year,
@@ -800,6 +826,7 @@ def api_estadisticas_total_mes():
         'std': round(std),
         'ranking': ranking,
         'ranking_gastos': ranking_gastos,
+        'ranking_ingresos': ranking_ingresos,
     })
 
 

@@ -38,7 +38,7 @@
             {% if is_logged_in %}
             <div class="income-widgets-sidebar">
                 <!-- Widget de Ingresos (1x2) -->
-                <div class="income-group ingresos">
+                <div class="income-group ingresos" id="widget-ingresos-group">
                     <div class="income-group-header">
                         <span class="income-group-icon">💵</span>
                         <span class="income-group-title">Ingresos</span>
@@ -2887,10 +2887,12 @@
             const widgetEl = document.getElementById('widget-total-mes');
             if (!widgetEl) return;
             
-            // Remover clases de color y sello anterior
+            // Remover clases de color y sellos anteriores
             widgetEl.classList.remove('total-azul', 'total-verde', 'total-amarillo', 'total-rojo', 'total-naranjo', 'total-gris', 'total-oro');
             const selloExistente = widgetEl.querySelector('.total-mes-sello');
             if (selloExistente) selloExistente.remove();
+            const ingWidget = document.getElementById('widget-ingresos-group');
+            if (ingWidget) { const s = ingWidget.querySelector('.sello-ranking-ingresos'); if (s) s.remove(); }
             
             // 1. Negativo → siempre rojo
             if (balance < 0) {
@@ -2925,6 +2927,25 @@
                     sello.title = `Ranking ingreso neto: ${posicion}° lugar del año`;
                     sello.innerHTML = '<span>' + texto + '</span>';
                     widgetEl.appendChild(sello);
+                }
+
+                // Sello ranking ingresos en el widget Ingresos (mayor ingreso = 1°)
+                const rankingIngresos = data.ranking_ingresos || [];
+                const entradaIngresos = rankingIngresos.find(r => r.mes === currentMonth && r.anio === currentYear);
+                const posicionIngresos = entradaIngresos ? entradaIngresos.posicion : null;
+                const ingresosWidget = document.getElementById('widget-ingresos-group');
+                if (ingresosWidget) {
+                    const selloIngAnt = ingresosWidget.querySelector('.sello-ranking-ingresos');
+                    if (selloIngAnt) selloIngAnt.remove();
+                    if (posicionIngresos) {
+                        const selloIng = document.createElement('div');
+                        const esTop2Ing = posicionIngresos <= 2;
+                        selloIng.className = 'sello-ranking-ingresos' + (esTop2Ing ? '' : ' sello-plata');
+                        selloIng.title = `Ranking ingresos: ${posicionIngresos}° lugar del año (1° = mayor ingreso)`;
+                        selloIng.innerHTML = '<span>' + posicionIngresos + '°</span>';
+                        const totalIng = ingresosWidget.querySelector('.income-group-total');
+                        ingresosWidget.querySelector('.income-group-header').insertBefore(selloIng, totalIng);
+                    }
                 }
 
                 // Sello de eficiencia en el widget Gastos (menor gasto = 1°)

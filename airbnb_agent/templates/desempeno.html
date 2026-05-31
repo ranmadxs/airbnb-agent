@@ -321,6 +321,31 @@
                         <span class="desempeno-leyenda-item desempeno-anual-neto-label">TOTAL NETO</span>
                         <span class="desempeno-anual-total-valor desempeno-anual-neto-valor" id="anual-neto-valor">—</span>
                     </div>
+                    <hr class="desempeno-anual-divider">
+                    <div class="desempeno-anual-totales">
+                        <span class="desempeno-leyenda-item">🏠 Reservas del período</span>
+                        <span class="desempeno-anual-total-valor" id="anual-total-reservas">—</span>
+                    </div>
+                    <div class="desempeno-anual-totales">
+                        <span class="desempeno-leyenda-item" style="color:#6b7280;font-size:0.85em;">Promedio mensual</span>
+                        <span class="desempeno-anual-total-valor" style="color:#6b7280;font-size:0.85em;" id="anual-promedio-reservas">—</span>
+                    </div>
+                    <div class="desempeno-anual-totales" style="margin-top:6px;">
+                        <span class="desempeno-leyenda-item">👤 Personas</span>
+                        <span class="desempeno-anual-total-valor" id="anual-total-personas">—</span>
+                    </div>
+                    <div class="desempeno-anual-totales">
+                        <span class="desempeno-leyenda-item" style="padding-left:1em;color:#6b7280;font-size:0.85em;">Adultos</span>
+                        <span class="desempeno-anual-total-valor" style="color:#6b7280;font-size:0.85em;" id="anual-total-adultos">—</span>
+                    </div>
+                    <div class="desempeno-anual-totales">
+                        <span class="desempeno-leyenda-item" style="padding-left:1em;color:#6b7280;font-size:0.85em;">👶 Niños</span>
+                        <span class="desempeno-anual-total-valor" style="color:#6b7280;font-size:0.85em;" id="anual-total-ninos">—</span>
+                    </div>
+                    <div class="desempeno-anual-totales">
+                        <span class="desempeno-leyenda-item" style="padding-left:1em;color:#6b7280;font-size:0.85em;">🐾 Mascotas</span>
+                        <span class="desempeno-anual-total-valor" style="color:#6b7280;font-size:0.85em;" id="anual-total-mascotas">—</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -976,6 +1001,7 @@
         let mesesDataAnual = [];
         let totalArriendoAnual = 0, totalTinajaAnual = 0;
         let totalAguaAnual = 0, totalInternetAnual = 0, totalGasolinaAnual = 0, totalAseoAnual = 0, totalOtrosAnual = 0;
+        let totalReservasAnual = 0, totalAdultosAnual = 0, totalNinosAnual = 0, totalMascotasAnual = 0;
         let puntosAnualCompletos = [];
         const hoy = new Date();
         const yActual = hoy.getFullYear();
@@ -1034,6 +1060,10 @@
             totalGasolinaAnual = 0;
             totalAseoAnual = 0;
             totalOtrosAnual = 0;
+            totalReservasAnual = 0;
+            totalAdultosAnual = 0;
+            totalNinosAnual = 0;
+            totalMascotasAnual = 0;
             let mes = m1, anio = y1;
             while (anio < y2 || (anio === y2 && mes <= m2)) {
                 const d = mesesDataAnual.find(m => m.mes === mes && m.anio === anio);
@@ -1044,6 +1074,10 @@
                 const gasolina = d ? (d.gasolina || 0) : 0;
                 const aseo = d ? (d.aseo || 0) : 0;
                 const otrosVal = d ? (d.otros || 0) : 0;
+                const reservasVal = d ? (d.num_reservas || 0) : 0;
+                const adultosVal = d ? (d.adultos || 0) : 0;
+                const ninosVal = d ? (d.ninos || 0) : 0;
+                const mascotasVal = d ? (d.mascotas || 0) : 0;
                 totalArriendoAnual += arriendo;
                 totalTinajaAnual += tinaja;
                 totalAguaAnual += agua;
@@ -1051,6 +1085,10 @@
                 totalGasolinaAnual += gasolina;
                 totalAseoAnual += aseo;
                 totalOtrosAnual += otrosVal;
+                totalReservasAnual += reservasVal;
+                totalAdultosAnual += adultosVal;
+                totalNinosAnual += ninosVal;
+                totalMascotasAnual += mascotasVal;
                 puntos.push({
                     mes, anio,
                     arriendo, tinaja, agua, internet, gasolina, aseo, otros: otrosVal,
@@ -1078,6 +1116,10 @@
                 totalGasolinaAnual = 0;
                 totalAseoAnual = 0;
                 totalOtrosAnual = 0;
+                totalReservasAnual = 0;
+                totalAdultosAnual = 0;
+                totalNinosAnual = 0;
+                totalMascotasAnual = 0;
                 document.getElementById('anual-valor-arriendo').textContent = '$0';
                 document.getElementById('anual-valor-tinaja').textContent = '$0';
                 document.getElementById('anual-valor-agua').textContent = '-$0';
@@ -1086,6 +1128,7 @@
                 document.getElementById('anual-valor-aseo').textContent = '-$0';
                 document.getElementById('anual-valor-otros').textContent = '-$0';
                 document.getElementById('anual-gastos-valor').textContent = '-$0';
+                actualizarStatsAnual(0);
                 actualizarTotalAnual();
                 return;
             }
@@ -1101,6 +1144,27 @@
             document.getElementById('anual-valor-aseo').textContent = fmtNeg(totalAseoAnual);
             document.getElementById('anual-valor-otros').textContent = fmtNeg(totalOtrosAnual);
             actualizarTotalAnual();
+            actualizarStatsAnual(puntos.length);
+        }
+
+        function actualizarStatsAnual(numMeses) {
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            if (numMeses === 0) {
+                set('anual-total-reservas', '—');
+                set('anual-promedio-reservas', '—');
+                set('anual-total-personas', '—');
+                set('anual-total-adultos', '—');
+                set('anual-total-ninos', '—');
+                set('anual-total-mascotas', '—');
+                return;
+            }
+            const promedio = (totalReservasAnual / numMeses).toFixed(1);
+            set('anual-total-reservas', totalReservasAnual);
+            set('anual-promedio-reservas', promedio + ' / mes');
+            set('anual-total-personas', totalAdultosAnual + totalNinosAnual);
+            set('anual-total-adultos', totalAdultosAnual);
+            set('anual-total-ninos', totalNinosAnual);
+            set('anual-total-mascotas', totalMascotasAnual);
         }
 
         function actualizarTotalAnual() {
