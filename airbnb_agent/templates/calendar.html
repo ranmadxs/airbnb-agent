@@ -63,7 +63,7 @@
                 </div>
                 
                 <!-- Widget de Gastos (2x2) -->
-                <div class="income-group gastos">
+                <div class="income-group gastos" id="widget-gastos-group">
                     <div class="income-group-header">
                         <span class="income-group-icon">📉</span>
                         <span class="income-group-title">Gastos</span>
@@ -2887,7 +2887,7 @@
             const widgetEl = document.getElementById('widget-total-mes');
             if (!widgetEl) return;
             
-            // Remover clases de color y sello anteriores
+            // Remover clases de color y sello anterior
             widgetEl.classList.remove('total-azul', 'total-verde', 'total-amarillo', 'total-rojo', 'total-naranjo', 'total-gris', 'total-oro');
             const selloExistente = widgetEl.querySelector('.total-mes-sello');
             if (selloExistente) selloExistente.remove();
@@ -2911,20 +2911,39 @@
                 const data = res.ok ? await res.json() : {};
                 const mean = data.mean || 0;
                 const std = data.std || 1;
-                const primerLugar = data.primer_lugar;
-                const segundoLugar = data.segundo_lugar;
-                
-                const esPrimerLugar = primerLugar && primerLugar.mes === currentMonth && primerLugar.anio === currentYear;
-                const esSegundoLugar = segundoLugar && segundoLugar.mes === currentMonth && segundoLugar.anio === currentYear;
-                
-                // Sello MVP (1° o 2° lugar del año)
-                if (esPrimerLugar || esSegundoLugar) {
+                const ranking = data.ranking || [];
+
+                const entrada = ranking.find(r => r.mes === currentMonth && r.anio === currentYear);
+                const posicion = entrada ? entrada.posicion : null;
+
+                // Sello de posición por balance (1°=MVP hasta 12°)
+                if (posicion) {
                     const sello = document.createElement('div');
-                    sello.className = 'total-mes-sello';
-                    sello.innerHTML = '<span>' + (esPrimerLugar ? 'MVP' : '2°') + '</span>';
+                    const esTop2 = posicion <= 2;
+                    sello.className = 'total-mes-sello' + (esTop2 ? '' : ' sello-plata');
+                    const texto = posicion === 1 ? 'MVP' : posicion + '°';
+                    sello.title = `Ranking ingreso neto: ${posicion}° lugar del año`;
+                    sello.innerHTML = '<span>' + texto + '</span>';
                     widgetEl.appendChild(sello);
                 }
-                
+
+                // Sello de eficiencia en el widget Gastos (menor gasto = 1°)
+                const rankingGastos = data.ranking_gastos || [];
+                const entradaGastos = rankingGastos.find(r => r.mes === currentMonth && r.anio === currentYear);
+                const posicionGastos = entradaGastos ? entradaGastos.posicion : null;
+                const gastosWidget = document.getElementById('widget-gastos-group');
+                if (gastosWidget) {
+                    const selloEfAnterior = gastosWidget.querySelector('.sello-eficiencia-gastos');
+                    if (selloEfAnterior) selloEfAnterior.remove();
+                    if (posicionGastos) {
+                        const selloEf = document.createElement('div');
+                        selloEf.className = 'sello-eficiencia-gastos';
+                        selloEf.title = `Eficiencia de gastos: ${posicionGastos}° lugar del año (1° = menor gasto)`;
+                        selloEf.innerHTML = '<span>' + posicionGastos + '°</span>';
+                        gastosWidget.appendChild(selloEf);
+                    }
+                }
+
                 // Color según desviaciones estándar
                 if (balance > mean + 4 * std) {
                     widgetEl.classList.add('total-oro');

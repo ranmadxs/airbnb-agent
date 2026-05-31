@@ -278,13 +278,15 @@ def logout():
 @app.route('/')
 def home():
     """Página principal."""
-    # 1. Sincronizar desde iCal en background (si está disponible)
+    # 1. Leer MongoDB PRIMERO para evitar race condition con el sync en background.
+    #    Si se leyera DESPUÉS de disparar el sync, el thread podría estar escribiendo
+    #    simultáneamente y el render mostraría datos inconsistentes.
+    events = db_service.obtener_eventos_formato_ical()
+
+    # 2. Sincronizar desde iCal en background (actualiza MongoDB para la PRÓXIMA carga)
     ical_events = airbnb_service.fetch_events()
     if ical_events is not None:
         db_service.sync_en_background(ical_events, get_audit_info())
-
-    # 2. Mostrar siempre desde MongoDB (fuente principal)
-    events = db_service.obtener_eventos_formato_ical()
 
     # 3. Fallback a iCal solo si MongoDB está vacío y el fetch fue exitoso
     if not events and ical_events:
@@ -634,11 +636,12 @@ def api_desempeno():
         gasto_internet = g.get('internet', 0)
         gasto_gasolina = g.get('gasolina', 0)
         gasto_aseo = g.get('aseo', 0)
+        gasto_otros = g.get('otros', 0)
         gasto_pagado = g.get('pagado', 0)
         gasto_proximos = g.get('proximos', 0)
 
         total_ingresos = ingreso_arriendo + ingreso_tinaja
-        total_gastos = gasto_agua + gasto_internet + gasto_gasolina + gasto_aseo
+        total_gastos = gasto_agua + gasto_internet + gasto_gasolina + gasto_aseo + gasto_otros
 
         meses_data.append({
             'mes': mes,
@@ -649,6 +652,7 @@ def api_desempeno():
             'internet': gasto_internet,
             'gasolina': gasto_gasolina,
             'aseo': gasto_aseo,
+            'otros': gasto_otros,
             'ingreso_pagado': ingreso_pagado,
             'ingreso_proximos': ingreso_proximos,
             'gasto_pagado': gasto_pagado,
@@ -757,6 +761,7 @@ def api_estadisticas_total_mes():
     gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
 
     balances = []
+    gastos_list = []
     for mes in range(1, 13):
         arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(all_events, year, mes)
         g = gastos_por_mes.get(mes, {})
@@ -766,6 +771,7 @@ def api_estadisticas_total_mes():
         )
         balance = (arriendo + tinaja) - total_gastos
         balances.append({'mes': mes, 'anio': year, 'balance': balance})
+        gastos_list.append({'mes': mes, 'anio': year, 'total_gastos': total_gastos})
 
     valores = [b['balance'] for b in balances]
     n = len(valores)
@@ -773,18 +779,27 @@ def api_estadisticas_total_mes():
     varianza = sum((v - media) ** 2 for v in valores) / n if n else 0
     std = math.sqrt(varianza) if varianza > 0 else 0
 
-    # Ordenar por balance descendente para ranking
+    # Ranking por balance descendente (mayor ingreso neto = 1°)
     ordenado = sorted(balances, key=lambda x: x['balance'], reverse=True)
-    primer_lugar = ordenado[0] if ordenado else None
-    segundo_lugar = ordenado[1] if len(ordenado) > 1 else None
+    ranking = [{'mes': b['mes'], 'anio': b['anio'], 'posicion': i + 1} for i, b in enumerate(ordenado)]
+
+    # Ranking por gastos ascendente (menor gasto = mayor eficiencia = 1°)
+    # Solo se consideran meses ya finalizados (el mes actual puede seguir acumulando gastos)
+    hoy = date.today()
+    gastos_finalizados = [
+        g for g in gastos_list
+        if g['anio'] < hoy.year or (g['anio'] == hoy.year and g['mes'] < hoy.month)
+    ]
+    ordenado_gastos = sorted(gastos_finalizados, key=lambda x: x['total_gastos'])
+    ranking_gastos = [{'mes': b['mes'], 'anio': b['anio'], 'posicion': i + 1} for i, b in enumerate(ordenado_gastos)]
 
     return jsonify({
         'year': year,
         'balances': {b['mes']: b['balance'] for b in balances},
         'mean': round(media),
         'std': round(std),
-        'primer_lugar': {'mes': primer_lugar['mes'], 'anio': primer_lugar['anio']} if primer_lugar else None,
-        'segundo_lugar': {'mes': segundo_lugar['mes'], 'anio': segundo_lugar['anio']} if segundo_lugar else None,
+        'ranking': ranking,
+        'ranking_gastos': ranking_gastos,
     })
 
 

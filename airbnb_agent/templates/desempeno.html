@@ -240,6 +240,7 @@
                         <div class="desglose-item"><span>Internet</span><span id="desglose-internet">-$0</span></div>
                         <div class="desglose-item"><span>Gasolina</span><span id="desglose-gasolina">-$0</span></div>
                         <div class="desglose-item"><span>Aseo</span><span id="desglose-aseo">-$0</span></div>
+                        <div class="desglose-item"><span>Otros</span><span id="desglose-otros">-$0</span></div>
                         <div class="desglose-item desglose-subtotal"><span>Subtotal egresos</span><span id="desglose-gastos">-$0</span></div>
                     </div>
                     <div class="desglose-item desglose-neto"><span>Neto (ingresos − egresos)</span><span id="desglose-neto">$0</span></div>
@@ -308,6 +309,12 @@
                             <span>Aseo</span>
                             <span class="desempeno-anual-desglose-valor desempeno-anual-gasto-item-valor" id="anual-valor-aseo">—</span>
                         </label>
+                        <label class="desempeno-anual-desglose-item">
+                            <span class="desempeno-anual-plus">−</span>
+                            <input type="checkbox" id="anual-cb-otros" checked>
+                            <span>Otros</span>
+                            <span class="desempeno-anual-desglose-valor desempeno-anual-gasto-item-valor" id="anual-valor-otros">—</span>
+                        </label>
                     </div>
                     <hr class="desempeno-anual-divider">
                     <div class="desempeno-anual-totales desempeno-anual-neto">
@@ -346,6 +353,7 @@
                 <label><input type="checkbox" id="filtro-egreso-internet" checked> Internet</label>
                 <label><input type="checkbox" id="filtro-egreso-gasolina" checked> Gasolina</label>
                 <label><input type="checkbox" id="filtro-egreso-aseo" checked> Aseo</label>
+                <label><input type="checkbox" id="filtro-egreso-otros" checked> Otros</label>
                 <label><input type="checkbox" id="filtro-egreso-total" checked> Total</label>
             </div>
             <div id="scatter-chart-egresos-container"></div>
@@ -354,6 +362,7 @@
                 <span><span class="dot" style="background:#3B82F6"></span>Internet</span>
                 <span><span class="dot" style="background:#f59e0b"></span>Gasolina</span>
                 <span><span class="dot" style="background:#8b5cf6"></span>Aseo</span>
+                <span><span class="dot" style="background:#10b981"></span>Otros</span>
                 <span><span class="dot" style="background:#dc2626"></span>Total</span>
             </div>
         </div>
@@ -667,6 +676,7 @@
                 internet: document.getElementById('filtro-egreso-internet')?.checked ?? true,
                 gasolina: document.getElementById('filtro-egreso-gasolina')?.checked ?? true,
                 aseo: document.getElementById('filtro-egreso-aseo')?.checked ?? true,
+                otros: document.getElementById('filtro-egreso-otros')?.checked ?? true,
                 total: document.getElementById('filtro-egreso-total')?.checked ?? true
             };
         }
@@ -680,19 +690,22 @@
             const internet = meses.map(m => m.internet || 0);
             const gasolina = meses.map(m => m.gasolina || 0);
             const aseo = meses.map(m => m.aseo || 0);
-            const totalCompleto = meses.map(m => (m.agua||0)+(m.internet||0)+(m.gasolina||0)+(m.aseo||0));
+            const otros = meses.map(m => m.otros || 0);
+            const totalCompleto = meses.map(m => (m.agua||0)+(m.internet||0)+(m.gasolina||0)+(m.aseo||0)+(m.otros||0));
             const totalFiltrado = meses.map(m => {
                 let s = 0;
                 if (filtro.agua) s += m.agua || 0;
                 if (filtro.internet) s += m.internet || 0;
                 if (filtro.gasolina) s += m.gasolina || 0;
                 if (filtro.aseo) s += m.aseo || 0;
+                if (filtro.otros) s += m.otros || 0;
                 return s;
             });
             const acumAgua = agua.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
             const acumInternet = internet.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
             const acumGasolina = gasolina.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
             const acumAseo = aseo.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
+            const acumOtros = otros.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
             const acumTotal = totalFiltrado.reduce((a, v, i) => [...a, (a[i-1]||0) + v], []);
             const maxY = Math.max(maxScale, ...totalFiltrado, 1);
             const pad = { left: 52, right: 16, top: 16, bottom: 32 };
@@ -732,6 +745,7 @@
                 { key: 'internet', arr: internet, color: '#3B82F6', acum: acumInternet, nombre: 'Internet' },
                 { key: 'gasolina', arr: gasolina, color: '#f59e0b', acum: acumGasolina, nombre: 'Gasolina' },
                 { key: 'aseo', arr: aseo, color: '#8b5cf6', acum: acumAseo, nombre: 'Aseo' },
+                { key: 'otros', arr: otros, color: '#10b981', acum: acumOtros, nombre: 'Otros' },
                 { key: 'total', arr: totalFiltrado, color: '#dc2626', acum: acumTotal, nombre: 'Total' }
             ];
             const series = seriesAll.filter(s => filtro[s.key]);
@@ -900,6 +914,7 @@
             document.getElementById('desglose-internet').textContent = '-' + fmt(m.internet || 0);
             document.getElementById('desglose-gasolina').textContent = '-' + fmt(m.gasolina || 0);
             document.getElementById('desglose-aseo').textContent = '-' + fmt(m.aseo || 0);
+            document.getElementById('desglose-otros').textContent = '-' + fmt(m.otros || 0);
             document.getElementById('desglose-gastos').textContent = '-' + fmt(m.total_gastos || 0);
             const netoVal = ocultarGastos ? (m.total_ingresos || 0) : (m.neto || 0);
             const netoEl = document.getElementById('desglose-neto');
@@ -949,7 +964,7 @@
         document.getElementById('modal-ingresos').onclick = (e) => { if (e.target.id === 'modal-ingresos') e.target.classList.remove('visible'); };
         document.getElementById('modal-egresos-close').onclick = () => document.getElementById('modal-egresos').classList.remove('visible');
         document.getElementById('modal-egresos').onclick = (e) => { if (e.target.id === 'modal-egresos') e.target.classList.remove('visible'); };
-        ['filtro-egreso-agua','filtro-egreso-internet','filtro-egreso-gasolina','filtro-egreso-aseo','filtro-egreso-total'].forEach(id => {
+        ['filtro-egreso-agua','filtro-egreso-internet','filtro-egreso-gasolina','filtro-egreso-aseo','filtro-egreso-otros','filtro-egreso-total'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', () => renderScatterChartEgresos());
         });
@@ -960,7 +975,7 @@
         // Tabs Mensual / Anual
         let mesesDataAnual = [];
         let totalArriendoAnual = 0, totalTinajaAnual = 0;
-        let totalAguaAnual = 0, totalInternetAnual = 0, totalGasolinaAnual = 0, totalAseoAnual = 0;
+        let totalAguaAnual = 0, totalInternetAnual = 0, totalGasolinaAnual = 0, totalAseoAnual = 0, totalOtrosAnual = 0;
         let puntosAnualCompletos = [];
         const hoy = new Date();
         const yActual = hoy.getFullYear();
@@ -1018,6 +1033,7 @@
             totalInternetAnual = 0;
             totalGasolinaAnual = 0;
             totalAseoAnual = 0;
+            totalOtrosAnual = 0;
             let mes = m1, anio = y1;
             while (anio < y2 || (anio === y2 && mes <= m2)) {
                 const d = mesesDataAnual.find(m => m.mes === mes && m.anio === anio);
@@ -1027,15 +1043,17 @@
                 const internet = d ? (d.internet || 0) : 0;
                 const gasolina = d ? (d.gasolina || 0) : 0;
                 const aseo = d ? (d.aseo || 0) : 0;
+                const otrosVal = d ? (d.otros || 0) : 0;
                 totalArriendoAnual += arriendo;
                 totalTinajaAnual += tinaja;
                 totalAguaAnual += agua;
                 totalInternetAnual += internet;
                 totalGasolinaAnual += gasolina;
                 totalAseoAnual += aseo;
+                totalOtrosAnual += otrosVal;
                 puntos.push({
                     mes, anio,
-                    arriendo, tinaja, agua, internet, gasolina, aseo,
+                    arriendo, tinaja, agua, internet, gasolina, aseo, otros: otrosVal,
                     label: anio !== y1 && anio !== y2 ? MESES_ABREV[mes] : `${MESES_ABREV[mes]}'${String(anio).slice(-2)}`
                 });
                 mes++; if (mes > 12) { mes = 1; anio++; }
@@ -1059,12 +1077,14 @@
                 totalInternetAnual = 0;
                 totalGasolinaAnual = 0;
                 totalAseoAnual = 0;
+                totalOtrosAnual = 0;
                 document.getElementById('anual-valor-arriendo').textContent = '$0';
                 document.getElementById('anual-valor-tinaja').textContent = '$0';
                 document.getElementById('anual-valor-agua').textContent = '-$0';
                 document.getElementById('anual-valor-internet').textContent = '-$0';
                 document.getElementById('anual-valor-gasolina').textContent = '-$0';
                 document.getElementById('anual-valor-aseo').textContent = '-$0';
+                document.getElementById('anual-valor-otros').textContent = '-$0';
                 document.getElementById('anual-gastos-valor').textContent = '-$0';
                 actualizarTotalAnual();
                 return;
@@ -1079,6 +1099,7 @@
             document.getElementById('anual-valor-internet').textContent = fmtNeg(totalInternetAnual);
             document.getElementById('anual-valor-gasolina').textContent = fmtNeg(totalGasolinaAnual);
             document.getElementById('anual-valor-aseo').textContent = fmtNeg(totalAseoAnual);
+            document.getElementById('anual-valor-otros').textContent = fmtNeg(totalOtrosAnual);
             actualizarTotalAnual();
         }
 
@@ -1091,6 +1112,7 @@
             if (document.getElementById('anual-cb-internet').checked) gas += totalInternetAnual;
             if (document.getElementById('anual-cb-gasolina').checked) gas += totalGasolinaAnual;
             if (document.getElementById('anual-cb-aseo').checked) gas += totalAseoAnual;
+            if (document.getElementById('anual-cb-otros').checked) gas += totalOtrosAnual;
             document.getElementById('anual-total-valor').textContent = '$' + Math.round(ing).toLocaleString('es-CL');
             document.getElementById('anual-gastos-valor').textContent = gas > 0 ? '-$' + Math.round(gas).toLocaleString('es-CL') : '$0';
             const neto = ing - gas;
@@ -1124,6 +1146,7 @@
                 if (document.getElementById('anual-cb-internet').checked) gas += p.internet || 0;
                 if (document.getElementById('anual-cb-gasolina').checked) gas += p.gasolina || 0;
                 if (document.getElementById('anual-cb-aseo').checked) gas += p.aseo || 0;
+                if (document.getElementById('anual-cb-otros').checked) gas += p.otros || 0;
                 return ing - gas;
             }
             const valores = datos.map(d => valorPunto(d));
