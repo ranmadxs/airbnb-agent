@@ -2940,7 +2940,8 @@
                         selloEf.className = 'sello-eficiencia-gastos';
                         selloEf.title = `Eficiencia de gastos: ${posicionGastos}° lugar del año (1° = menor gasto)`;
                         selloEf.innerHTML = '<span>' + posicionGastos + '°</span>';
-                        gastosWidget.appendChild(selloEf);
+                        const total = gastosWidget.querySelector('.income-group-total');
+                        gastosWidget.querySelector('.income-group-header').insertBefore(selloEf, total);
                     }
                 }
 
