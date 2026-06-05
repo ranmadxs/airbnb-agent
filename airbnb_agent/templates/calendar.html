@@ -3039,9 +3039,13 @@
 
                 const costoOperacionalEl = document.getElementById('rentabilidad-costo-operacional');
                 if (costoOperacionalEl) {
-                    costoOperacionalEl.textContent = '$' + Math.round(gastosMes / 1000) + 'k';
-                    costoOperacionalEl.style.color = gastosMes > 0 ? '#b91c1c' : '#64748b';
-                    costoOperacionalEl.title = `Gastos operacionales del mes visible: $${gastosMes.toLocaleString('es-CL')}`;
+                    let costoOperacionalPct = 0;
+                    if (ingresosMes > 0) {
+                        costoOperacionalPct = (gastosMes / ingresosMes) * 100;
+                    }
+                    costoOperacionalEl.textContent = Math.round(costoOperacionalPct) + '%';
+                    costoOperacionalEl.style.color = costoOperacionalPct > 100 ? '#dc2626' : '#b91c1c';
+                    costoOperacionalEl.title = `Costo operacional sobre ingresos del mes visible: ${Math.round(costoOperacionalPct)}% (gastos: $${gastosMes.toLocaleString('es-CL')} / ingresos: $${ingresosMes.toLocaleString('es-CL')})`;
                 }
                 
                 // Obtener promedio anual desde la API (FIJO basado en fecha de HOY)
