@@ -637,15 +637,17 @@ def api_desempeno():
         gasto_gasolina = g.get('gasolina', 0)
         gasto_aseo = g.get('aseo', 0)
         gasto_otros = g.get('otros', 0)
+        gasto_electricidad = g.get('electricidad', 0)
         gasto_pagado = g.get('pagado', 0)
         gasto_proximos = g.get('proximos', 0)
 
         total_ingresos = ingreso_arriendo + ingreso_tinaja
-        total_gastos = gasto_agua + gasto_internet + gasto_gasolina + gasto_aseo + gasto_otros
+        total_gastos = gasto_agua + gasto_internet + gasto_gasolina + gasto_aseo + gasto_otros + gasto_electricidad
 
         # Contar reservas y personas por mes de CHECKIN (evita doble conteo en reservas cruzadas)
         mes_str = f'{year}-{str(mes).zfill(2)}'
         num_reservas = 0
+        num_reservas_tinaja = 0
         total_adultos = 0
         total_ninos = 0
         total_mascotas = 0
@@ -654,6 +656,8 @@ def api_desempeno():
                 continue
             if (ev.get('start') or '').startswith(mes_str):
                 num_reservas += 1
+                if (ev.get('extra_valor', 0) or 0) > 0:
+                    num_reservas_tinaja += 1
                 total_adultos += ev.get('adultos', 0) or 0
                 total_ninos += ev.get('ninos', 0) or 0
                 total_mascotas += ev.get('mascotas', 0) or 0
@@ -668,7 +672,9 @@ def api_desempeno():
             'gasolina': gasto_gasolina,
             'aseo': gasto_aseo,
             'otros': gasto_otros,
+            'electricidad': gasto_electricidad,
             'num_reservas': num_reservas,
+            'num_reservas_tinaja': num_reservas_tinaja,
             'adultos': total_adultos,
             'ninos': total_ninos,
             'mascotas': total_mascotas,

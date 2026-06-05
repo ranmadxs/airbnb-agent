@@ -690,7 +690,7 @@ header {
 
 .rentabilidad-metricas {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     margin-bottom: 10px;
 }
@@ -3065,6 +3065,14 @@ footer {
     
     .rentabilidad-flecha {
         font-size: 1.1em;
+    }
+
+    .rentabilidad-metricas {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .rentabilidad-metrica:last-child {
+        grid-column: 1 / -1;
     }
     
     .rentabilidad-stat .stat-label {

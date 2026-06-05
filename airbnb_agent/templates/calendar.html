@@ -145,6 +145,10 @@
                             <span class="metrica-valor" id="rentabilidad-margen">0%</span>
                             <span class="metrica-label">Margen</span>
                         </div>
+                        <div class="rentabilidad-metrica">
+                            <span class="metrica-valor" id="rentabilidad-costo-operacional">$0k</span>
+                            <span class="metrica-label">Costo Operacional</span>
+                        </div>
                     </div>
                     <div class="rentabilidad-stats">
                         <div class="rentabilidad-stat">
@@ -154,7 +158,7 @@
                             <span class="stat-value" id="rentabilidad-promedio-mes">--</span>
                         </div>
                         <div class="rentabilidad-stat">
-                            <span class="stat-label">Var. YTD</span>
+                            <span class="stat-label">YTD</span>
                             <span class="stat-value" id="rentabilidad-var-ytd">--</span>
                         </div>
                     </div>
@@ -3032,6 +3036,13 @@
                     margenEl.textContent = (margen >= 0 ? '+' : '') + Math.round(margen) + '%';
                     margenEl.style.color = margen >= 0 ? '#059669' : '#dc2626';
                 }
+
+                const costoOperacionalEl = document.getElementById('rentabilidad-costo-operacional');
+                if (costoOperacionalEl) {
+                    costoOperacionalEl.textContent = '$' + Math.round(gastosMes / 1000) + 'k';
+                    costoOperacionalEl.style.color = gastosMes > 0 ? '#b91c1c' : '#64748b';
+                    costoOperacionalEl.title = `Gastos operacionales del mes visible: $${gastosMes.toLocaleString('es-CL')}`;
+                }
                 
                 // Obtener promedio anual desde la API (FIJO basado en fecha de HOY)
                 const res = await fetch('/api/promedio-anual', { credentials: 'include' });
@@ -3084,7 +3095,8 @@
                         varYtdEl.className = 'stat-value';
                     } else {
                         const variacion = ((ingresosMes - promedioIngresos) / promedioIngresos) * 100;
-                        varYtdEl.textContent = (variacion >= 0 ? '+' : '') + Math.round(variacion) + '%';
+                        const vector = variacion > 0 ? '↑' : variacion < 0 ? '↓' : '→';
+                        varYtdEl.textContent = `${vector} ${(variacion >= 0 ? '+' : '') + Math.round(variacion)}%`;
                         varYtdEl.className = 'stat-value ' + (variacion >= 0 ? 'positive' : 'negative');
                         varYtdEl.title = `Mes: $${ingresosMes.toLocaleString('es-CL')} vs Promedio: $${promedioIngresos.toLocaleString('es-CL')}`;
                     }
