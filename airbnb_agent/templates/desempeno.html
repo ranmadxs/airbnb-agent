@@ -158,6 +158,10 @@
         .desempeno-trx-nav-mes { padding: 8px 16px; border: 2px solid #e5e7eb; border-radius: 20px; font-size: 0.95em; font-weight: 600; color: #222; background: white; }
         .desempeno-trx-filtro { display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: #484848; cursor: pointer; }
         .desempeno-trx-filtro input { width: 16px; height: 16px; cursor: pointer; }
+        .desempeno-trx-tipos { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
+        .desempeno-trx-tipo-btn { height: 28px; padding: 0 10px; border: 1px solid #e5e7eb; background: #f9fafb; border-radius: 8px; cursor: pointer; font-size: 0.8em; display: inline-flex; align-items: center; }
+        .desempeno-trx-tipo-btn.active { border-color: #1d4ed8; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+        .desempeno-trx-tipo-count { margin-left: 6px; color: inherit; opacity: 0.75; }
 
         .desempeno-trx-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
         .desempeno-trx-vistas { display: flex; align-items: center; gap: 4px; }
@@ -457,6 +461,7 @@
                     <input type="checkbox" id="trx-filtro-egresos" checked>
                     <span>Mostrar egresos</span>
                 </label>
+                <div class="desempeno-trx-tipos" id="trx-filtros-tipo"></div>
             </div>
             <div class="desempeno-trx-vista active" id="trx-vista-calendario">
                 <div class="desempeno-trx-cal">
@@ -1509,6 +1514,7 @@
         let trxMonth = selectedMonth;
         let trxDiasData = [];
         let trxAllData = [];
+        let trxFiltroTipo = '';
         let trxVistaActual = 'calendario';
         let trxDiaSeleccionado = null;
 
@@ -1547,6 +1553,59 @@
             cargarTransacciones();
         }
 
+        function getTipoTrx(descripcion) {
+            const d = (descripcion || '').toUpperCase();
+            if (d.includes('PAGO RECIBIDO')) return 'Ingresos';
+            if (d.includes('COMPRA') || d.includes('DEBITO') || d.includes('REDCOMPRA')) return 'Compras';
+            if (d.includes('TRANSFER')) return 'Transferencias';
+            if (d.includes('TRASPASO')) return 'Traspasos';
+            if (d.includes('PAGO CUENTAS')) return 'Pagos';
+            if (d.includes('SERVICIO')) return 'Servicios';
+            return 'Otros';
+        }
+
+        function actualizarDiasData() {
+            trxDiasData = [];
+            const fuente = trxFiltroTipo ? trxAllData.filter(t => getTipoTrx(t.descripcion) === trxFiltroTipo) : trxAllData;
+            const diasEnMes = new Date(trxYear, trxMonth, 0).getDate();
+            const mm = String(trxMonth).padStart(2, '0');
+            const yy = String(trxYear);
+            for (let d = 1; d <= diasEnMes; d++) {
+                const dStr = `${String(d).padStart(2, '0')}-${mm}-${yy}`;
+                const delDia = fuente.filter(t => t.fecha === dStr);
+                const ingreso = delDia.reduce((s, t) => s + (parseFloat(t.abono) || 0), 0);
+                const egreso = delDia.reduce((s, t) => s + (parseFloat(t.cargo) || 0), 0);
+                trxDiasData.push({ dia: d, fecha: dStr, ingreso, egreso, trxs: delDia });
+            }
+        }
+
+        function poblarFiltrosTipo() {
+            const container = document.getElementById('trx-filtros-tipo');
+            if (!container) return;
+            const contador = {};
+            trxAllData.forEach(t => {
+                const k = getTipoTrx(t.descripcion);
+                contador[k] = (contador[k] || 0) + 1;
+            });
+            const tipos = Object.keys(contador).sort();
+            let activeKey = trxFiltroTipo;
+            if (activeKey && !contador[activeKey]) { activeKey = ''; trxFiltroTipo = ''; }
+            let html = `<button type="button" class="desempeno-trx-tipo-btn ${activeKey === '' ? 'active' : ''}" data-tipo="">Todos <span class="desempeno-trx-tipo-count">(${trxAllData.length})</span></button>`;
+            for (const k of tipos) {
+                html += `<button type="button" class="desempeno-trx-tipo-btn ${activeKey === k ? 'active' : ''}" data-tipo="${k}">${k} <span class="desempeno-trx-tipo-count">(${contador[k]})</span></button>`;
+            }
+            container.innerHTML = html;
+            container.querySelectorAll('.desempeno-trx-tipo-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    container.querySelectorAll('.desempeno-trx-tipo-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    trxFiltroTipo = btn.dataset.tipo || '';
+                    actualizarDiasData();
+                    renderizarTrx();
+                });
+            });
+        }
+
         async function cargarTransacciones() {
             const mesEl = document.getElementById('trx-nav-mes');
             if (mesEl) mesEl.textContent = `${MESES_FULL[trxMonth]} ${trxYear}`;
@@ -1567,19 +1626,8 @@
                 const trxs = data.transacciones || [];
 
                 trxAllData = trxs;
-                trxDiasData = [];
-
-                const diasEnMes = new Date(trxYear, trxMonth, 0).getDate();
-                const mm = String(trxMonth).padStart(2, '0');
-                const yy = String(trxYear);
-
-                for (let d = 1; d <= diasEnMes; d++) {
-                    const dStr = `${String(d).padStart(2, '0')}-${mm}-${yy}`;
-                    const delDia = trxs.filter(t => t.fecha === dStr);
-                    const ingreso = delDia.reduce((s, t) => s + (parseFloat(t.abono) || 0), 0);
-                    const egreso = delDia.reduce((s, t) => s + (parseFloat(t.cargo) || 0), 0);
-                    trxDiasData.push({ dia: d, fecha: dStr, ingreso, egreso, trxs: delDia });
-                }
+                poblarFiltrosTipo();
+                actualizarDiasData();
                 renderizarTrx();
             } catch (err) {
                 console.error('Error cargando transacciones:', err);
@@ -1689,7 +1737,9 @@
 
             const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
 
-            let items = trxAllData.map(t => {
+            const fuente = trxFiltroTipo ? trxAllData.filter(t => getTipoTrx(t.descripcion) === trxFiltroTipo) : trxAllData;
+
+            let items = fuente.map(t => {
                 const abono = parseFloat(t.abono) || 0;
                 const cargo = parseFloat(t.cargo) || 0;
                 const neto = abono - cargo;
