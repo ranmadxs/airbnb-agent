@@ -148,6 +148,79 @@
         .desempeno-anual-gasto-valor { color: #dc2626; }
         .desempeno-anual-gasto-item-valor { color: #dc2626; }
         .desempeno-line-chart svg { width: 100%; height: 100%; display: block; }
+
+        /* Vista Transacciones */
+        .desempeno-trx-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+        .desempeno-trx-header h3 { font-size: 1.1em; font-weight: 700; color: #222; margin: 0; }
+        .desempeno-trx-nav { display: flex; align-items: center; gap: 12px; }
+        .desempeno-trx-nav-btn { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #ebebeb; background: white; cursor: pointer; font-size: 1em; color: #484848; display: flex; align-items: center; justify-content: center; }
+        .desempeno-trx-nav-btn:hover { border-color: #FF5A5F; color: #FF5A5F; }
+        .desempeno-trx-nav-mes { padding: 8px 16px; border: 2px solid #e5e7eb; border-radius: 20px; font-size: 0.95em; font-weight: 600; color: #222; background: white; }
+        .desempeno-trx-filtro { display: flex; align-items: center; gap: 6px; font-size: 0.85em; color: #484848; cursor: pointer; }
+        .desempeno-trx-filtro input { width: 16px; height: 16px; cursor: pointer; }
+
+        .desempeno-trx-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .desempeno-trx-vistas { display: flex; align-items: center; gap: 4px; }
+        .desempeno-trx-vista-btn { width: 36px; height: 36px; border: 2px solid #e5e7eb; background: white; border-radius: 8px; cursor: pointer; font-size: 1.2em; display: flex; align-items: center; justify-content: center; }
+        .desempeno-trx-vista-btn:hover { border-color: #1d4ed8; }
+        .desempeno-trx-vista-btn.active { border-color: #1d4ed8; background: #eff6ff; }
+        .desempeno-trx-vista { display: none; }
+        .desempeno-trx-vista.active { display: block; }
+
+        .desempeno-trx-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+        .desempeno-trx-list-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: white; border-radius: 10px; border: 1px solid #f3f4f6; font-size: 0.88em; }
+        .desempeno-trx-list-item + .desempeno-trx-list-item { margin-top: 0; }
+        .desempeno-trx-list-left { display: flex; flex-direction: column; flex: 1; gap: 2px; }
+        .desempeno-trx-list-desc { color: #484848; font-weight: 500; }
+        .desempeno-trx-list-fecha { font-size: 0.72em; color: #9ca3af; }
+        .desempeno-trx-list-valor { font-weight: 700; min-width: 100px; text-align: right; }
+        .desempeno-trx-list-valor.ingreso { color: #059669; }
+        .desempeno-trx-list-valor.egreso { color: #dc2626; }
+        .desempeno-trx-list-saldo { color: #9ca3af; margin-left: 6px; }
+        .desempeno-trx-list-item + .desempeno-trx-list-item { border-top: 1px solid #f3f4f6; }
+
+        /* Calendario tipo cuadrícula */
+        .desempeno-trx-cal { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .desempeno-trx-dias-semana { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+        .desempeno-trx-dias-semana span { font-size: 0.7em; font-weight: 700; color: #6b7280; text-align: center; padding: 6px 2px; }
+        .desempeno-trx-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .desempeno-trx-dia { background: #f9fafb; border-radius: 8px; padding: 8px; min-height: 56px; position: relative; }
+        .desempeno-trx-dia.vacio { background: transparent; min-height: 40px; }
+        .desempeno-trx-dia-num { font-size: 0.7em; font-weight: 600; color: #9ca3af; margin-bottom: 2px; }
+        .desempeno-trx-dia.dia-actual .desempeno-trx-dia-num { color: #1d4ed8; font-weight: 700; }
+        .desempeno-trx-mini-ingreso { display: flex; align-items: center; gap: 2px; margin-bottom: 1px; }
+        .desempeno-trx-mini-ingreso .dot { width: 6px; height: 6px; border-radius: 50%; background: #059669; flex-shrink: 0; }
+        .desempeno-trx-mini-ingreso span { font-size: 0.62em; color: #059669; font-weight: 600; }
+        .desempeno-trx-mini-egreso { display: flex; align-items: center; gap: 2px; margin-bottom: 1px; }
+        .desempeno-trx-mini-egreso .dot { width: 6px; height: 6px; border-radius: 50%; background: #dc2626; flex-shrink: 0; }
+        .desempeno-trx-mini-egreso span { font-size: 0.62em; color: #dc2626; font-weight: 600; }
+        .desempeno-trx-dia[data-trx="true"] { cursor: pointer; }
+        .desempeno-trx-dia.dia-tiene-trx { background: #f0fdf4; border: 1px solid #bbf7d0; }
+        .desempeno-trx-dia.dia-tiene-egreso { background: #fef2f2; border: 1px solid #fecaca; }
+
+        /* Detalle de transacciones */
+        .desempeno-trx-detalle { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); }
+        .desempeno-trx-detalle-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; padding: 8px 0; }
+        .desempeno-trx-detalle-header h4 { font-size: 0.95em; font-weight: 700; color: #222; margin: 0; }
+        .desempeno-trx-detalle-arrow { font-size: 1.1em; color: #9ca3af; transition: transform 0.2s; }
+        .desempeno-trx-detalle-list { margin-top: 12px; }
+        .desempeno-trx-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: 0.85em; border-bottom: 1px solid #f3f4f6; }
+        .desempeno-trx-item:last-child { border-bottom: none; }
+        .desempeno-trx-item-left { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+        .desempeno-trx-item-desc { color: #484848; font-weight: 500; }
+        .desempeno-trx-item-sub { font-size: 0.72em; color: #9ca3af; }
+        .desempeno-trx-item-valor { font-weight: 700; min-width: 100px; text-align: right; }
+        .desempeno-trx-item-valor.ingreso { color: #059669; }
+        .desempeno-trx-item-valor.egreso { color: #dc2626; }
+
+        /* Balance mensual */
+        .desempeno-trx-resumen { display: flex; align-items: center; justify-content: space-around; gap: 12px; padding: 16px 0; font-size: 0.85em; border-top: 2px solid #e5e7eb; margin-top: 12px; }
+        .desempeno-trx-resumen-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .desempeno-trx-resumen-label { color: #6b7280; font-weight: 600; font-size: 0.8em; }
+        .desempeno-trx-resumen-valor { font-weight: 700; font-size: 1.1em; }
+        .desempeno-trx-resumen-valor.ingreso { color: #059669; }
+        .desempeno-trx-resumen-valor.egreso { color: #dc2626; }
+        .desempeno-trx-resumen-valor.neto { color: #222; font-size: 1.3em; }
     </style>
 </head>
 <body>
@@ -165,6 +238,7 @@
         <div class="desempeno-tabs">
             <button type="button" class="desempeno-tab active" id="tab-btn-mensual">Mensual</button>
             <button type="button" class="desempeno-tab" id="tab-btn-anual">Anual</button>
+            <button type="button" class="desempeno-tab" id="tab-btn-transacciones">Transacciones</button>
         </div>
 
         <div class="desempeno-tab-panel active" id="tab-panel-mensual">
@@ -361,6 +435,60 @@
                         <span class="desempeno-leyenda-item" style="padding-left:1em;color:#6b7280;font-size:0.85em;">🐾 Mascotas</span>
                         <span class="desempeno-anual-total-valor" style="color:#6b7280;font-size:0.85em;" id="anual-total-mascotas">—</span>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="desempeno-tab-panel" id="tab-panel-transacciones">
+            <div class="desempeno-trx-header">
+                <h3 id="trx-title">Transacciones BCI</h3>
+                <div class="desempeno-trx-nav">
+                    <button type="button" class="desempeno-trx-nav-btn" id="trx-nav-prev">←</button>
+                    <span class="desempeno-trx-nav-mes" id="trx-nav-mes"></span>
+                    <button type="button" class="desempeno-trx-nav-btn" id="trx-nav-next">→</button>
+                </div>
+            </div>
+            <div class="desempeno-trx-toolbar">
+                <div class="desempeno-trx-vistas">
+                    <button type="button" class="desempeno-trx-vista-btn active" id="trx-vista-cal" title="Vista calendario"><span>📅</span></button>
+                    <button type="button" class="desempeno-trx-vista-btn" id="trx-vista-lista" title="Vista lista"><span>📋</span></button>
+                </div>
+                <label class="desempeno-trx-filtro">
+                    <input type="checkbox" id="trx-filtro-egresos" checked>
+                    <span>Mostrar egresos</span>
+                </label>
+            </div>
+            <div class="desempeno-trx-vista active" id="trx-vista-calendario">
+                <div class="desempeno-trx-cal">
+                    <div class="desempeno-trx-dias-semana">
+                        <span>Dom</span><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span>
+                    </div>
+                    <div class="desempeno-trx-grid" id="trx-grid"></div>
+                </div>
+                <div id="trx-dia-detalle"></div>
+            </div>
+            <div class="desempeno-trx-vista hidden" id="trx-vista-lista-container">
+                <div class="desempeno-trx-list" id="trx-list"></div>
+            </div>
+            <div class="desempeno-trx-resumen">
+                <div class="desempeno-trx-resumen-item">
+                    <span class="desempeno-trx-resumen-label">Ingresos</span>
+                    <span class="desempeno-trx-resumen-valor ingreso" id="trx-total-ingreso">$0 CLP</span>
+                </div>
+                <div class="desempeno-trx-resumen-divider"></div>
+                <div class="desempeno-trx-resumen-item">
+                    <span class="desempeno-trx-resumen-label">Egresos</span>
+                    <span class="desempeno-trx-resumen-valor egreso" id="trx-total-egreso">$0 CLP</span>
+                </div>
+                <div class="desempeno-trx-resumen-divider"></div>
+                <div class="desempeno-trx-resumen-item">
+                    <span class="desempeno-trx-resumen-label neto">Neto</span>
+                    <span class="desempeno-trx-resumen-valor neto" id="trx-total-neto">$0 CLP</span>
+                </div>
+                <div class="desempeno-trx-resumen-divider"></div>
+                <div class="desempeno-trx-resumen-item">
+                    <span class="desempeno-trx-resumen-label">Saldo final</span>
+                    <span class="desempeno-trx-resumen-valor" id="trx-saldo-final">$0 CLP</span>
                 </div>
             </div>
         </div>
@@ -1375,6 +1503,314 @@
                 cargarDatos();
             }
         });
+
+        /* ===== Transacciones BCI ===== */
+        let trxYear = currentYear;
+        let trxMonth = selectedMonth;
+        let trxDiasData = [];
+        let trxAllData = [];
+        let trxVistaActual = 'calendario';
+        let trxDiaSeleccionado = null;
+
+        document.getElementById('tab-btn-transacciones').onclick = () => {
+            document.querySelectorAll('.desempeno-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.desempeno-tab-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-btn-transacciones').classList.add('active');
+            document.getElementById('tab-panel-transacciones').classList.add('active');
+            trxVistaActual = 'calendario';
+            trxYear = currentYear;
+            trxMonth = selectedMonth;
+            cargarTransacciones();
+        };
+
+        document.getElementById('trx-vista-cal').onclick = () => cambiarVista('calendario');
+        document.getElementById('trx-vista-lista').onclick = () => cambiarVista('lista');
+        document.getElementById('trx-nav-prev').onclick = () => navegarTrxMes(-1);
+        document.getElementById('trx-nav-next').onclick = () => navegarTrxMes(1);
+        document.getElementById('trx-filtro-egresos').onchange = () => renderizarTrx();
+
+        function cambiarVista(vista) {
+            trxVistaActual = vista;
+            document.getElementById('trx-vista-cal').classList.toggle('active', vista === 'calendario');
+            document.getElementById('trx-vista-lista').classList.toggle('active', vista === 'lista');
+            document.getElementById('trx-vista-calendario').classList.toggle('active', vista === 'calendario');
+            document.getElementById('trx-vista-lista-container').classList.toggle('active', vista === 'lista');
+            trxDiaSeleccionado = null;
+            document.getElementById('trx-dia-detalle').innerHTML = '';
+            renderizarTrx();
+        }
+
+        function navegarTrxMes(delta) {
+            trxMonth += delta;
+            if (trxMonth < 1) { trxMonth = 12; trxYear--; }
+            if (trxMonth > 12) { trxMonth = 1; trxYear++; }
+            cargarTransacciones();
+        }
+
+        async function cargarTransacciones() {
+            const mesEl = document.getElementById('trx-nav-mes');
+            if (mesEl) mesEl.textContent = `${MESES_FULL[trxMonth]} ${trxYear}`;
+
+            trxDiaSeleccionado = null;
+            const detalleEl = document.getElementById('trx-dia-detalle');
+            if (detalleEl) detalleEl.innerHTML = '';
+
+            const gridEl = document.getElementById('trx-grid');
+            const listEl = document.getElementById('trx-list');
+            if (gridEl) gridEl.innerHTML = '<div style="padding:24px;text-align:center;color:#6b7280;">Cargando...</div>';
+            if (listEl) listEl.innerHTML = '<div style="padding:24px;text-align:center;color:#6b7280;">Cargando...</div>';
+
+            try {
+                const resp = await fetchConTimeout(`/api/transacciones-mes?year=${trxYear}&month=${trxMonth}`);
+                if (!resp.ok) throw new Error('API ' + resp.status);
+                const data = await resp.json();
+                const trxs = data.transacciones || [];
+
+                trxAllData = trxs;
+                trxDiasData = [];
+
+                const diasEnMes = new Date(trxYear, trxMonth, 0).getDate();
+                const mm = String(trxMonth).padStart(2, '0');
+                const yy = String(trxYear);
+
+                for (let d = 1; d <= diasEnMes; d++) {
+                    const dStr = `${String(d).padStart(2, '0')}-${mm}-${yy}`;
+                    const delDia = trxs.filter(t => t.fecha === dStr);
+                    const ingreso = delDia.reduce((s, t) => s + (parseFloat(t.abono) || 0), 0);
+                    const egreso = delDia.reduce((s, t) => s + (parseFloat(t.cargo) || 0), 0);
+                    trxDiasData.push({ dia: d, fecha: dStr, ingreso, egreso, trxs: delDia });
+                }
+                renderizarTrx();
+            } catch (err) {
+                console.error('Error cargando transacciones:', err);
+                if (gridEl) gridEl.innerHTML = '<div style="padding:24px;text-align:center;color:#dc2626;">Error al cargar.</div>';
+                if (listEl) listEl.innerHTML = '<div style="padding:24px;text-align:center;color:#dc2626;">Error al cargar.</div>';
+            }
+        }
+
+        function renderizarTrx() {
+            if (trxVistaActual === 'calendario') renderizarCalendario();
+            else renderizarLista();
+            renderizarBalance();
+        }
+
+        function renderizarBalance() {
+            const totalIngreso = trxDiasData.reduce((s, d) => s + d.ingreso, 0);
+            const totalEgreso = trxDiasData.reduce((s, d) => s + d.egreso, 0);
+            const totalNeto = totalIngreso - totalEgreso;
+            const fmtClp = (v) => `$${Math.round(v).toLocaleString('es-CL')} CLP`;
+            const eIngreso = document.getElementById('trx-total-ingreso');
+            const eEgreso = document.getElementById('trx-total-egreso');
+            const eNeto = document.getElementById('trx-total-neto');
+            if (eIngreso) eIngreso.textContent = fmtClp(totalIngreso);
+            if (eEgreso) eEgreso.textContent = fmtClp(totalEgreso);
+            if (eNeto) {
+                eNeto.textContent = fmtClp(totalNeto);
+                eNeto.className = 'desempeno-trx-resumen-valor neto ' + (totalNeto >= 0 ? 'ingreso' : 'egreso');
+            }
+            const saldoFinalTrx = [...trxAllData].sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+            const saldoFinalVal = saldoFinalTrx.length ? (parseFloat(saldoFinalTrx[saldoFinalTrx.length - 1].saldo) || 0) : 0;
+            const eSaldoFinal = document.getElementById('trx-saldo-final');
+            if (eSaldoFinal) eSaldoFinal.textContent = fmtClp(saldoFinalVal);
+        }
+
+        function renderizarCalendario() {
+            const gridEl = document.getElementById('trx-grid');
+            const detalleEl = document.getElementById('trx-dia-detalle');
+            if (!gridEl) return;
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+
+            const mostrarEgresos = document.getElementById('trx-filtro-egresos').checked;
+
+            // Celdas vacías para días del mes anterior
+            const primerDia = new Date(trxYear, trxMonth - 1, 1).getDay(); // 0 = Dom
+            const celdasVacias = Array(primerDia).fill('').map(() => '<div class="desempeno-trx-dia vacio"></div>');
+
+            const hoy = new Date();
+            const diaHoy = hoy.getDate();
+            const mesHoy = hoy.getMonth() + 1;
+            const anioHoy = hoy.getFullYear();
+
+            const celdas = trxDiasData.map(d => {
+                const tieneTrx = d.trxs && d.trxs.length > 0;
+                const esActual = d.dia === diaHoy && trxMonth === mesHoy && trxYear === anioHoy;
+                const tieneEgreso = mostrarEgresos && d.egreso > 0;
+                const tieneIngreso = d.ingreso > 0;
+                const neto = d.ingreso - d.egreso;
+                const valorClase = neto < 0 ? 'negativo' : '';
+
+                const clases = ['desempeno-trx-dia'];
+                if (esActual) clases.push('dia-actual');
+                if (tieneTrx) {
+                    if (tieneIngreso && tieneEgreso) clases.push('dia-tiene-egreso');
+                    else if (tieneIngreso) clases.push('dia-tiene-trx');
+                    else if (tieneEgreso) clases.push('dia-tiene-egreso');
+                }
+
+                const numStr = String(d.dia).padStart(2, '0');
+
+                // Mini barras
+                let miniHtml = '';
+                if (tieneIngreso) {
+                    const ingFmt = fmt(d.ingreso);
+                    miniHtml += `<div class="desempeno-trx-mini-ingreso" title="${ingFmt}"><span class="dot"></span><span>${ingFmt}</span></div>`;
+                }
+                if (tieneEgreso) {
+                    const egrFmt = fmt(d.egreso);
+                    miniHtml += `<div class="desempeno-trx-mini-egreso" title="${egrFmt}"><span class="dot"></span><span>${egrFmt}</span></div>`;
+                }
+
+                // Tooltip con descripciones
+                let tooltip = '';
+                if (tieneTrx) {
+                    const descList = d.trxs.map(t => `${t.descripcion || 'Sin descripción'}${t.abono > 0 ? ' (+' + fmt(t.abono) + ')' : ''}${t.cargo > 0 ? ' (-' + fmt(t.cargo) + ')' : ''}`).join('\n');
+                    tooltip = `title="${descList.replace(/"/g, '&quot;')}"`;
+                }
+
+                const clickHandler = tieneTrx ? `onclick="mostrarDetalleTrxDia(${d.dia})"` : '';
+                const netoStr = `${neto < 0 ? '-' : ''}${fmt(Math.abs(neto))}`;
+
+                return `<div class="${clases.join(' ')}" data-trx="${tieneTrx}" ${tooltip} ${clickHandler}>
+                    <span class="desempeno-trx-dia-num">${numStr}</span>
+                    ${miniHtml || '<div style="height:18px"></div>'}
+                    <div class="desempeno-trx-dia-neto ${valorClase}" style="font-size:0.58em;font-weight:600;margin-top:2px;">${netoStr}</div>
+                </div>`;
+            });
+
+            gridEl.innerHTML = celdasVacias.concat(celdas).join('');
+            if (detalleEl) detalleEl.innerHTML = trxDiaSeleccionado ? '' : '';
+        }
+
+        function renderizarLista() {
+            const listEl = document.getElementById('trx-list');
+            if (!listEl) return;
+
+            const mostrarEgresos = document.getElementById('trx-filtro-egresos').checked;
+
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+
+            let items = trxAllData.map(t => {
+                const abono = parseFloat(t.abono) || 0;
+                const cargo = parseFloat(t.cargo) || 0;
+                const neto = abono - cargo;
+                const clases = [];
+                if (abono > 0) clases.push('ingreso');
+                if (cargo > 0) clases.push('egreso');
+                const saldoStr = fmt(t.saldo || 0);
+                let valorStr;
+                if (abono > 0 && cargo > 0) valorStr = `+${fmt(abono)} / -${fmt(cargo)}`;
+                else if (abono > 0) valorStr = `+${fmt(abono)}`;
+                else if (cargo > 0) valorStr = `-${fmt(cargo)}`;
+                else valorStr = fmt(0);
+
+                let rowClass = '';
+                if (abono > 0 && cargo > 0) rowClass = 'ingreso-egreso';
+                else if (abono > 0) rowClass = 'ingreso';
+                else rowClass = 'egreso';
+
+                const hideRow = !mostrarEgresos && cargo > 0 && abono === 0;
+
+                return {
+                    html: `<div class="desempeno-trx-list-item ${rowClass}" ${hideRow ? 'style="display:none"' : ''}>
+                        <div class="desempeno-trx-list-left">
+                            <span class="desempeno-trx-list-desc">${t.descripcion || 'Sin descripción'}</span>
+                            <span class="desempeno-trx-list-fecha">${t.fecha}</span>
+                        </div>
+                        <span class="desempeno-trx-list-valor ${abono > 0 ? 'ingreso' : 'egreso'}" title="Saldo: ${saldoStr}">${valorStr} <span class="desempeno-trx-list-saldo" title="Saldo: ${saldoStr}">| ${saldoStr}</span></span>
+                    </div>`,
+                    fecha: t.fecha
+                };
+            }).filter(item => {
+                if (!mostrarEgresos && item.html.includes('style="display:none"')) return false;
+                return true;
+            });
+
+            // Ordenar cronológicamente por fecha
+            items.sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+            listEl.innerHTML = items.length
+                ? items.map(i => i.html).join('')
+                : '<div style="padding:24px;text-align:center;color:#6b7280">No hay transacciones en este mes</div>';
+        }
+
+        function mostrarDetalleTrxDia(diaNum) {
+            const d = trxDiasData.find(x => x.dia === diaNum);
+            if (!d || !d.trxs || d.trxs.length === 0) return;
+
+            const wasOpen = trxDiaSeleccionado === diaNum;
+            trxDiaSeleccionado = wasOpen ? null : diaNum;
+            const detalleEl = document.getElementById('trx-dia-detalle');
+            if (!detalleEl) return;
+
+            if (!detalleEl || trxDiaSeleccionado === null) {
+                detalleEl.innerHTML = '';
+                return;
+            }
+
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+            let html = `
+                <div class="desempeno-trx-detalle">
+                    <div class="desempeno-trx-detalle-header" onclick="cerrarDetalleDia()">
+                        <h4>Día ${String(diaNum).padStart(2, '0')} — ${MESES_ABREV[trxMonth]} ${trxYear}</h4>
+                        <span class="desempeno-trx-detalle-arrow abierto">▴</span>
+                    </div>
+                    <div class="desempeno-trx-detalle-list abierto">
+            `;
+
+            const mostrarEgresos = document.getElementById('trx-filtro-egresos').checked;
+
+            d.trxs.filter(t => {
+                const abono = parseFloat(t.abono) || 0;
+                const cargo = parseFloat(t.cargo) || 0;
+                if (!mostrarEgresos && cargo > 0 && abono === 0) return false;
+                return true;
+            }).forEach(t => {
+                const abono = parseFloat(t.abono) || 0;
+                const cargo = parseFloat(t.cargo) || 0;
+                html += `
+                    <div class="desempeno-trx-item">
+                        <div class="desempeno-trx-item-left">
+                            <span class="desempeno-trx-item-desc">${t.descripcion || 'Sin descripción'}</span>
+                            <span class="desempeno-trx-item-sub">Saldo: ${fmt(t.saldo || 0)}</span>
+                        </div>
+                        ${abono > 0 ? `<span class="desempeno-trx-item-valor ingreso">+${fmt(abono)}</span>` : ''}
+                        ${cargo > 0 ? `<span class="desempeno-trx-item-valor egreso">-${fmt(cargo)}</span>` : ''}
+                    </div>
+                `;
+            });
+
+            const totalIngreso = d.ingreso;
+            const totalEgreso = d.egreso;
+            const neto = d.ingreso - d.egreso;
+            html += `
+                    </div>
+                    <div class="desempeno-trx-resumen">
+                        <div class="desempeno-trx-resumen-item">
+                            <span class="desempeno-trx-resumen-label">Ingresos</span>
+                            <span class="desempeno-trx-resumen-valor ingreso">${fmt(totalIngreso)}</span>
+                        </div>
+                        <div class="desempeno-trx-resumen-divider"></div>
+                        <div class="desempeno-trx-resumen-item">
+                            <span class="desempeno-trx-resumen-label">Egresos</span>
+                            <span class="desempeno-trx-resumen-valor egreso">${mostrarEgresos ? '-' + fmt(totalEgreso) : '$0 CLP'}</span>
+                        </div>
+                        <div class="desempeno-trx-resumen-divider"></div>
+                        <div class="desempeno-trx-resumen-item">
+                            <span class="desempeno-trx-resumen-label neto">Neto</span>
+                            <span class="desempeno-trx-resumen-valor neto ${neto >= 0 ? 'ingreso' : 'egreso'}">${neto >= 0 ? '' : '-'}${fmt(Math.abs(neto))}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            detalleEl.innerHTML = html;
+        }
+
+        function cerrarDetalleDia() {
+            trxDiaSeleccionado = null;
+            const detalleEl = document.getElementById('trx-dia-detalle');
+            if (detalleEl) detalleEl.innerHTML = '';
+        }
     </script>
 </body>
 </html>

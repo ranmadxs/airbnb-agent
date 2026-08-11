@@ -18,6 +18,7 @@ class DatabaseService:
         self.uri = MONGODB_URI
         self.client = None
         self.db = None
+        self.db_bci = None
         self.reservas = None
         self.dias = None
         self.connected = False
@@ -50,6 +51,10 @@ class DatabaseService:
                 self.transacciones = self.db["transacciones"]
                 self.webhook_logs = self.db["webhook_logs"]
                 self.mercadopago_webhooks = self.db["mercadopago_webhooks"]
+                
+                # Base de datos BCI (transacciones) - misma instancia MongoDB
+                self.db_bci = self.client["bci"]
+                self.transacciones_bci = self.db_bci["transacciones"]
                 
                 # Crear índices
                 self.reservas.create_index([("event_start", 1), ("event_end", 1)], unique=True)
@@ -1557,6 +1562,46 @@ class DatabaseService:
                     print(f"✅ Proveedor '{p['nombre']}' creado")
         except Exception as e:
             print(f"❌ Error seeding proveedores: {e}")
+    
+    def obtener_transacciones_mes(self, year: int, month: int) -> list:
+        """Obtiene transacciones BCI del mes especificado desde la base de datos 'bci'.
+        
+        Las fechas están en formato DD-MM-YYYY. Se filtra por el mes/año correspondiente.
+        - abono: monto del ingreso (crédito)
+        - cargo: monto del egreso (débito)
+        """
+        if not self.connect():
+            return []
+        if self.transacciones_bci is None:
+            return []
+        
+        try:
+            # fecha formato DD-MM-YYYY → regex: ^.*-MM-YYYY$
+            mes_str = str(month).zfill(2)
+            regex = f"^(.{{2}})-{mes_str}-{year}$"
+            
+            cursor = self.transacciones_bci.find({
+                'fecha': {'$regex': regex}
+            }).sort('fecha', 1)
+            
+            transacciones = []
+            for doc in cursor:
+                transacciones.append({
+                    'id': str(doc.get('_id')),
+                    'fecha': doc.get('fecha', ''),
+                    'descripcion': doc.get('descripcion', ''),
+                    'abono': doc.get('abono', 0.0) or 0.0,
+                    'cargo': doc.get('cargo', 0.0) or 0.0,
+                    'saldo': doc.get('saldo', 0.0) or 0.0,
+                    'cartola_id': doc.get('cartola_id', ''),
+                    'fecha_creacion': doc.get('fecha_creacion', ''),
+                    'trx_key': doc.get('trx_key', ''),
+                })
+            
+            return transacciones
+        except Exception as e:
+            print(f"❌ Error obteniendo transacciones BCI: {e}")
+            return []
 
 
 # Instancia singleton

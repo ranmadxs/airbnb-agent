@@ -724,6 +724,22 @@ def api_desempeno_dias():
     return jsonify({'eventos': eventos, 'year': year, 'month': month})
 
 
+@app.route('/api/transacciones-mes')
+@login_required
+def api_transacciones_mes():
+    """API: Transacciones BCI de un mes (ingresos/abonos y egresos/cargos)."""
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    
+    transacciones = db_service.obtener_transacciones_mes(year, month)
+    
+    return jsonify({
+        'transacciones': transacciones,
+        'year': year,
+        'month': month
+    })
+
+
 @app.route('/api/month')
 def api_month():
     """API: Datos de un mes específico con eventos."""
