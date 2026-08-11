@@ -244,6 +244,7 @@
         <div class="desempeno-tabs">
             <button type="button" class="desempeno-tab active" id="tab-btn-mensual">Mensual</button>
             <button type="button" class="desempeno-tab" id="tab-btn-anual">Anual</button>
+            <button type="button" class="desempeno-tab" id="tab-btn-meta">Meta</button>
             <button type="button" class="desempeno-tab" id="tab-btn-transacciones">Transacciones</button>
         </div>
 
@@ -440,6 +441,45 @@
                     <div class="desempeno-anual-totales">
                         <span class="desempeno-leyenda-item" style="padding-left:1em;color:#6b7280;font-size:0.85em;">🐾 Mascotas</span>
                         <span class="desempeno-anual-total-valor" style="color:#6b7280;font-size:0.85em;" id="anual-total-mascotas">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="desempeno-tab-panel" id="tab-panel-meta">
+            <div class="desempeno-chart">
+                <div class="desempeno-anual-rango">
+                    <label>Desde:</label>
+                    <input type="month" id="meta-desde" value="" min="2025-01" max="2030-12">
+                    <label>Hasta:</label>
+                    <input type="month" id="meta-hasta" value="" min="2025-01" max="2030-12">
+                    <button type="button" class="desempeno-nav-btn desempeno-anual-aplicar" id="meta-aplicar">Aplicar</button>
+                </div>
+                <div class="desempeno-line-chart" id="meta-line-chart">
+                    <svg id="meta-line-svg" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid meet"></svg>
+                </div>
+                <div class="desempeno-leyenda desempeno-anual-leyenda" id="meta-leyenda" style="margin-top:12px;">
+                    <div class="desempeno-anual-totales">
+                        <span class="desempeno-leyenda-item"><span class="desempeno-leyenda-dot leyenda-ingreso" style="background:linear-gradient(135deg,#dbeafe,#93c5fd)"></span>Ingreso total</span>
+                        <span class="desempeno-anual-total-valor" id="meta-total-valor">—</span>
+                    </div>
+                    <div class="desempeno-anual-desglose" id="meta-filtros"></div>
+                    <hr class="desempeno-anual-divider">
+                    <div class="desempeno-anual-totales desempeno-anual-neto">
+                        <span class="desempeno-leyenda-item desempeno-anual-neto-label">TOTAL NETO</span>
+                        <span class="desempeno-anual-total-valor desempeno-anual-neto-valor" id="meta-neto-valor">—</span>
+                    </div>
+                    <div class="desempeno-anual-totales" style="margin-top:8px;">
+                        <span class="desempeno-leyenda-item">📈 Tendencia (pendiente)</span>
+                        <span class="desempeno-anual-total-valor" id="meta-tendencia">—</span>
+                    </div>
+                    <div class="desempeno-anual-totales">
+                        <span class="desempeno-leyenda-item">📊 Promedio/mes</span>
+                        <span class="desempeno-anual-total-valor" id="meta-promedio">—</span>
+                    </div>
+                    <div class="desempeno-anual-totales">
+                        <span class="desempeno-leyenda-item">🎯 % vs línea 8M total</span>
+                        <span class="desempeno-anual-total-valor" id="meta-pct-8m">—</span>
                     </div>
                 </div>
             </div>
@@ -1494,6 +1534,218 @@
         document.getElementById('anual-leyenda').addEventListener('change', (e) => {
             if (e.target && e.target.matches('input[type="checkbox"]')) onAnualCheckboxChange();
         });
+
+        /* ===== Meta: ingresos por descripción en rango de fechas ===== */
+        let metasData = [];
+        let metaPuntosCompletos = [];
+        let metaAgrupados = {};
+        let metaFiltros = [];
+
+        const metaHoy = new Date();
+        const metaYActual = metaHoy.getFullYear();
+        const metaMActual = metaHoy.getMonth() + 1;
+
+        document.getElementById('tab-btn-meta').onclick = () => {
+            document.querySelectorAll('.desempeno-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.desempeno-tab-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('tab-btn-meta').classList.add('active');
+            document.getElementById('tab-panel-meta').classList.add('active');
+            if (metasData.length === 0) cargarDatosMeta();
+            else renderizarLineChartMeta();
+        };
+
+        document.getElementById('meta-desde').value = `${metaYActual}-01`;
+        document.getElementById('meta-hasta').value = `${metaYActual}-${String(metaMActual).padStart(2, '0')}`;
+        document.getElementById('meta-aplicar').onclick = () => cargarDatosMeta();
+
+        document.getElementById('meta-leyenda').addEventListener('change', (e) => {
+            if (e.target && e.target.matches('input[type="checkbox"]')) onMetaCheckboxChange();
+        });
+
+        async function cargarDatosMeta() {
+            const desde = document.getElementById('meta-desde').value;
+            const hasta = document.getElementById('meta-hasta').value;
+            if (!desde || !hasta || desde > hasta) return;
+            const [y1, m1] = desde.split('-').map(Number);
+            const [y2, m2] = hasta.split('-').map(Number);
+            const meses = [];
+            let mes = m1, anio = y1;
+            while (anio < y2 || (anio === y2 && mes <= m2)) { meses.push({ mes, anio }); mes++; if (mes > 12) { mes = 1; anio++; } }
+            const svg = document.getElementById('meta-line-svg');
+            if (svg) svg.innerHTML = '<text x="200" y="125" text-anchor="middle" fill="#6b7280" font-size="14">Cargando…</text>';
+            try {
+                const allRes = await Promise.all(meses.map(mm => fetchConTimeout(`/api/transacciones-mes?year=${mm.anio}&month=${mm.mes}`)));
+                for (const r of allRes) { if (!r.ok) throw new Error('API ' + r.status); }
+                const allData = await Promise.all(allRes.map(r => r.json()));
+                metasData = [];
+                metaAgrupados = {};
+                for (let i = 0; i < meses.length; i++) {
+                    const trxs = (allData[i].transacciones) || [];
+                    const grupos = {};
+                    trxs.forEach(t => {
+                        const abono = parseFloat(t.abono) || 0;
+                        if (abono <= 0) return;
+                        const k = t.descripcion || '';
+                        grupos[k] = (grupos[k] || 0) + abono;
+                        metaAgrupados[k] = (metaAgrupados[k] || 0) + abono;
+                    });
+                    metasData.push({ mes: meses[i].mes, anio: meses[i].anio, grupos });
+                }
+                poblarFiltrosMeta();
+                renderizarLineChartMeta();
+            } catch (err) {
+                console.error('Error cargando meta:', err);
+                if (svg) svg.innerHTML = '<text x="200" y="125" text-anchor="middle" fill="#6b7280" font-size="14">Error al cargar</text>';
+            }
+        }
+
+        function poblarFiltrosMeta() {
+            const container = document.getElementById('meta-filtros');
+            if (!container) return;
+            const keys = Object.keys(metaAgrupados).sort((a, b) => (metaAgrupados[b] || 0) - (metaAgrupados[a] || 0));
+            metaFiltros = metaFiltros.filter(k => keys.indexOf(k) >= 0);
+            if (metaFiltros.length === 0) metaFiltros = keys.slice();
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+            let html = '';
+            for (const k of keys) {
+                const activo = metaFiltros.indexOf(k) >= 0;
+                html += `<label class="desempeno-anual-desglose-item"><span class="desempeno-anual-plus">+</span><input type="checkbox" data-desc="${k}" ${activo ? 'checked' : ''}> <span title="${k}">${tipoLabel(k)}</span> <span class="desempeno-anual-desglose-valor">${fmt(metaAgrupados[k])}</span></label>`;
+            }
+            container.innerHTML = html;
+            onMetaCheckboxChange();
+        }
+
+        function onMetaCheckboxChange() {
+            metaFiltros = [];
+            document.querySelectorAll('#meta-filtros input[type="checkbox"]').forEach(cb => {
+                if (cb.checked) metaFiltros.push(cb.dataset.desc || '');
+            });
+            actualizarTotalMeta();
+            renderizarLineChartMeta();
+        }
+
+        function actualizarTotalMeta() {
+            let total = 0;
+            for (const k of Object.keys(metaAgrupados)) {
+                if (metaFiltros.indexOf(k) >= 0) total += metaAgrupados[k];
+            }
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+            const totEl = document.getElementById('meta-total-valor');
+            if (totEl) totEl.textContent = fmt(total);
+            const netoEl = document.getElementById('meta-neto-valor');
+            if (netoEl) { netoEl.textContent = fmt(total); netoEl.classList.toggle('negativo', false); }
+        }
+
+        function formatMetaM(v) {
+            const m = v / 1e6;
+            const s = m % 1 === 0 ? String(Math.round(m)) : m.toFixed(1);
+            return s + 'M';
+        }
+
+        function calcularPuntosMeta() {
+            const desde = document.getElementById('meta-desde').value;
+            const hasta = document.getElementById('meta-hasta').value;
+            if (!desde || !hasta || desde > hasta) return { puntos: [], datos: [] };
+            const [y1, m1] = desde.split('-').map(Number);
+            const [y2, m2] = hasta.split('-').map(Number);
+            const puntos = [];
+            let mes = m1, anio = y1;
+            while (anio < y2 || (anio === y2 && mes <= m2)) {
+                const d = metasData.find(x => x.mes === mes && x.anio === anio);
+                let valor = 0;
+                if (d) {
+                    const g = d.grupos;
+                    valor = metaFiltros.reduce((s, k) => s + (g[k] || 0), 0);
+                }
+                puntos.push({ mes, anio, valor, label: (anio !== y1 && anio !== y2) ? MESES_ABREV[mes] : `${MESES_ABREV[mes]}'${String(anio).slice(-2)}` });
+                mes++; if (mes > 12) { mes = 1; anio++; }
+            }
+            let datos = puntos;
+            if (puntos.length > 12) {
+                const n = 12, step = puntos.length / n; datos = [];
+                for (let i = 0; i < n; i++) { const idx = Math.min(Math.floor(i * step), puntos.length - 1); datos.push(puntos[idx]); }
+            }
+            return { puntos, datos };
+        }
+
+        function renderizarLineChartMeta() {
+            const { puntos, datos } = calcularPuntosMeta();
+            metaPuntosCompletos = puntos;
+            actualizarTotalMeta();
+            actualizarWidgetsMeta(datos);
+            dibujarLineChartMeta(datos);
+        }
+
+        function actualizarWidgetsMeta(datos) {
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+            const tendEl = document.getElementById('meta-tendencia');
+            const promEl = document.getElementById('meta-promedio');
+            if (!datos || datos.length === 0) {
+                if (tendEl) tendEl.textContent = '—';
+                if (promEl) promEl.textContent = '—';
+                return;
+            }
+            const valores = datos.map(d => d.valor || 0);
+            const n = valores.length;
+            const suma = valores.reduce((s, v) => s + v, 0);
+            const promedio = n ? suma / n : 0;
+            let pendiente = 0;
+            if (n > 1) {
+                const mx = (n - 1) / 2;
+                let num = 0, den = 0;
+                for (let i = 0; i < n; i++) { num += (i - mx) * (valores[i] - promedio); den += (i - mx) * (i - mx); }
+                pendiente = den ? num / den : 0;
+            }
+            const dir = pendiente > 0 ? 'Al alza' : (pendiente < 0 ? 'A la baja' : 'Estable');
+            const color = pendiente > 0 ? '#059669' : (pendiente < 0 ? '#dc2626' : '#6b7280');
+            if (tendEl) tendEl.innerHTML = `<span style="color:${color}">${dir}</span> <span style="font-size:0.85em;color:#6b7280">(${pendiente >= 0 ? '+' : ''}${formatMetaM(pendiente)}/mes)</span>`;
+            if (promEl) promEl.textContent = `${formatMetaM(promedio)}/mes (${fmt(promedio)})`;
+            const pctEl = document.getElementById('meta-pct-8m');
+            if (pctEl) pctEl.textContent = promedio >= 8000000 ? '≥ 100%' : `${Math.round(promedio / 8000000 * 100)}%`;
+        }
+
+        function dibujarLineChartMeta(datos) {
+            const svg = document.getElementById('meta-line-svg');
+            if (!svg) return;
+            if (!datos || datos.length === 0) {
+                svg.innerHTML = '<text x="200" y="125" text-anchor="middle" fill="#6b7280" font-size="14">Sin datos para el rango</text>';
+                return;
+            }
+            const valores = datos.map(d => d.valor || 0);
+            const dataMax = Math.max(0, ...valores);
+            const BASE = 8_000_000;
+            let yMax = dataMax > BASE ? Math.ceil(dataMax / 1_000_000) * 1_000_000 : BASE;
+            const svgW = 400, svgH = 250;
+            const padL = 50, padR = 20, padT = 20, padB = 40;
+            const chartW = svgW - padL - padR;
+            const chartH = svgH - padT - padB;
+            const zeroY = padT + chartH;
+            const toY = (v) => zeroY - (v / yMax) * chartH;
+            const n = datos.length;
+            const toX = (i) => padL + (n > 1 ? (i / (n - 1)) * chartW : chartW / 2);
+            let html = '<g stroke="#e5e7eb" stroke-width="0.5">';
+            for (let v = 0; v <= yMax; v += 2_000_000) {
+                const y = toY(v);
+                html += `<line x1="${padL}" y1="${y}" x2="${svgW-padR}" y2="${y}"/>`;
+                html += `<text x="${padL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#6b7280">${formatMetaM(v)}</text>`;
+            }
+            html += '</g>';
+            const y8 = toY(BASE);
+            html += `<line x1="${padL}" y1="${y8}" x2="${svgW-padR}" y2="${y8}" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="5 3"/>`;
+            html += `<text x="${svgW-padR-2}" y="${y8-3}" text-anchor="end" font-size="9" fill="#f59e0b">8M</text>`;
+            const arrowSize = 6;
+            html += `<line x1="${padL}" y1="${padT+arrowSize}" x2="${padL}" y2="${svgH-padB}" stroke="#374151" stroke-width="1"/>`;
+            html += `<polygon points="${padL},${padT} ${padL-arrowSize},${padT+arrowSize} ${padL+arrowSize},${padT+arrowSize}" fill="#374151"/>`;
+            html += `<line x1="${padL}" y1="${zeroY}" x2="${svgW-padR-arrowSize}" y2="${zeroY}" stroke="#374151" stroke-width="1.5"/>`;
+            html += `<polygon points="${svgW-padR},${svgH-padB} ${svgW-padR-arrowSize},${svgH-padB-arrowSize} ${svgW-padR-arrowSize},${svgH-padB+arrowSize}" fill="#374151"/>`;
+            html += `<text x="${padL-10}" y="${padT+4}" text-anchor="end" font-size="11" fill="#6b7280">M</text>`;
+            let path = '';
+            for (let i = 0; i < n; i++) { const x = toX(i), y = toY(valores[i]); path += (i === 0 ? 'M' : 'L') + x + ',' + y; }
+            html += `<path d="${path}" fill="none" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+            datos.forEach((d, i) => { const x = toX(i), y = toY(d.valor || 0); html += `<circle cx="${x}" cy="${y}" r="4" fill="#3B82F6" stroke="white" stroke-width="2"/>`; });
+            datos.forEach((d, i) => { html += `<text x="${toX(i)}" y="${svgH-padB+18}" text-anchor="middle" font-size="9" fill="#374151">${d.label}</text>`; });
+            svg.innerHTML = html;
+        }
 
         poblarSelectorAnio();
         cargarDatos();
