@@ -2,6 +2,11 @@
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
 
+## [2.46.0] - 2026-09-01
+### Added
+- Tooltip al pasar el cursor sobre los puntos del gráfico en la pestaña Meta
+- Muestra el total acumulado hasta ese mes y el % del mes vs la meta 8M
+
 ## [2.27.0] - 2026-03-10
 ### Added
 - Nueva API `/api/promedio-anual` que calcula el promedio en el servidor

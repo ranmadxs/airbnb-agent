@@ -148,6 +148,8 @@
         .desempeno-anual-gasto-valor { color: #dc2626; }
         .desempeno-anual-gasto-item-valor { color: #dc2626; }
         .desempeno-line-chart svg { width: 100%; height: 100%; display: block; }
+        .desempeno-line-chart svg circle { transition: stroke-width 0.15s ease; cursor: pointer; }
+        .desempeno-line-chart svg circle:hover { stroke-width: 3; }
 
         /* Vista Transacciones */
         .desempeno-trx-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
@@ -1742,7 +1744,16 @@
             let path = '';
             for (let i = 0; i < n; i++) { const x = toX(i), y = toY(valores[i]); path += (i === 0 ? 'M' : 'L') + x + ',' + y; }
             html += `<path d="${path}" fill="none" stroke="#3B82F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-            datos.forEach((d, i) => { const x = toX(i), y = toY(d.valor || 0); html += `<circle cx="${x}" cy="${y}" r="4" fill="#3B82F6" stroke="white" stroke-width="2"/>`; });
+            let acum = 0;
+            datos.forEach((d, i) => {
+                const x = toX(i), y = toY(d.valor || 0);
+                acum += (d.valor || 0);
+                const pctMeta = BASE > 0 ? ((d.valor || 0) / BASE) * 100 : 0;
+                const fmtClp = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+                const fmtPct = (v) => Math.round(v) + '%';
+                const tit = `${d.label} | Mes: ${fmtClp(d.valor || 0)} (${fmtPct(pctMeta)} vs meta 8M) | Acumulado: ${fmtClp(acum)}`;
+                html += `<circle cx="${x}" cy="${y}" r="4" fill="#3B82F6" stroke="white" stroke-width="2"><title>${tit}</title></circle>`;
+            });
             datos.forEach((d, i) => { html += `<text x="${toX(i)}" y="${svgH-padB+18}" text-anchor="middle" font-size="9" fill="#374151">${d.label}</text>`; });
             svg.innerHTML = html;
         }
