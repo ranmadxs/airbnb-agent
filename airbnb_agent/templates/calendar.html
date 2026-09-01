@@ -287,7 +287,8 @@
                             {% set is_next = is_upcoming and not ns.found_next %}
                             {% if is_next %}{% set ns.found_next = true %}{% endif %}
                             <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}" 
-                                 data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}">
+                                 data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}"
+                                 data-calendario-id="{{ event.calendario_id or '__legacy__' }}">
                                 
                                 {% if is_finished and is_reservation %}
                                 <div class="checkout-stamp">
@@ -1110,7 +1111,10 @@
 
     <script>
         // Datos de eventos desde el servidor
-        const events = {{ events | tojson }};
+        // v3.0.1: `let` (no `const`) para poder reasignarlo cuando /api/month
+        // devuelve los eventos filtrados por el calendario activo. Antes era
+        // const y la grilla siempre pintaba sobre el set completo (sin filtrar).
+        let events = {{ events | tojson }};
         const isAdmin = {{ 'true' if is_logged_in else 'false' }};
         const todayStr = '{{ today }}';
         // Ingresos por mes (misma fuente que API desempeño) - key: "year-month"
@@ -1269,6 +1273,8 @@
             renderFilterBar();
             // Refetch del mes con filtro nuevo
             cargarMes(currentYear, currentMonth);
+            // v3.0.1: Filtrar también la lista de reservas por calendario
+            filtrarReservasPorCalendario();
             // Actualizar URL sin recargar
             updateUrlFilter();
         }
@@ -1320,9 +1326,16 @@
                         por_calendario: data.ingresos_por_calendario || {}
                     };
                 }
+                // v3.0.1: Sobrescribir `events` con la respuesta ya filtrada por
+                // el calendario activo. Sin esto, `marcarDias()`/`calcularStatsMes()`
+                // seguían pintando sobre el set completo sin filtrar.
+                if (Array.isArray(data.events)) {
+                    events = data.events;
+                }
                 renderizarMes(data);
                 marcarDias();
                 filtrarReservasPorMes(year, month);
+                filtrarReservasPorCalendario();
                 if (isAdmin) {
                     await cargarGastosMes(year, month);
                     if (currentYear === year && currentMonth === month) {
@@ -1409,26 +1422,47 @@
                 const start = new Date(startStr + 'T00:00:00');
                 const end = new Date(endStr + 'T00:00:00');
                 const atraviesaMes = start < inicioMes && end > finMes;
-                
+
                 const enMes = iniciaEnMes || terminaEnMes || atraviesaMes;
-                
+
                 // Guardar estado original de display si no está guardado
                 if (!item.dataset.displayOriginal) {
                     item.dataset.displayOriginal = item.style.display || '';
                 }
-                
+
                 if (enMes) {
                     item.dataset.enMes = 'true';
                 } else {
                     item.dataset.enMes = 'false';
                 }
             });
-            
+
             // Re-aplicar filtros considerando el mes
             aplicarFiltros();
-            
+
             // Calcular stats del mes
             calcularStatsMes(year, month);
+        }
+
+        // v3.0.1: Filtrar la lista de reservas por los calendarios activos.
+        // Complementa el filtrado de la grilla (que ya hace /api/month) y del
+        // render inicial del server (que respeta ?cal=...). El chip "Todos"
+        // muestra todo; cualquier otro subset oculta los items cuyo
+        // `data-calendario-id` no esté activo (o que sea legacy si includeLegacy=false).
+        function filtrarReservasPorCalendario() {
+            const items = document.querySelectorAll('.reservation-item');
+            const allActive = calendariosActivos.size === calendariosDisponibles.length && !includeLegacy;
+            items.forEach(item => {
+                if (allActive) {
+                    item.dataset.enCalendario = 'true';
+                    return;
+                }
+                const cid = item.dataset.calendarioId || '__legacy__';
+                const visible = (cid === '__legacy__' && includeLegacy) || calendariosActivos.has(cid);
+                item.dataset.enCalendario = visible ? 'true' : 'false';
+            });
+            aplicarFiltros();
+            actualizarContadorFiltros();
         }
         
         // Calcular estadísticas del mes (ingresos desde API/cache, misma fuente que desempeño)
@@ -3443,6 +3477,9 @@
                 try {
                     // Cargar filtros primero para que el primer cargarMes ya use el filtro correcto.
                     await loadCalendarFilters();
+                    // v3.0.1: Filtrar lista de reservas por el filtro activo
+                    // (importante para deep links tipo ?cal=santiago_magno).
+                    filtrarReservasPorCalendario();
                     await cargarMes(currentYear, currentMonth);
                 } catch (e) {
                     console.error('Error inicializando calendario:', e);
@@ -3463,17 +3500,17 @@
             const filterStatus = document.getElementById('filter-status').value;
             const filterType = document.getElementById('filter-type').value;
             const items = document.querySelectorAll('.reservation-item');
-            
+
             items.forEach(item => {
                 const isPast = item.classList.contains('is-past');
                 const isReservation = item.classList.contains('is-reservation');
                 const isBlocked = item.classList.contains('is-blocked');
                 const isDeleted = item.classList.contains('is-deleted');
                 const isCanceled = item.classList.contains('is-canceled');
-                
+
                 let showByStatus = true;
                 let showByType = true;
-                
+
                 // Filtro por estado
                 if (filterStatus === 'activas') {
                     showByStatus = !isPast && !isDeleted && !isCanceled;
@@ -3486,21 +3523,24 @@
                 } else if (filterStatus === 'todas') {
                     showByStatus = !isDeleted;
                 }
-                
+
                 // Filtro por tipo (canceladas cuentan como reservas para el filtro)
                 if (filterType === 'reservas') {
                     showByType = isReservation || isDeleted || isCanceled;
                 } else if (filterType === 'bloqueos') {
                     showByType = isBlocked || isDeleted;
                 }
-                
+
                 // Filtro por mes (si está definido)
                 const enMes = item.dataset.enMes !== 'false';
-                
+
+                // v3.0.1: Filtro por calendario (chips del header)
+                const enCalendario = item.dataset.enCalendario !== 'false';
+
                 // Mostrar u ocultar
-                item.style.display = (showByStatus && showByType && enMes) ? '' : 'none';
+                item.style.display = (showByStatus && showByType && enMes && enCalendario) ? '' : 'none';
             });
-            
+
             // Actualizar contador
             const visibles = document.querySelectorAll('.reservation-item:not([style*="display: none"])').length;
             const total = items.length;
@@ -3508,6 +3548,14 @@
             if (contador) {
                 contador.textContent = `${visibles}/${total}`;
             }
+        }
+
+        // v3.0.1: Contador de reservas filtradas por calendario (complemento
+        // del contador general que ya actualiza aplicarFiltros).
+        function actualizarContadorFiltros() {
+            // aplicarFiltros() ya actualiza #filter-count, así que solo
+            // forzamos un pase para reflejar los cambios de data-en-calendario.
+            aplicarFiltros();
         }
         
         // Funciones de admin
