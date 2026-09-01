@@ -1,0 +1,125 @@
+name: PR Checks
+
+# Dispara en:
+#  - PRs contra main
+#  - push a main (para chequear regresiones)
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Permisos: solo lectura por defecto. Se eleva a 'write' para comentar el PR.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ============================================================
+  # Job 1: Unit Tests + Coverage (espejo de lo que corre Jenkins)
+  # ============================================================
+  unit-tests:
+    name: Unit Tests + Coverage
+    runs-on: ubuntu-latest
+
+    env:
+      SECRET_KEY:                test-secret-key
+      AUTH_USERNAME:             admin
+      AUTH_PASSWORD:             admin
+      MONGODB_URI:               ''
+      AIRBNB_CALENDAR_URL:       ''
+      BOOKING_CALENDAR_URL:      ''
+      MERCADOPAGO_ACCESS_TOKEN:  ''
+      MERCADOPAGO_WEBHOOK_SECRET: ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'poetry'
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry --version
+
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create true
+          poetry install --with dev --no-interaction --no-ansi
+
+      - name: Run unit tests + coverage
+        run: |
+          poetry run pytest \
+            --cov=airbnb_agent \
+            --cov-report=term \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:htmlcov \
+            --junitxml=junit-report.xml \
+            -v
+
+      - name: Extract coverage percentage
+        id: coverage
+        run: |
+          COVERAGE_PCT=$(poetry run coverage report --format=total | tail -n1)
+          echo "coverage=${COVERAGE_PCT}" >> "$GITHUB_OUTPUT"
+          echo "Total coverage: ${COVERAGE_PCT}%"
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE_PCT=$(poetry run coverage report --format=total | tail -n1)
+          THRESHOLD=25
+          if (( $(echo "$COVERAGE_PCT < $THRESHOLD" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE_PCT}% < ${THRESHOLD}%"
+            exit 1
+          fi
+          echo "✅ Coverage ${COVERAGE_PCT}% >= ${THRESHOLD}%"
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            htmlcov/**
+            junit-report.xml
+            coverage.txt
+          retention-days: 7
+
+      - name: Upload coverage to Codecov (opcional, requiere token)
+        if: env.CODECOV_TOKEN != null
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage
+          message: |
+            ## 📊 Test Coverage
+
+            | Metric | Value |
+            |--------|-------|
+            | **Total coverage** | **${{ steps.coverage.outputs.coverage }}%** |
+            | Threshold | 25% |
+
+            📄 Full HTML report: see `coverage-report` artifact on this run.
+
+            <details>
+            <summary>Raw pytest output (last 40 lines)</summary>
+
+            ```
+            $(tail -n 40 junit-report.xml 2>/dev/null || echo "No junit report")
+            ```
+            </details>

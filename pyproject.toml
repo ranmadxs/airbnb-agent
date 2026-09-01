@@ -18,6 +18,48 @@ dependencies = [
 [tool.poetry]
 packages = [{include = "airbnb_agent"}]
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^5.0.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--tb=short",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:icalendar.*",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["airbnb_agent"]
+omit = [
+    "airbnb_agent/__init__.py",
+    "airbnb_agent/static/*",
+    "airbnb_agent/templates/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 1
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+]

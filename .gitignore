@@ -42,3 +42,12 @@ Thumbs.db
 # Logs
 *.log
 .env
+
+# Coverage outputs (generados por CI)
+coverage.xml
+htmlcov/
+.coverage
+.coverage.*
+coverage.txt
+junit-report.xml
+.pytest_cache/
