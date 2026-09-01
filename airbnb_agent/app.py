@@ -127,6 +127,45 @@ def _calcular_ingresos_mes_reservas(
     return ingreso_arriendo, ingreso_tinaja, ingreso_pagado, ingreso_proximos
 
 
+def _calcular_ingresos_por_calendario(all_events: list, year: int, month: int) -> dict:
+    """Subtotales de ingresos por calendario_id (para widget de Ingresos).
+
+    Returns:
+        {calendario_id_o_'__legacy__': {'arriendo': int, 'tinaja': int, 'total': int}}
+    """
+    inicio_mes = date(year, month, 1)
+    fin_mes = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+
+    by_cal = {}
+    for ev in all_events:
+        if ev.get('estado') != 'reservado':
+            continue
+        try:
+            ev_start = date.fromisoformat(ev.get('start', ''))
+            ev_end = date.fromisoformat(ev.get('end', ''))
+            if ev_start >= fin_mes or ev_end < inicio_mes:
+                continue
+            dias_totales = max(1, (ev_end - ev_start).days + 1)
+            ev_end_excl = ev_end + timedelta(days=1)
+            overlap_start = max(ev_start, inicio_mes)
+            overlap_end = min(ev_end_excl, fin_mes)
+            dias_en_mes = max(0, (overlap_end - overlap_start).days)
+            proporcion = dias_en_mes / dias_totales
+            precio = round((ev.get('precio', 0) or 0) * proporcion)
+            extra = round((ev.get('extra_valor', 0) or 0) * proporcion)
+        except Exception:
+            continue
+
+        # Llave: calendario_id si existe, si no '__legacy__'
+        cid = ev.get('calendario_id') or '__legacy__'
+        slot = by_cal.setdefault(cid, {'arriendo': 0, 'tinaja': 0, 'total': 0})
+        slot['arriendo'] += precio
+        slot['tinaja'] += extra
+        slot['total'] += precio + extra
+
+    return by_cal
+
+
 def get_audit_info() -> dict:
     """Obtiene info de auditoría del request."""
     try:
@@ -138,8 +177,14 @@ def get_audit_info() -> dict:
         return {"user_origin": "system", "user_agent": "system"}
 
 
-def get_month_calendar(year: int, month: int, include_events: bool = False) -> dict:
-    """Genera datos del calendario para un mes."""
+def get_month_calendar(year: int, month: int, include_events: bool = False,
+                       calendario_ids: list = None) -> dict:
+    """Genera datos del calendario para un mes.
+
+    Args:
+        calendario_ids: Lista de calendario_id a incluir (None = todos).
+                       '__legacy__' incluye docs sin calendario_id.
+    """
     cal = calendar.Calendar(firstweekday=0)
     result = {
         'year': year,
@@ -147,7 +192,7 @@ def get_month_calendar(year: int, month: int, include_events: bool = False) -> d
         'month_name': MESES_ES[month],
         'days': list(cal.itermonthdays2(year, month))
     }
-    
+
     # Incluir eventos e ingresos si se solicita
     if include_events:
         inicio_mes = date(year, month, 1)
@@ -156,7 +201,7 @@ def get_month_calendar(year: int, month: int, include_events: bool = False) -> d
         else:
             fin_mes = date(year, month + 1, 1)
 
-        all_events = db_service.obtener_eventos_formato_ical()
+        all_events = db_service.obtener_eventos_formato_ical(calendario_ids=calendario_ids)
         events_mes = []
         for ev in all_events:
             try:
@@ -175,6 +220,8 @@ def get_month_calendar(year: int, month: int, include_events: bool = False) -> d
             'tinaja': tinaja,
             'total': arriendo + tinaja,
         }
+        # v3.0.0: subtotales por calendario
+        result['ingresos_por_calendario'] = _calcular_ingresos_por_calendario(all_events, year, month)
 
     return result
 
@@ -740,12 +787,28 @@ def api_transacciones_mes():
     })
 
 
+def _parse_calendario_ids() -> list | None:
+    """Lee ?calendario_ids=a,b,c y devuelve ['a','b','c'] o None si no se envía."""
+    raw = request.args.get('calendario_ids', '').strip()
+    if not raw:
+        return None
+    return [c.strip() for c in raw.split(',') if c.strip()]
+
+
 @app.route('/api/month')
 def api_month():
-    """API: Datos de un mes específico con eventos."""
+    """API: Datos de un mes específico con eventos.
+
+    Query params:
+        year, month: año/mes a consultar (default: mes actual)
+        calendario_ids: lista separada por comas de calendario_id a incluir
+                        (None = todos). '__legacy__' incluye docs sin calendario_id.
+    """
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
-    return jsonify(get_month_calendar(year, month, include_events=True))
+    calendario_ids = _parse_calendario_ids()
+    return jsonify(get_month_calendar(year, month, include_events=True,
+                                      calendario_ids=calendario_ids))
 
 
 @app.route('/api/month/tinaja')
@@ -876,6 +939,38 @@ def api_status():
     })
 
 
+@app.route('/api/calendarios')
+def api_calendarios():
+    """API: Lista de calendarios configurados en .env + los legacy sin calendario_id.
+
+    El frontend usa esto para pintar la barra de filtros del header.
+    Refresca el estado de conexión antes de responder (para que `connected` esté actualizado).
+    """
+    # Refrescar estado leyendo de los calendarios configurados
+    per_cal_status = airbnb_service.get_status().get('per_calendar', {})
+    configured = [
+        {
+            "calendario_id": c['calendario_id'],
+            "nombre": c['nombre'],
+            "source": c['source'],
+            # Por defecto unknown si nunca se hizo fetch; si hubo, refleja el último estado.
+            "connected": per_cal_status.get(c['calendario_id'], {}).get('connected', None),
+        }
+        for c in airbnb_service.calendars
+    ]
+    # Detectar si hay docs legacy (sin calendario_id) en reservas airbnb
+    has_legacy = False
+    if db_service.connect():
+        has_legacy = db_service.reservas.count_documents({
+            "source": "airbnb",
+            "$or": [{"calendario_id": None}, {"calendario_id": {"$exists": False}}]
+        }) > 0
+    return jsonify({
+        "configured": configured,
+        "has_legacy": has_legacy,
+    })
+
+
 @app.route('/api/dias')
 def api_dias():
     """API: Días desde MongoDB."""
@@ -994,11 +1089,26 @@ def api_reserva_por_id(reserva_id):
 @app.route('/api/reserva/por-fecha/<fecha>')
 @login_required
 def api_reserva_por_fecha(fecha):
-    """API: Obtener reserva por fecha."""
+    """API: Obtener reserva por fecha (singular, compat con frontend existente)."""
     reserva = db_service.buscar_reserva_por_fecha(fecha)
     if reserva:
         return jsonify(_reserva_to_json(reserva))
     return jsonify({"found": False, "fecha": fecha})
+
+
+@app.route('/api/reservas/por-fecha/<fecha>')
+@login_required
+def api_reservas_por_fecha(fecha):
+    """API: Obtener TODAS las reservas que tocan la fecha (multi-calendario).
+
+    Retorna {"count": N, "reservas": [...]}. Excluye cache_* y eliminadas.
+    Usado por el frontend cuando caen múltiples eventos el mismo día.
+    """
+    reservas = db_service.buscar_reservas_por_fecha(fecha)
+    return jsonify({
+        "count": len(reservas),
+        "reservas": [_reserva_to_json(r) for r in reservas]
+    })
 
 
 @app.route('/api/reserva/guardar', methods=['POST'])

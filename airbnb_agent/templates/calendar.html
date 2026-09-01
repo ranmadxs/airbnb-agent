@@ -61,7 +61,9 @@
                         </div>
                     </div>
                 </div>
-                
+                <!-- v3.0.0: Subtotales por calendario (rellenados por JS) -->
+                <div class="income-group-subtotals" id="income-subtotals"></div>
+
                 <!-- Widget de Gastos (2x2) -->
                 <div class="income-group gastos" id="widget-gastos-group">
                     <div class="income-group-header">
@@ -177,6 +179,8 @@
                         <span class="nav-arrow">→</span>
                     </button>
                 </div>
+                <!-- v3.0.0: barra de filtros por calendario (se llena por JS) -->
+                <div class="calendar-filter-bar" id="calendar-filter-bar"></div>
                 <div class="calendar-grid" id="calendar-grid">
                     <div class="day-header">Lu</div>
                     <div class="day-header">Ma</div>
@@ -481,6 +485,18 @@
                 </a>
             </p>
         </footer>
+    </div>
+
+    <!-- v3.0.0: Drawer multi-reservas (cuando caen 2+ eventos el mismo día) -->
+    <div id="multi-reserva-overlay" class="multi-reserva-overlay" style="display: none;" onclick="cerrarDrawerMultiReservas()"></div>
+    <div id="multi-reserva-drawer" class="multi-reserva-drawer" style="display: none;">
+        <div class="multi-reserva-drawer-header">
+            <h3>Reservas del <span id="multi-reserva-date"></span></h3>
+            <button class="multi-reserva-close" onclick="cerrarDrawerMultiReservas()">&times;</button>
+        </div>
+        <div class="multi-reserva-drawer-body">
+            <div id="multi-reserva-list"></div>
+        </div>
     </div>
 
     <!-- Modal de Reserva -->
@@ -1140,6 +1156,144 @@
             await cargarMes(currentYear, currentMonth);
         }
         
+        // ============================================================
+// v3.0.0: Filtros por calendario
+// ============================================================
+        let calendariosDisponibles = [];
+        let calendariosActivos = new Set(); // set de calendario_id activos
+        let includeLegacy = false; // incluir docs sin calendario_id (migración pendiente)
+
+        async function loadCalendarFilters() {
+            try {
+                const res = await fetch('/api/calendarios', { credentials: 'include' });
+                const data = await res.json();
+                calendariosDisponibles = data.configured || [];
+                const validIds = new Set(calendariosDisponibles.map(c => c.calendario_id));
+
+                // Prioridad: URL ?cal=... > localStorage > default (todos activos)
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlCal = urlParams.get('cal');
+                if (urlCal !== null) {
+                    // URL tiene prioridad absoluta
+                    const ids = urlCal.split(',').filter(Boolean);
+                    calendariosActivos = new Set(ids.filter(id => id !== '__legacy__' && validIds.has(id)));
+                    includeLegacy = ids.includes('__legacy__');
+                } else {
+                    // Fallback a localStorage
+                    try {
+                        const saved = localStorage.getItem('calendar_filters_v3');
+                        if (saved) {
+                            const parsed = JSON.parse(saved);
+                            const savedIds = new Set(parsed.calendario_ids || []);
+                            const savedLegacy = !!parsed.include_legacy;
+                            // Solo aplicar si los ids siguen siendo válidos
+                            const filtered = new Set([...savedIds].filter(id => validIds.has(id)));
+                            if (filtered.size > 0 || savedIds.size === 0) {
+                                calendariosActivos = filtered;
+                                includeLegacy = savedLegacy && !!data.has_legacy;
+                            } else {
+                                // Si ninguno coincide (calendarios cambiaron), reset
+                                calendariosActivos = new Set(calendariosDisponibles.map(c => c.calendario_id));
+                                includeLegacy = !!data.has_legacy;
+                            }
+                        } else {
+                            calendariosActivos = new Set(calendariosDisponibles.map(c => c.calendario_id));
+                            includeLegacy = !!data.has_legacy;
+                        }
+                    } catch {
+                        calendariosActivos = new Set(calendariosDisponibles.map(c => c.calendario_id));
+                        includeLegacy = !!data.has_legacy;
+                    }
+                }
+
+                renderFilterBar();
+            } catch (e) {
+                console.error('Error cargando filtros:', e);
+            }
+        }
+
+        function renderFilterBar() {
+            const bar = document.getElementById('calendar-filter-bar');
+            if (!bar) return;
+            // Si no hay calendarios configurados, ocultar la barra
+            if (calendariosDisponibles.length === 0) {
+                bar.innerHTML = '';
+                return;
+            }
+            let html = '';
+            // Chip "Todos": reset
+            const allActive = calendariosActivos.size === calendariosDisponibles.length && !includeLegacy;
+            html += `<button class="calendar-filter-chip ${allActive ? 'active' : ''}" data-cal-action="all">
+                <span class="chip-icon">🏠</span><span class="chip-name">Todos</span>
+            </button>`;
+            // Un chip por calendario configurado
+            for (const c of calendariosDisponibles) {
+                const active = calendariosActivos.has(c.calendario_id);
+                const sourceIcon = c.source === 'airbnb' ? '🏠' : (c.source === 'booking' ? '🏨' : '📅');
+                html += `<button class="calendar-filter-chip ${active ? 'active' : 'disabled'}"
+                                  data-cal-action="toggle"
+                                  data-calendario-id="${c.calendario_id}"
+                                  title="${c.nombre} (${c.source})">
+                    <span class="chip-icon">${sourceIcon}</span>
+                    <span class="chip-name">${c.nombre}</span>
+                </button>`;
+            }
+            bar.innerHTML = html;
+            // Bind clicks
+            bar.querySelectorAll('.calendar-filter-chip').forEach(btn => {
+                btn.addEventListener('click', () => onFilterChipClick(btn));
+            });
+        }
+
+        function onFilterChipClick(btn) {
+            const action = btn.dataset.calAction;
+            if (action === 'all') {
+                // Reset: todos activos, sin legacy
+                calendariosActivos = new Set(calendariosDisponibles.map(c => c.calendario_id));
+                includeLegacy = false;
+            } else if (action === 'toggle') {
+                const cid = btn.dataset.calendarioId;
+                if (calendariosActivos.has(cid)) {
+                    calendariosActivos.delete(cid);
+                } else {
+                    calendariosActivos.add(cid);
+                }
+            }
+            // Persistir en localStorage
+            try {
+                localStorage.setItem('calendar_filters_v3', JSON.stringify({
+                    calendario_ids: Array.from(calendariosActivos),
+                    include_legacy: includeLegacy
+                }));
+            } catch {}
+            renderFilterBar();
+            // Refetch del mes con filtro nuevo
+            cargarMes(currentYear, currentMonth);
+            // Actualizar URL sin recargar
+            updateUrlFilter();
+        }
+
+        function updateUrlFilter() {
+            const params = new URLSearchParams();
+            if (calendariosActivos.size !== calendariosDisponibles.length || includeLegacy) {
+                const ids = Array.from(calendariosActivos);
+                if (includeLegacy) ids.push('__legacy__');
+                params.set('cal', ids.join(','));
+            }
+            const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+            window.history.replaceState({}, '', newUrl);
+        }
+
+        function getActiveCalendarioIdsParam() {
+            // Devuelve el query string ?calendario_ids=... si hay filtro activo distinto a "todos".
+            if (calendariosActivos.size === calendariosDisponibles.length && !includeLegacy) {
+                return ''; // sin filtro
+            }
+            const ids = Array.from(calendariosActivos);
+            if (includeLegacy) ids.push('__legacy__');
+            return `&calendario_ids=${ids.join(',')}`;
+        }
+
         // Cargar mes desde API
         async function cargarMes(year, month) {
             const overlay = document.getElementById('loading-overlay');
@@ -1155,11 +1309,16 @@
                 if (isAdmin) {
                     resetearWidgetsGastos();
                 }
-                
-                const res = await fetch(`/api/month?year=${year}&month=${month}`, { credentials: 'include' });
+
+                const filterParam = getActiveCalendarioIdsParam();
+                const res = await fetch(`/api/month?year=${year}&month=${month}${filterParam}`, { credentials: 'include' });
                 const data = await res.json();
                 if (data.ingresos) {
-                    ingresosMesCache[year + '-' + month] = data.ingresos;
+                    ingresosMesCache[year + '-' + month] = {
+                        arriendo: data.ingresos.arriendo,
+                        tinaja: data.ingresos.tinaja,
+                        por_calendario: data.ingresos_por_calendario || {}
+                    };
                 }
                 renderizarMes(data);
                 marcarDias();
@@ -1197,14 +1356,48 @@
         }
         
         // Filtrar reservas por mes desplegado
+        // v3.0.0: render subtotales por calendario en widget de Ingresos.
+        // Solo muestra la fila por calendario si hay más de 1 calendario activo,
+        // o si hay legacy (docs sin calendario_id) — para que el usuario
+        // vea qué aporta cada fuente.
+        function renderIncomeSubtotals(year, month) {
+            const cont = document.getElementById('income-subtotals');
+            if (!cont) return;
+            const cacheKey = year + '-' + month;
+            const cached = ingresosMesCache[cacheKey];
+            const porCal = (cached && cached.por_calendario) || {};
+
+            // Si solo hay 1 calendario activo y no hay legacy, no mostrar.
+            const hayMultiCalendario = (calendariosDisponibles.length > 1) || includeLegacy;
+            const keys = Object.keys(porCal).filter(k => porCal[k].total > 0);
+            if (!hayMultiCalendario || keys.length <= 1) {
+                cont.innerHTML = '';
+                cont.style.display = 'none';
+                return;
+            }
+            cont.style.display = 'block';
+
+            // Construir HTML ordenado por total desc
+            const sorted = keys.sort((a, b) => porCal[b].total - porCal[a].total);
+            let html = '<div class="income-subtotals-title">Por calendario</div>';
+            for (const cid of sorted) {
+                const label = cid === '__legacy__' ? 'Sin asignar' : cid;
+                html += `<div class="income-subtotal-row" data-calendario-id="${cid}">
+                    <span class="income-subtotal-label">${label}</span>
+                    <span class="income-subtotal-value">$${porCal[cid].total.toLocaleString('es-CL')}</span>
+                </div>`;
+            }
+            cont.innerHTML = html;
+        }
+
         function filtrarReservasPorMes(year, month) {
             const mesStr = String(month).padStart(2, '0');
             const prefijoMes = `${year}-${mesStr}`;
-            
+
             document.querySelectorAll('.reservation-item').forEach(item => {
                 const startStr = item.dataset.start || '';
                 const endStr = item.dataset.end || '';
-                
+
                 // Mostrar si la fecha de INICIO o la fecha de FIN está en este mes
                 const iniciaEnMes = startStr.startsWith(prefijoMes);
                 const terminaEnMes = endStr.startsWith(prefijoMes);
@@ -1320,6 +1513,9 @@
             // Total de ingresos (arriendo + tinaja)
             const totalIngresos = ingresoArriendo + ingresoTinaja;
             if (incomeTotal) incomeTotal.textContent = '+$' + totalIngresos.toLocaleString('es-CL');
+
+            // v3.0.0: subtotales por calendario
+            renderIncomeSubtotals(year, month);
         }
         
         // Renderizar calendario
@@ -1366,20 +1562,27 @@
         function marcarDias() {
             // Crear set de todas las fechas ocupadas (incluyendo día de checkout)
             const diasOcupados = new Set();
+            // Mapa fecha → lista de eventos que tocan esa fecha (para stack visual).
+            const eventosPorFecha = new Map();
             events.forEach(event => {
                 let current = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 while (current <= end) {
-                    diasOcupados.add(formatDate(current));
+                    const d = formatDate(current);
+                    diasOcupados.add(d);
+                    if (event.estado === 'reservado') {
+                        if (!eventosPorFecha.has(d)) eventosPorFecha.set(d, []);
+                        eventosPorFecha.get(d).push(event);
+                    }
                     current.setDate(current.getDate() + 1);
                 }
             });
-            
+
             // Determinar si es bloqueo o reserva real (basado en estado)
             const esReserva = (event) => {
                 return event.estado === 'reservado';
             };
-            
+
             // PASO 1: Primero marcar TODOS los bloqueos (gris)
             events.filter(e => !esReserva(e)).forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
@@ -1397,36 +1600,36 @@
                     current.setDate(current.getDate() + 1);
                 }
             });
-            
+
             // PASO 2: Después marcar TODAS las reservas (franja negra, tiene prioridad)
             events.filter(e => esReserva(e)).forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 const reservationUrl = event.reservation_url;
                 const esCache = event.source === 'cache_airbnb';
-                
+
                 // Calcular mes actual visible
                 const inicioMesVisible = new Date(currentYear, currentMonth - 1, 1);
                 const finMesVisible = new Date(currentYear, currentMonth, 0);
-                
+
                 // Calcular días totales de la reserva (incluyendo día de checkout)
                 const diasTotales = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
-                
+
                 // Calcular días en el mes visible (end + 1 día para incluir checkout)
                 const endInclusive = new Date(end.getTime() + 86400000);
                 const overlapStart = new Date(Math.max(start, inicioMesVisible));
                 const overlapEnd = new Date(Math.min(endInclusive, new Date(finMesVisible.getTime() + 86400000)));
                 const diasEnEsteMes = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
-                
+
                 // Calcular proporción para este mes
                 const proporcion = diasEnEsteMes / diasTotales;
                 const precioProporcion = Math.round((event.precio || 0) * proporcion);
                 const extraProporcion = Math.round((event.extra_valor || 0) * proporcion);
-                
+
                 // Determinar si la reserva empieza en este mes o viene de antes
                 const empiezaEnEsteMes = start >= inicioMesVisible && start <= finMesVisible;
                 let globitoPuesto = false;
-                
+
                 let current = new Date(start);
                 while (current <= end) {
                     const dateStr = formatDate(current);
@@ -1434,64 +1637,117 @@
                     if (cell) {
                         const esPrimerDiaReserva = formatDate(current) === formatDate(start);
                         const esUltimoDiaReserva = formatDate(current) === formatDate(end);
-                        
-                        // El día de checkout NO recibe clase 'reserved' (solo 'checkout-day')
-                        // para que se muestre la colita negra redondeada
-                        if (!esUltimoDiaReserva) {
-                            cell.classList.add('reserved');
+
+                        // Decidir si este día lleva multi-band (stack), expandido (mini-lista) o banda única (look actual).
+                        const eventosEseDia = eventosPorFecha.get(dateStr) || [];
+                        const esMulti = eventosEseDia.length > 1 && !esUltimoDiaReserva;
+                        const esExpanded = eventosEseDia.length >= 3 && !esUltimoDiaReserva;
+
+                        if (esExpanded) {
+                            // Modo expandido: mini-lista inline con scroll (3+ eventos el mismo día).
+                            // Solo crear UNA vez por celda.
+                            if (!cell.classList.contains('expanded-day')) {
+                                cell.classList.add('multi-band', 'expanded-day');
+                                const list = document.createElement('div');
+                                list.className = 'day-event-list';
+                                eventosEseDia.forEach(ev => {
+                                    const row = document.createElement('div');
+                                    row.className = 'day-event-row';
+                                    row.dataset.source = ev.source || 'unknown';
+                                    row.dataset.calendarioId = ev.calendario_id || '';
+                                    const evId = ev.id || (ev.start + '_' + ev.end + '_' + (ev.calendario_id || ev.source));
+                                    row.dataset.eventId = evId;
+                                    const nombre = (ev.nombre_huesped || '?').substring(0, 12);
+                                    const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+                                    const totalPersonas = (ev.adultos || 0) + (ev.ninos || 0);
+                                    const precio = isAdmin && ev.precio ? `$${(ev.precio || 0).toLocaleString('es-CL')}` : '';
+                                    row.innerHTML = `
+                                        <span class="day-event-dot"></span>
+                                        <span class="day-event-name">${ini}${totalPersonas > 1 ? ` +${totalPersonas - 1}` : ''}</span>
+                                        ${precio ? `<span class="day-event-price">${precio}</span>` : ''}
+                                    `;
+                                    row.title = `${ev.nombre_huesped || ''} — ${ev.calendario_id || ev.source || ''}`;
+                                    list.appendChild(row);
+                                });
+                                cell.appendChild(list);
+                            }
+                            // No aplicar .reserved (la celda se ve con la lista)
+                        } else if (esMulti) {
+                            // Modo stack: 2 bandas (regression-safe path)
+                            cell.classList.add('multi-band');
+                            const existeBanda = cell.querySelector(
+                                `.band[data-event-id="${event.id || (event.start + '_' + event.end + '_' + (event.calendario_id || event.source))}"]`
+                            );
+                            if (!existeBanda) {
+                                const band = document.createElement('div');
+                                band.className = 'band';
+                                band.dataset.source = event.source || 'unknown';
+                                band.dataset.calendarioId = event.calendario_id || '';
+                                band.dataset.eventId = event.id || (event.start + '_' + event.end + '_' + (event.calendario_id || event.source));
+                                cell.appendChild(band);
+                            }
+                        } else {
+                            // Look actual: 1 banda con ::after (regresión 0)
+                            if (!esUltimoDiaReserva) {
+                                cell.classList.add('reserved');
+                            }
                         }
+
                         if (esCache) cell.classList.add('from-cache');
                         const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
-                        
+
                         // Mostrar globitos en: primer día de reserva O primer día del mes si viene de antes
                         // NO mostrar en día de checkout (las franjas se manejan con CSS)
                         const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
-                        
+
                         if (mostrarGlobitos) {
                             // Marcar checkin solo si es el primer día real de la reserva
                             if (esPrimerDiaReserva) {
                                 cell.classList.add('checkin');
                             }
-                            
+
                             // Contar cuántos globitos ya hay en este día para apilarlos
                             const existingGuestBubbles = cell.querySelectorAll('.guest-bubble').length;
                             const existingPriceBubbles = cell.querySelectorAll('.price-bubble').length;
-                            
+
                             // Crear globito con inicial y conteo
                             const nombre = event.nombre_huesped || '';
                             const adultos = event.adultos || 0;
                             const ninos = event.ninos || 0;
                             const mascotas = event.mascotas || 0;
                             const totalPersonas = adultos + ninos;
-                            
+
                             if (nombre || totalPersonas > 0) {
                                 const bubble = document.createElement('div');
                                 bubble.className = 'guest-bubble';
-                                
+
                                 // Apilar si ya hay otros globitos de huéspedes
                                 if (existingGuestBubbles > 0) {
                                     bubble.style.bottom = (28 + existingGuestBubbles * 16) + 'px';
                                 }
-                                
+
                                 // Primeras 10 letras del nombre (primera mayúscula, resto minúscula)
                                 const nombreCorto = nombre ? nombre.substring(0, 10) : '?';
                                 const nombreFormateado = nombreCorto.charAt(0).toUpperCase() + nombreCorto.slice(1).toLowerCase();
                                 let contenido = `<span class="bubble-initial">${nombreFormateado}</span>`;
-                                
+
                                 // +N personas (si hay más de 1)
                                 if (totalPersonas > 1) {
                                     contenido += `<span class="bubble-count">+${totalPersonas - 1}</span>`;
                                 }
-                                
+
                                 // +M mascotas (más pequeño)
                                 if (mascotas > 0) {
                                     contenido += `<span class="bubble-pets">+${mascotas}</span>`;
                                 }
-                                
+
                                 bubble.innerHTML = contenido;
+                                // Taggear el globito con el event_id para que el stack pueda
+                                // posicionarlo sobre la banda correspondiente.
+                                bubble.dataset.eventId = event.id || (event.start + '_' + event.end + '_' + (event.calendario_id || event.source));
                                 cell.appendChild(bubble);
                             }
-                            
+
                             // Globito de precio (solo admin) - verde con valor proporcional
                             // Siempre usar proporción si la reserva cruza meses
                             const esProporcional = diasEnEsteMes < diasTotales;
@@ -1502,18 +1758,18 @@
                                 if (esProporcional) {
                                     priceBubble.classList.add('proporcional');
                                 }
-                                
+
                                 // Apilar si ya hay otros globitos de precio
                                 if (existingPriceBubbles > 0) {
                                     priceBubble.style.top = (2 + existingPriceBubbles * 14) + 'px';
                                 }
-                                
+
                                 const precioFormateado = precioMostrar.toLocaleString('es-CL');
                                 priceBubble.innerHTML = `$${precioFormateado}`;
                                 priceBubble.title = esProporcional ? `Proporcional: ${diasEnEsteMes}/${diasTotales} días` : 'Precio total';
                                 cell.appendChild(priceBubble);
                             }
-                            
+
                             // Globito de extra (solo admin) - azul con valor proporcional
                             const extraMostrar = esProporcional ? extraProporcion : (event.extra_valor || 0);
                             const extraConcepto = event.extra_concepto || '';
@@ -1525,32 +1781,32 @@
                                 if (esProporcional) {
                                     extraBubble.classList.add('proporcional');
                                 }
-                                
+
                                 // Apilar extras también
                                 const existingExtraBubbles = cell.querySelectorAll('.extra-bubble').length;
                                 if (existingExtraBubbles > 0) {
                                     extraBubble.style.top = (2 + existingExtraBubbles * 14) + 'px';
                                 }
-                                
+
                                 const extraFormateado = extraMostrar.toLocaleString('es-CL');
                                 extraBubble.innerHTML = `$${extraFormateado}`;
                                 extraBubble.title = esProporcional ? `Proporcional: ${diasEnEsteMes}/${diasTotales} días - ${extraConcepto}` : extraConcepto;
                                 cell.appendChild(extraBubble);
                             }
-                            
+
                             globitoPuesto = true;
                         }
                     }
                     current.setDate(current.getDate() + 1);
                 }
-                
+
                 // Día de checkout (end) - marcar con colita negra
                 const checkoutCell = document.querySelector(`[data-date="${formatDate(end)}"]`);
                 if (checkoutCell) {
                     checkoutCell.classList.add('checkout-day');
                 }
             });
-            
+
             // PASO 3: Reservas canceladas - añadir cruz roja al lado de cada día
             events.filter(e => e.estado === 'cancelado').forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
@@ -1569,14 +1825,14 @@
                     current.setDate(current.getDate() + 1);
                 }
             });
-            
+
             // Marcar hoy
             const today = formatDate(new Date());
             const todayCell = document.querySelector(`[data-date="${today}"]`);
             if (todayCell) {
                 todayCell.classList.add('today');
             }
-            
+
             // Para admin: hacer click en cualquier día abre el modal
             if (isAdmin) {
                 document.querySelectorAll('.day-cell[data-date]').forEach(cell => {
@@ -1626,10 +1882,27 @@
         }
         
         async function abrirModalReserva(fecha) {
+            // v3.0.0: si la fecha tiene múltiples reservas, abrir drawer con lista.
+            if (!isAdmin) return;
+            try {
+                const res = await fetch(`/api/reservas/por-fecha/${fecha}`, { credentials: 'include' });
+                const data = await res.json();
+                if (data.count > 1) {
+                    abrirDrawerMultiReservas(fecha, data.reservas);
+                    return;
+                }
+                // Fallback: 0 o 1 reserva → modal singular (legacy)
+                abrirModalReservaSingular(fecha);
+            } catch (err) {
+                console.error('Error cargando reservas:', err);
+            }
+        }
+
+        async function abrirModalReservaSingular(fecha) {
             const modal = document.getElementById('reserva-modal');
             const title = document.getElementById('modal-title');
             const btnEliminar = document.getElementById('btn-eliminar');
-            
+
             document.getElementById('reserva-form').reset();
             document.getElementById('reserva-id').value = '';
             document.getElementById('reserva-start').value = fecha;
@@ -1640,7 +1913,7 @@
             btnEliminar.style.display = 'none';
             document.getElementById('btn-cancelar-reserva').style.display = 'none';
             title.textContent = 'Nueva Reserva/Bloqueo';
-            
+
             try {
                 const res = await fetch(`/api/reserva/por-fecha/${fecha}`, { credentials: 'include' });
                 const data = await res.json();
@@ -1655,6 +1928,60 @@
                 console.error('Error cargando reserva:', err);
             }
             modal.style.display = 'flex';
+        }
+
+        function abrirDrawerMultiReservas(fecha, reservas) {
+            const drawer = document.getElementById('multi-reserva-drawer');
+            const overlay = document.getElementById('multi-reserva-overlay');
+            const list = document.getElementById('multi-reserva-list');
+            const dateLabel = document.getElementById('multi-reserva-date');
+            if (!drawer) return;
+
+            dateLabel.textContent = fecha;
+            list.innerHTML = '';
+            reservas.forEach(r => {
+                const card = document.createElement('div');
+                card.className = 'multi-reserva-card';
+                card.dataset.source = r.source || 'unknown';
+                card.dataset.calendarioId = r.calendario_id || '';
+                const nombre = r.nombre_huesped || '(sin nombre)';
+                const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+                const totalPersonas = (r.adultos || 0) + (r.ninos || 0);
+                const precio = r.precio ? `$${(r.precio || 0).toLocaleString('es-CL')}` : '';
+                const sourceIcon = r.source === 'airbnb' ? '🏠' : (r.source === 'booking' ? '🏨' : '📅');
+                card.innerHTML = `
+                    <div class="multi-reserva-card-header">
+                        <span class="multi-reserva-dot"></span>
+                        <span class="multi-reserva-source">${sourceIcon} ${r.calendario_id || r.source || ''}</span>
+                        <span class="multi-reserva-estado estado-${r.estado}">${r.estado}</span>
+                    </div>
+                    <div class="multi-reserva-card-body">
+                        <div class="multi-reserva-nombre">${ini}${totalPersonas > 1 ? ` +${totalPersonas - 1}` : ''}</div>
+                        <div class="multi-reserva-fechas">${r.event_start} → ${r.event_end}</div>
+                        ${precio ? `<div class="multi-reserva-precio">${precio}</div>` : ''}
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    cerrarDrawerMultiReservas();
+                    abrirModalReservaPorId(r._id || r.id);
+                });
+                list.appendChild(card);
+            });
+
+            overlay.style.display = 'block';
+            drawer.style.display = 'flex';
+            // animación
+            requestAnimationFrame(() => drawer.classList.add('open'));
+        }
+
+        function cerrarDrawerMultiReservas() {
+            const drawer = document.getElementById('multi-reserva-drawer');
+            const overlay = document.getElementById('multi-reserva-overlay');
+            if (drawer) {
+                drawer.classList.remove('open');
+                setTimeout(() => drawer.style.display = 'none', 200);
+            }
+            if (overlay) overlay.style.display = 'none';
         }
         
         async function abrirModalReservaPorId(id) {
@@ -3114,6 +3441,8 @@
         function initCalendario() {
             (async () => {
                 try {
+                    // Cargar filtros primero para que el primer cargarMes ya use el filtro correcto.
+                    await loadCalendarFilters();
                     await cargarMes(currentYear, currentMonth);
                 } catch (e) {
                     console.error('Error inicializando calendario:', e);
