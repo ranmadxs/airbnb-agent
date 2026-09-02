@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   # ============================================================
-  # Job 0: Semver Check (OBLIGATORIO en todo PR)
+  # Job 0: Semver Check (solo en PR; en push a main no se exige bump extra)
   # ============================================================
   semver-check:
     name: Semver Check
@@ -57,11 +57,14 @@ jobs:
 
   # ============================================================
   # Job 1: Unit Tests (espejo del stage "Unit Tests" de Jenkins)
+  # IMPORTANTE: NO depende de semver-check, porque semver-check es
+  # exclusivo de PRs. En push directo a main, semver-check se skipea
+  # y, si unit-tests dependiera de él, también se skipearía
+  # (rompiendo la detección de regresiones post-merge).
   # ============================================================
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: semver-check
 
     env:
       SECRET_KEY:                test-secret-key

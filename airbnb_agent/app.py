@@ -1011,6 +1011,11 @@ def api_calendarios():
     """
     # Refrescar estado leyendo de los calendarios configurados
     per_cal_status = airbnb_service.get_status().get('per_calendar', {})
+    # Paleta de borders consistente con la usada en el render del calendario.
+    _CAL_PALETTE = [
+        "#dc2626", "#2563eb", "#059669", "#d97706",
+        "#7c3aed", "#0891b2", "#db2777", "#65a30d",
+    ]
     configured = [
         {
             "calendario_id": c['calendario_id'],
@@ -1021,8 +1026,9 @@ def api_calendarios():
             "imagen": c.get('imagen') or '',
             "thumbnail": c.get('thumbnail') or '',
             "logo": c.get('logo') or '',
+            "color": _CAL_PALETTE[i % len(_CAL_PALETTE)],
         }
-        for c in airbnb_service.calendars
+        for i, c in enumerate(airbnb_service.calendars)
     ]
     # Detectar si hay docs legacy (sin calendario_id) en reservas airbnb
     has_legacy = False
