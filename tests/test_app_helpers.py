@@ -516,3 +516,87 @@ class TestApiCalendarios:
         assert c0["imagen"] == ""
         assert c0["thumbnail"] == ""
         assert c0["logo"] == ""
+
+    def test_has_legacy_true_cuando_db_tiene_reservas_sin_calendario(
+        self, app_module, flask_client, monkeypatch
+    ):
+        # Cuando db_service.connect() retorna True y hay reservas
+        # legacy (sin calendario_id), la API debe reportar has_legacy=True.
+        app_module.airbnb_service.calendars = [
+            {"calendario_id": "santiago_magno", "nombre": "S", "source": "airbnb",
+             "url": "x", "imagen": "i.png", "thumbnail": "i.png", "logo": "i-logo.png"},
+        ]
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={"global": {}, "per_calendar": {}}),
+        )
+        # db_service.connect() → True, y el count_documents > 0
+        fake_reservas = MagicMock()
+        fake_reservas.count_documents = MagicMock(return_value=3)
+        monkeypatch.setattr(app_module.db_service, "connect", MagicMock(return_value=True))
+        monkeypatch.setattr(app_module.db_service, "reservas", fake_reservas)
+
+        res = flask_client.get("/api/calendarios")
+        assert res.status_code == 200
+        body = res.get_json()
+        assert body["has_legacy"] is True
+        fake_reservas.count_documents.assert_called_once()
+
+    def test_has_legacy_false_cuando_db_no_tiene_legacy(
+        self, app_module, flask_client, monkeypatch
+    ):
+        # db_service.connect() True pero count_documents == 0 → has_legacy=False
+        app_module.airbnb_service.calendars = [
+            {"calendario_id": "x", "nombre": "X", "source": "airbnb",
+             "url": "x", "imagen": "", "thumbnail": "", "logo": ""},
+        ]
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={"global": {}, "per_calendar": {}}),
+        )
+        fake_reservas = MagicMock()
+        fake_reservas.count_documents = MagicMock(return_value=0)
+        monkeypatch.setattr(app_module.db_service, "connect", MagicMock(return_value=True))
+        monkeypatch.setattr(app_module.db_service, "reservas", fake_reservas)
+
+        res = flask_client.get("/api/calendarios")
+        assert res.status_code == 200
+        assert res.get_json()["has_legacy"] is False
+
+    def test_connected_refleja_status_per_calendar(
+        self, app_module, flask_client, monkeypatch
+    ):
+        # Cuando per_calendar tiene el id, el campo 'connected' del
+        # API refleja ese valor (True/False). Si no está en per_calendar,
+        # devuelve None (nunca se hizo fetch).
+        app_module.airbnb_service.calendars = [
+            {"calendario_id": "ok",   "nombre": "OK",   "source": "airbnb", "url": "x",
+             "imagen": "", "thumbnail": "", "logo": ""},
+            {"calendario_id": "fail", "nombre": "FAIL", "source": "airbnb", "url": "x",
+             "imagen": "", "thumbnail": "", "logo": ""},
+            {"calendario_id": "new",  "nombre": "NEW",  "source": "airbnb", "url": "x",
+             "imagen": "", "thumbnail": "", "logo": ""},
+        ]
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={
+                "global": {},
+                "per_calendar": {
+                    "ok":   {"connected": True},
+                    "fail": {"connected": False},
+                    # 'new' no está en per_calendar
+                },
+            }),
+        )
+        monkeypatch.setattr(app_module.db_service, "connect", MagicMock(return_value=False))
+
+        res = flask_client.get("/api/calendarios")
+        body = res.get_json()
+        configured = {c["calendario_id"]: c for c in body["configured"]}
+
+        assert configured["ok"]["connected"] is True
+        assert configured["fail"]["connected"] is False
+        assert configured["new"]["connected"] is None
