@@ -203,6 +203,8 @@ jobs:
       - name: Comment PR with coverage
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
         uses: marocchino/sticky-pull-request-comment@v2
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: 'true'
         with:
           header: coverage
           message: |
