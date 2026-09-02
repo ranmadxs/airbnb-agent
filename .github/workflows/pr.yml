@@ -166,15 +166,17 @@ jobs:
           fi
           echo "✅ Coverage ${COVERAGE_PCT}% >= ${THRESHOLD}%"
 
-      - name: Upload coverage to GitHub native coverage report
-        # Sube el XML Cobertura a la API de coverage de GitHub.
-        # Aparece automáticamente en el Summary del job y en la pestaña
-        # "Files changed" del PR (con badge + % en cada archivo modificado).
+      - name: Upload coverage XML for GitHub coverage reporting
+        # GitHub detecta automáticamente coverage.xml/cobertura.xml subidos como
+        # artifact con nombre que comienza con "coverage" y muestra el reporte
+        # nativo en el Summary del job y en la pestaña "Files changed" del PR.
         if: github.event_name == 'pull_request' || github.event_name == 'push'
-        uses: github/codeql-action/upload-coverage@v4
+        uses: actions/upload-artifact@v5
         with:
-          reports: coverage.xml
-          fail-under: 25
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Upload coverage artifacts
         if: always()
