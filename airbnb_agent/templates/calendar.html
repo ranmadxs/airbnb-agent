@@ -290,9 +290,11 @@
                                  data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}"
                                  data-calendario-id="{{ event.calendario_id or '__legacy__' }}">
 
-                                {% set cal_logo = (calendarios_imagenes.get(event.calendario_id or '') or {}).get('logo') or '' %}
+                                {% set cal_imagen = calendarios_imagenes.get(event.calendario_id or '') or {} %}
+                                {% set cal_logo = cal_imagen.get('logo') or '' %}
+                                {% set cal_color = cal_imagen.get('color') or '#9ca3af' %}
                                 {% if cal_logo %}
-                                <img class="reservation-logo" src="{{ url_for('static', filename=cal_logo) }}" alt="" loading="lazy" onerror="this.remove()">
+                                <img class="reservation-logo" src="{{ url_for('static', filename=cal_logo) }}" alt="" loading="lazy" style="border-color: {{ cal_color }};" onerror="this.remove()">
                                 {% endif %}
                                 
                                 {% if is_finished and is_reservation %}
@@ -509,12 +511,27 @@
     <div id="reserva-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="modal-title">Reserva</h3>
+                <div class="modal-header-left">
+                    <img id="modal-logo" class="modal-cal-logo" src="" alt="" style="display:none;">
+                    <h3 id="modal-title">Reserva</h3>
+                </div>
                 <button class="modal-close" onclick="cerrarModal()">&times;</button>
             </div>
             <form id="reserva-form" onsubmit="guardarReserva(event)">
                 <input type="hidden" id="reserva-id" name="id">
-                
+                <input type="hidden" id="reserva-calendario-id" name="calendario_id">
+
+                <!-- Selector de calendario (edición: readonly, creación: editable) -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>🏠 Calendario / Propiedad</label>
+                        <select id="reserva-calendario" name="calendario">
+                            <option value="">— Sin asignar —</option>
+                        </select>
+                        <small id="reserva-calendario-hint" class="form-hint"></small>
+                    </div>
+                </div>
+
                 <!-- Fechas -->
                 <div class="form-row">
                     <div class="form-group half">
@@ -1248,18 +1265,33 @@
                 <span class="chip-icon">🏠</span><span class="chip-name">Todos</span>
             </button>`;
             // Un chip por calendario configurado
-            for (const c of calendariosDisponibles) {
-                const active = calendariosActivos.has(c.calendario_id);
-                const sourceIcon = c.source === 'airbnb' ? '🏠' : (c.source === 'booking' ? '🏨' : '📅');
-                const thumbUrl = c.thumbnail ? `${STATIC_BASE}/${c.thumbnail}` : '';
-                const thumbTag = thumbUrl
-                    ? `<img class="chip-thumb" src="${thumbUrl}" alt="" loading="lazy" onerror="this.style.display='none'">`
-                    : `<span class="chip-icon">${sourceIcon}</span>`;
-                html += `<button class="calendar-filter-chip ${active ? 'active' : 'disabled'}"
-                                  data-cal-action="toggle"
-                                  data-calendario-id="${c.calendario_id}"
-                                  title="${c.nombre} (${c.source})">
-                    ${thumbTag}
+            // Paleta determinística por índice (no configurable): el 1er calendario
+            // toma el primer color, el 2do el segundo, etc. Así cada propiedad se
+            // distingue visualmente sin tener que mapear nombres a colores.
+            const CHIP_PALETTE = [
+                "#dc2626",   // 1) rojo
+                "#2563eb",   // 2) azul
+                    "#059669",   // 3) verde
+                    "#d97706",   // 4) ámbar
+                    "#7c3aed",   // 5) violeta
+                    "#0891b2",   // 6) cyan
+                    "#db2777",   // 7) rosa
+                    "#65a30d",   // 8) lima
+                ];
+                calendariosDisponibles.forEach((c, i) => {
+                    const active = calendariosActivos.has(c.calendario_id);
+                    const sourceIcon = c.source === 'airbnb' ? '🏠' : (c.source === 'booking' ? '🏨' : '📅');
+                    const thumbUrl = c.thumbnail ? `${STATIC_BASE}/${c.thumbnail}` : '';
+                    const borderColor = CHIP_PALETTE[i % CHIP_PALETTE.length];
+                    const thumbStyle = `border-color: ${borderColor};`;
+                    const thumbTag = thumbUrl
+                        ? `<img class="chip-thumb" src="${thumbUrl}" alt="" loading="lazy" style="${thumbStyle}" onerror="this.style.display='none'">`
+                        : `<span class="chip-icon" style="color: ${borderColor};">${sourceIcon}</span>`;
+                    html += `<button class="calendar-filter-chip ${active ? 'active' : 'disabled'}"
+                                      data-cal-action="toggle"
+                                      data-calendario-id="${c.calendario_id}"
+                                      title="${c.nombre} (${c.source})">
+                        ${thumbTag}
                     <span class="chip-name">${c.nombre}</span>
                 </button>`;
             }
@@ -1950,7 +1982,73 @@
             } else {
                 urlLink.style.display = 'none';
             }
+            // calendario_id: en edición el campo queda readonly con el valor actual.
+            setCalendarioInModal(data.calendario_id || '', /*readonly=*/true);
             actualizarLinkPagoTinaja();
+        }
+
+        /**
+         * Popula el dropdown de calendarios en el modal y muestra el logo del
+         * seleccionado. Si readonly=true, no se puede cambiar (modo edición).
+         */
+        // Paleta determinística por índice (no configurable). Coincide con la
+// paleta de los chips en la barra de filtros (ver CHIP_PALETTE arriba).
+        const CAL_PALETTE = [
+            "#dc2626", "#2563eb", "#059669", "#d97706",
+            "#7c3aed", "#0891b2", "#db2777", "#65a30d",
+        ];
+        function getCalendarioColor(calendarioId) {
+            const i = calendariosDisponibles.findIndex(c => c.calendario_id === calendarioId);
+            if (i < 0) return "#9ca3af";   // gris para legacy
+            return CAL_PALETTE[i % CAL_PALETTE.length];
+        }
+
+        function setCalendarioInModal(calendarioId, readonly) {
+            const select = document.getElementById('reserva-calendario');
+            const hidden = document.getElementById('reserva-calendario-id');
+            const logo = document.getElementById('modal-logo');
+            const hint = document.getElementById('reserva-calendario-hint');
+
+            // Reconstruir opciones desde calendariosDisponibles (cache de /api/calendarios)
+            select.innerHTML = '<option value="">— Sin asignar —</option>';
+            calendariosDisponibles.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.calendario_id;
+                opt.textContent = c.nombre;
+                if (c.calendario_id === calendarioId) opt.selected = true;
+                select.appendChild(opt);
+            });
+            // Si el calendarioId no está en los disponibles (legacy), agregarlo igual
+            if (calendarioId && !calendariosDisponibles.find(c => c.calendario_id === calendarioId)) {
+                const opt = document.createElement('option');
+                opt.value = calendarioId;
+                opt.textContent = `${calendarioId} (sin imagen)`;
+                opt.selected = true;
+                select.appendChild(opt);
+            }
+
+            select.disabled = !!readonly;
+            hidden.value = calendarioId;
+            select.value = calendarioId;
+
+            // Logo grande en el header con border del color del calendario
+            const cal = calendariosImagenes[calendarioId];
+            const borderColor = getCalendarioColor(calendarioId);
+            if (cal && cal.logo) {
+                logo.src = `${STATIC_BASE}/${cal.logo}`;
+                logo.style.display = 'inline-block';
+                logo.style.borderColor = borderColor;
+                logo.title = cal.nombre || calendarioId;
+                hint.textContent = readonly
+                    ? 'Calendario fijo para esta reserva.'
+                    : 'Elegí a qué propiedad pertenece esta reserva.';
+            } else {
+                logo.style.display = 'none';
+                logo.removeAttribute('src');
+                hint.textContent = readonly
+                    ? 'Esta reserva no tiene calendario asignado.'
+                    : 'Sin asignar — elegí una propiedad si querés asociarla.';
+            }
         }
         
         async function abrirModalReserva(fecha) {
@@ -1985,6 +2083,8 @@
             btnEliminar.style.display = 'none';
             document.getElementById('btn-cancelar-reserva').style.display = 'none';
             title.textContent = 'Nueva Reserva/Bloqueo';
+            // Dropdown EDITABLE para nueva reserva (sin valor preseleccionado).
+            setCalendarioInModal('', /*readonly=*/false);
 
             try {
                 const res = await fetch(`/api/reserva/por-fecha/${fecha}`, { credentials: 'include' });
@@ -2156,7 +2256,12 @@
                 extra_valor: parseInt(document.getElementById('reserva-extra-valor').value) || 0,
                 extra_pago_confirmado: document.getElementById('reserva-extra-pago-confirmado').checked,
                 comuna: document.getElementById('reserva-comuna').value,
-                pais: document.getElementById('reserva-pais').value
+                pais: document.getElementById('reserva-pais').value,
+                // calendario_id: si el select está disabled (edición), NO se
+                // envía (backend lo ignora y mantiene el valor de la DB).
+                calendario_id: document.getElementById('reserva-calendario').disabled
+                    ? null
+                    : (document.getElementById('reserva-calendario').value || '')
             };
             
             try {

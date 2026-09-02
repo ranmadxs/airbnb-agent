@@ -1247,14 +1247,16 @@ header {
     background: #9ca3af;
 }
 
-/* Miniatura (thumbnail) del arriendo en el chip de filtro de calendario. */
+/* Miniatura (thumbnail) del arriendo en el chip de filtro de calendario.
+   Border color: el JS aplica inline style (border-color) según la paleta
+   por índice: 1er calendario = rojo, 2do = azul, 3ro = verde, etc. */
 .calendar-filter-chip .chip-thumb {
     width: 24px;
     height: 24px;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
-    border: 1px solid rgba(0,0,0,0.08);
+    border: 2px solid var(--chip-border-color, rgba(0,0,0,0.08));
 }
 
 /* Logo badge del arriendo en la celda de checkout (esquina inferior-izquierda).
@@ -2174,7 +2176,7 @@ header {
     object-fit: cover;
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     background: #fff;
-    border: 1.5px solid rgba(0,0,0,0.08);
+    border: 2.5px solid rgba(0,0,0,0.08);   /* color real viene de inline style */
     pointer-events: none;
     z-index: 2;
 }
@@ -2998,6 +3000,29 @@ header {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+}
+
+.modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-cal-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--airbnb-red);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    background: #fff;
+}
+
+.form-hint {
+    display: block;
+    color: #6b7280;
+    font-size: 0.75em;
+    margin-top: 4px;
 }
 
 .modal-header h3 {
