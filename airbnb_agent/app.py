@@ -982,6 +982,9 @@ def api_calendarios():
             "source": c['source'],
             # Por defecto unknown si nunca se hizo fetch; si hubo, refleja el último estado.
             "connected": per_cal_status.get(c['calendario_id'], {}).get('connected', None),
+            "imagen": c.get('imagen') or '',
+            "thumbnail": c.get('thumbnail') or '',
+            "logo": c.get('logo') or '',
         }
         for c in airbnb_service.calendars
     ]

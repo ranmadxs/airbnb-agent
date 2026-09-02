@@ -1110,6 +1110,8 @@
     </div>
 
     <script>
+        // Base para resolver rutas estáticas en el cliente (ej. imágenes por calendario).
+        const STATIC_BASE = "{{ url_for('static', filename='') }}".replace(/\/$/, '');
         // Datos de eventos desde el servidor
         // v3.0.1: `let` (no `const`) para poder reasignarlo cuando /api/month
         // devuelve los eventos filtrados por el calendario activo. Antes era
@@ -1166,12 +1168,22 @@
         let calendariosDisponibles = [];
         let calendariosActivos = new Set(); // set de calendario_id activos
         let includeLegacy = false; // incluir docs sin calendario_id (migración pendiente)
+        // Mapa calendario_id -> { logo, thumbnail } para los badges en celdas.
+        let calendariosImagenes = {};
 
         async function loadCalendarFilters() {
             try {
                 const res = await fetch('/api/calendarios', { credentials: 'include' });
                 const data = await res.json();
                 calendariosDisponibles = data.configured || [];
+                // Mapear calendario_id -> {logo, thumbnail} para los badges en celdas.
+                calendariosImagenes = {};
+                calendariosDisponibles.forEach(c => {
+                    calendariosImagenes[c.calendario_id] = {
+                        logo: c.logo || '',
+                        thumbnail: c.thumbnail || '',
+                    };
+                });
                 const validIds = new Set(calendariosDisponibles.map(c => c.calendario_id));
 
                 // Prioridad: URL ?cal=... > localStorage > default (todos activos)
@@ -1234,11 +1246,15 @@
             for (const c of calendariosDisponibles) {
                 const active = calendariosActivos.has(c.calendario_id);
                 const sourceIcon = c.source === 'airbnb' ? '🏠' : (c.source === 'booking' ? '🏨' : '📅');
+                const thumbUrl = c.thumbnail ? `${STATIC_BASE}/${c.thumbnail}` : '';
+                const thumbTag = thumbUrl
+                    ? `<img class="chip-thumb" src="${thumbUrl}" alt="" loading="lazy" onerror="this.style.display='none'">`
+                    : `<span class="chip-icon">${sourceIcon}</span>`;
                 html += `<button class="calendar-filter-chip ${active ? 'active' : 'disabled'}"
                                   data-cal-action="toggle"
                                   data-calendario-id="${c.calendario_id}"
                                   title="${c.nombre} (${c.source})">
-                    <span class="chip-icon">${sourceIcon}</span>
+                    ${thumbTag}
                     <span class="chip-name">${c.nombre}</span>
                 </button>`;
             }
@@ -1729,6 +1745,20 @@
 
                         if (esCache) cell.classList.add('from-cache');
                         const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
+
+                        // Logo badge del arriendo en la esquina superior-izquierda de la celda.
+                        // Se muestra siempre que la celda tenga una reserva de un calendario con logo.
+                        const cid = event.calendario_id || '';
+                        const logoPath = (calendariosImagenes[cid] && calendariosImagenes[cid].logo) || '';
+                        if (logoPath && !cell.querySelector(':scope > .cal-logo-badge')) {
+                            const badge = document.createElement('img');
+                            badge.className = 'cal-logo-badge';
+                            badge.src = `${STATIC_BASE}/${logoPath}`;
+                            badge.alt = '';
+                            badge.loading = 'lazy';
+                            badge.onerror = () => badge.remove();
+                            cell.appendChild(badge);
+                        }
 
                         // Mostrar globitos en: primer día de reserva O primer día del mes si viene de antes
                         // NO mostrar en día de checkout (las franjas se manejan con CSS)

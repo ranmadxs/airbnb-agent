@@ -1247,6 +1247,35 @@ header {
     background: #9ca3af;
 }
 
+/* Miniatura (thumbnail) del arriendo en el chip de filtro de calendario. */
+.calendar-filter-chip .chip-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.08);
+}
+
+/* Logo badge del arriendo en la esquina superior-izquierda de cada celda reservada. */
+.day-cell > .cal-logo-badge {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    pointer-events: none;
+    z-index: 2;
+    background: #fff;
+}
+.day-cell > .cal-logo-badge + .day-number {
+    /* Evitar que el número del día quede tapado por el badge */
+    padding-left: 26px;
+}
+
 /* Responsive: scroll horizontal en mobile */
 @media (max-width: 768px) {
     .calendar-filter-bar {
