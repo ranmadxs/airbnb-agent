@@ -2171,17 +2171,21 @@ header {
    con z-index 100. Si lo pusiéramos a la derecha, el sello lo tapa por completo. */
 .reservation-item > .reservation-logo {
     position: absolute;
-    top: 12px;
-    left: 12px;
-    width: 36px;
-    height: 36px;
+    top: 14px;
+    left: 14px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     object-fit: cover;
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     background: #fff;
-    border: 2.5px solid rgba(0,0,0,0.08);   /* color real viene de inline style */
+    border: 2px solid rgba(0,0,0,0.08);   /* color real viene de inline style */
     pointer-events: none;
     z-index: 3;
+}
+/* El type-badge de la reserva debe dejar espacio para el logo. */
+.reservation-item > .reservation-logo ~ .reservation-type {
+    padding-left: 40px;
 }
 
 .reservation-item.is-blocked {
