@@ -2165,11 +2165,14 @@ header {
     transition: all 0.2s ease;
 }
 
-/* Logo del arriendo en la esquina superior-derecha de cada item de reserva. */
+/* Logo del arriendo en la esquina superior-izquierda de cada item de reserva.
+   Va a la izquierda para NO chocar con el sello (checkout-stamp / upcoming-stamp /
+   in-progress-stamp / reserved-stamp) que ocupa la esquina superior-derecha
+   con z-index 100. Si lo pusiéramos a la derecha, el sello lo tapa por completo. */
 .reservation-item > .reservation-logo {
     position: absolute;
     top: 12px;
-    right: 12px;
+    left: 12px;
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -2178,11 +2181,7 @@ header {
     background: #fff;
     border: 2.5px solid rgba(0,0,0,0.08);   /* color real viene de inline style */
     pointer-events: none;
-    z-index: 2;
-}
-/* El type-badge de la reserva debe dejar espacio para el logo. */
-.reservation-item > .reservation-logo ~ .reservation-type {
-    padding-right: 48px;
+    z-index: 3;
 }
 
 .reservation-item.is-blocked {
