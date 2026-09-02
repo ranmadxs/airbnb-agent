@@ -291,10 +291,10 @@
                                  data-calendario-id="{{ event.calendario_id or '__legacy__' }}">
 
                                 {% set cal_imagen = calendarios_imagenes.get(event.calendario_id or '') or {} %}
-                                {% set cal_logo = cal_imagen.get('logo') or '' %}
+                                {% set cal_thumb = cal_imagen.get('thumbnail') or '' %}
                                 {% set cal_color = cal_imagen.get('color') or '#9ca3af' %}
-                                {% if cal_logo %}
-                                <img class="reservation-logo" src="{{ url_for('static', filename=cal_logo) }}" alt="" loading="lazy" style="border-color: {{ cal_color }};" onerror="this.remove()">
+                                {% if cal_thumb %}
+                                <img class="reservation-logo" src="{{ url_for('static', filename=cal_thumb) }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
                                 {% endif %}
                                 
                                 {% if is_finished and is_reservation %}
@@ -1198,12 +1198,13 @@
                 const res = await fetch('/api/calendarios', { credentials: 'include' });
                 const data = await res.json();
                 calendariosDisponibles = data.configured || [];
-                // Mapear calendario_id -> {logo, thumbnail} para los badges en celdas.
+                // Mapear calendario_id -> {logo, thumbnail, color} para los badges en celdas.
                 calendariosImagenes = {};
                 calendariosDisponibles.forEach(c => {
                     calendariosImagenes[c.calendario_id] = {
                         logo: c.logo || '',
                         thumbnail: c.thumbnail || '',
+                        color: c.color || '#9ca3af',
                     };
                 });
                 const validIds = new Set(calendariosDisponibles.map(c => c.calendario_id));
@@ -1787,14 +1788,19 @@
                         // Solo se muestra en el día rojo/checkout para:
                         //   - no tapar el price-bubble / extra-bubble que están arriba
                         //   - identificar el arriendo de un vistazo en el día de salida
+                        // El border toma el color de la paleta del calendario (no rojo fijo),
+                        // así no se confunde con el dot rojo de checkout.
                         const cid = event.calendario_id || '';
-                        const logoPath = (calendariosImagenes[cid] && calendariosImagenes[cid].logo) || '';
+                        const calImg = calendariosImagenes[cid] || {};
+                        const logoPath = calImg.thumbnail || calImg.logo || '';
+                        const calColor = calImg.color || '#9ca3af';
                         if (logoPath && esUltimoDiaReserva && !cell.querySelector(':scope > .cal-logo-badge')) {
                             const badge = document.createElement('img');
                             badge.className = 'cal-logo-badge';
                             badge.src = `${STATIC_BASE}/${logoPath}`;
                             badge.alt = '';
                             badge.loading = 'lazy';
+                            badge.style.borderColor = calColor;
                             badge.title = `Checkout - ${calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || ''}`;
                             badge.onerror = () => badge.remove();
                             cell.appendChild(badge);

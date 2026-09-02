@@ -1274,7 +1274,7 @@ header {
       pointer-events: none;
       z-index: 3;
       background: #fff;
-      border: 1.5px solid #dc2626;   /* rojo checkout, hace match con el dot */
+      border: 1.5px solid #9ca3af;   /* fallback; el JS aplica el color del calendario */
   }
   /* El badge no debe tapar el guest-bubble si coincide en la misma celda
   . (caso raro: checkout con nombre_huesped → guest-bubble se apila arriba). */
@@ -2200,7 +2200,12 @@ header {
 .reservation-item.is-past > * {
     position: relative;
     z-index: 2;
-    opacity: 0.6;
+}
+
+/* El logo debe seguir siendo absolute aunque la celda sea past. */
+.reservation-item.is-past > .reservation-logo {
+    position: absolute;
+    opacity: 1;
 }
 
 .reservation-item.is-past .type-badge,
