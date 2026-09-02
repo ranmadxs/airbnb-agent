@@ -16,10 +16,10 @@ permissions:
 
 jobs:
   # ============================================================
-  # Job 1: Unit Tests + Coverage (espejo de lo que corre Jenkins)
+  # Job 1: Unit Tests (espejo del stage "Unit Tests" de Jenkins)
   # ============================================================
   unit-tests:
-    name: Unit Tests + Coverage
+    name: Unit Tests
     runs-on: ubuntu-latest
 
     env:
@@ -69,7 +69,77 @@ jobs:
           poetry config virtualenvs.in-project false
           poetry install --with dev --no-interaction --no-ansi
 
-      - name: Run unit tests + coverage
+      - name: Run unit tests
+        run: |
+          poetry run pytest \
+            --junitxml=junit-report.xml \
+            -v
+
+      - name: Upload junit report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: junit-report
+          path: junit-report.xml
+          retention-days: 7
+          if-no-files-found: warn
+
+  # ============================================================
+  # Job 2: Coverage (espejo del stage "Coverage" de Jenkins)
+  # ============================================================
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    env:
+      SECRET_KEY:                test-secret-key
+      AUTH_USERNAME:             admin
+      AUTH_PASSWORD:             admin
+      MONGODB_URI:               ''
+      AIRBNB_CALENDAR_URL:       ''
+      BOOKING_CALENDAR_URL:      ''
+      MERCADOPAGO_ACCESS_TOKEN:  ''
+      MERCADOPAGO_WEBHOOK_SECRET: ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry --version
+
+      - name: Cache Poetry venv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project false
+          poetry install --with dev --no-interaction --no-ansi
+
+      - name: Run tests with coverage
         run: |
           poetry run pytest \
             --cov=airbnb_agent \
@@ -119,7 +189,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Comment PR with coverage
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: coverage
