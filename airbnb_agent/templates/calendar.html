@@ -286,9 +286,14 @@
                             {% set is_upcoming = event.start > today and is_reservation and not is_deleted and not is_canceled %}
                             {% set is_next = is_upcoming and not ns.found_next %}
                             {% if is_next %}{% set ns.found_next = true %}{% endif %}
-                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}" 
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}"
                                  data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}"
                                  data-calendario-id="{{ event.calendario_id or '__legacy__' }}">
+
+                                {% set cal_logo = (calendarios_imagenes.get(event.calendario_id or '') or {}).get('logo') or '' %}
+                                {% if cal_logo %}
+                                <img class="reservation-logo" src="{{ url_for('static', filename=cal_logo) }}" alt="" loading="lazy" onerror="this.remove()">
+                                {% endif %}
                                 
                                 {% if is_finished and is_reservation %}
                                 <div class="checkout-stamp">
@@ -1746,16 +1751,19 @@
                         if (esCache) cell.classList.add('from-cache');
                         const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
 
-                        // Logo badge del arriendo en la esquina superior-izquierda de la celda.
-                        // Se muestra siempre que la celda tenga una reserva de un calendario con logo.
+                        // Logo badge del arriendo en la celda de checkout (último día de la reserva).
+                        // Solo se muestra en el día rojo/checkout para:
+                        //   - no tapar el price-bubble / extra-bubble que están arriba
+                        //   - identificar el arriendo de un vistazo en el día de salida
                         const cid = event.calendario_id || '';
                         const logoPath = (calendariosImagenes[cid] && calendariosImagenes[cid].logo) || '';
-                        if (logoPath && !cell.querySelector(':scope > .cal-logo-badge')) {
+                        if (logoPath && esUltimoDiaReserva && !cell.querySelector(':scope > .cal-logo-badge')) {
                             const badge = document.createElement('img');
                             badge.className = 'cal-logo-badge';
                             badge.src = `${STATIC_BASE}/${logoPath}`;
                             badge.alt = '';
                             badge.loading = 'lazy';
+                            badge.title = `Checkout - ${calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || ''}`;
                             badge.onerror = () => badge.remove();
                             cell.appendChild(badge);
                         }
