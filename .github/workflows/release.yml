@@ -1,0 +1,69 @@
+name: Release Tag
+
+# Crea un tag anotado vX.Y.Z en cada push a main (= merge de PR).
+# Lee la versión de pyproject.toml. Idempotente: si el tag ya existe, lo salta.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create v* tag from pyproject.toml
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # necesario para chequear tags previos en git history
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -E '^version\s*=\s*"' pyproject.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "❌ No se pudo extraer la versión de pyproject.toml"
+            exit 1
+          fi
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "📦 Versión detectada: ${VERSION} → tag candidato: ${TAG}"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "⏭️  Tag ${TAG} ya existe, saltando creación."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "🆕 Tag ${TAG} no existe, se creará."
+          fi
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG (auto-generated from pyproject.toml)"
+          git push origin "$TAG"
+          echo "✅ Tag ${TAG} creado y pusheado."
+
+      - name: Tag summary
+        if: always()
+        run: |
+          echo "## 🚀 Release" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Versión en pyproject.toml: \`${{ steps.version.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag: \`${{ steps.version.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.check_tag.outputs.exists }}" = "true" ]; then
+            echo "- Estado: ⏭️  ya existía (no se recreó)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Estado: ✅ creado y pusheado" >> "$GITHUB_STEP_SUMMARY"
+          fi
