@@ -384,7 +384,17 @@ def home():
                          property_name=PROPERTY_NAME,
                          is_logged_in=is_logged_in,
                          today=now.strftime('%Y-%m-%d'),
-                         now_time=now.strftime('%H:%M'))
+                         now_time=now.strftime('%H:%M'),
+                         # Mapa calendario_id -> {nombre, thumbnail, logo} para
+                         # mostrar el logo del arriendo en la lista de reservas.
+                         calendarios_imagenes={
+                             c['calendario_id']: {
+                                 'nombre': c['nombre'],
+                                 'thumbnail': c.get('thumbnail') or '',
+                                 'logo': c.get('logo') or '',
+                             }
+                             for c in airbnb_service.calendars
+                         })
 
 
 @app.route('/reservatinaja-ingresar')
