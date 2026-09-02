@@ -420,3 +420,183 @@ class TestHomeFilterByQueryParam:
         # elimina Quinqueños del array events que va al template.
         assert '"calendario_id": "santiago_magno"' in html
         assert '"calendario_id": "los_quinquelles"' not in html
+
+
+# ============================================================
+# /api/calendarios — expone los campos imagen/thumbnail/logo
+# ============================================================
+class TestApiCalendarios:
+    """Cobertura del endpoint /api/calendarios para la feature ui de
+    thumbnail + logo por arriendo (PR #4)."""
+
+    def test_devuelve_imagen_thumbnail_y_logo_por_calendario(
+        self, app_module, flask_client, monkeypatch
+    ):
+        app_module.airbnb_service.calendars = [
+            {
+                "calendario_id": "paraiso_los_quinquelles_1",
+                "nombre": "Paraiso Los Quinquelles 1",
+                "source": "airbnb",
+                "url": "https://a.ics",
+                "imagen": "images/los-quinquelles.png",
+                "thumbnail": "images/los-quinquelles.png",
+                "logo": "images/los-quinquelles-logo.png",
+            },
+            {
+                "calendario_id": "santiago_magno",
+                "nombre": "Santiago Magno",
+                "source": "airbnb",
+                "url": "https://b.ics",
+                "imagen": "images/santiago-magno.png",
+                "thumbnail": "images/santiago-magno.png",
+                "logo": "images/santiago-magno-logo.png",
+            },
+        ]
+        # Mock get_status para evitar acceso a per_cal_status
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={"global": {}, "per_calendar": {}}),
+        )
+        # Mock db_service.connect (no debería entrar si no hay legacy,
+        # pero por las dudas evitamos cualquier acceso de red)
+        monkeypatch.setattr(
+            app_module.db_service,
+            "connect",
+            MagicMock(return_value=False),
+        )
+
+        res = flask_client.get("/api/calendarios")
+        assert res.status_code == 200
+        body = res.get_json()
+
+        assert "configured" in body
+        assert len(body["configured"]) == 2
+
+        c0 = body["configured"][0]
+        assert c0["calendario_id"] == "paraiso_los_quinquelles_1"
+        assert c0["imagen"] == "images/los-quinquelles.png"
+        assert c0["thumbnail"] == "images/los-quinquelles.png"
+        assert c0["logo"] == "images/los-quinquelles-logo.png"
+
+        c1 = body["configured"][1]
+        assert c1["calendario_id"] == "santiago_magno"
+        assert c1["imagen"] == "images/santiago-magno.png"
+        assert c1["thumbnail"] == "images/santiago-magno.png"
+        assert c1["logo"] == "images/santiago-magno-logo.png"
+
+    def test_campos_imagen_vacios_cuando_calendario_no_tiene(self,
+                                                              app_module,
+                                                              flask_client,
+                                                              monkeypatch):
+        # Calendarios sin campo 'imagen' deben devolver string vacío,
+        # no romper la API ni faltar la clave.
+        app_module.airbnb_service.calendars = [
+            {
+                "calendario_id": "legacy",
+                "nombre": "Legacy",
+                "source": "airbnb",
+                "url": "https://a.ics",
+            },
+        ]
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={"global": {}, "per_calendar": {}}),
+        )
+        monkeypatch.setattr(
+            app_module.db_service,
+            "connect",
+            MagicMock(return_value=False),
+        )
+
+        res = flask_client.get("/api/calendarios")
+        assert res.status_code == 200
+        c0 = res.get_json()["configured"][0]
+        assert c0["imagen"] == ""
+        assert c0["thumbnail"] == ""
+        assert c0["logo"] == ""
+
+    def test_has_legacy_true_cuando_db_tiene_reservas_sin_calendario(
+        self, app_module, flask_client, monkeypatch
+    ):
+        # Cuando db_service.connect() retorna True y hay reservas
+        # legacy (sin calendario_id), la API debe reportar has_legacy=True.
+        app_module.airbnb_service.calendars = [
+            {"calendario_id": "santiago_magno", "nombre": "S", "source": "airbnb",
+             "url": "x", "imagen": "i.png", "thumbnail": "i.png", "logo": "i-logo.png"},
+        ]
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={"global": {}, "per_calendar": {}}),
+        )
+        # db_service.connect() → True, y el count_documents > 0
+        fake_reservas = MagicMock()
+        fake_reservas.count_documents = MagicMock(return_value=3)
+        monkeypatch.setattr(app_module.db_service, "connect", MagicMock(return_value=True))
+        monkeypatch.setattr(app_module.db_service, "reservas", fake_reservas)
+
+        res = flask_client.get("/api/calendarios")
+        assert res.status_code == 200
+        body = res.get_json()
+        assert body["has_legacy"] is True
+        fake_reservas.count_documents.assert_called_once()
+
+    def test_has_legacy_false_cuando_db_no_tiene_legacy(
+        self, app_module, flask_client, monkeypatch
+    ):
+        # db_service.connect() True pero count_documents == 0 → has_legacy=False
+        app_module.airbnb_service.calendars = [
+            {"calendario_id": "x", "nombre": "X", "source": "airbnb",
+             "url": "x", "imagen": "", "thumbnail": "", "logo": ""},
+        ]
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={"global": {}, "per_calendar": {}}),
+        )
+        fake_reservas = MagicMock()
+        fake_reservas.count_documents = MagicMock(return_value=0)
+        monkeypatch.setattr(app_module.db_service, "connect", MagicMock(return_value=True))
+        monkeypatch.setattr(app_module.db_service, "reservas", fake_reservas)
+
+        res = flask_client.get("/api/calendarios")
+        assert res.status_code == 200
+        assert res.get_json()["has_legacy"] is False
+
+    def test_connected_refleja_status_per_calendar(
+        self, app_module, flask_client, monkeypatch
+    ):
+        # Cuando per_calendar tiene el id, el campo 'connected' del
+        # API refleja ese valor (True/False). Si no está en per_calendar,
+        # devuelve None (nunca se hizo fetch).
+        app_module.airbnb_service.calendars = [
+            {"calendario_id": "ok",   "nombre": "OK",   "source": "airbnb", "url": "x",
+             "imagen": "", "thumbnail": "", "logo": ""},
+            {"calendario_id": "fail", "nombre": "FAIL", "source": "airbnb", "url": "x",
+             "imagen": "", "thumbnail": "", "logo": ""},
+            {"calendario_id": "new",  "nombre": "NEW",  "source": "airbnb", "url": "x",
+             "imagen": "", "thumbnail": "", "logo": ""},
+        ]
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={
+                "global": {},
+                "per_calendar": {
+                    "ok":   {"connected": True},
+                    "fail": {"connected": False},
+                    # 'new' no está en per_calendar
+                },
+            }),
+        )
+        monkeypatch.setattr(app_module.db_service, "connect", MagicMock(return_value=False))
+
+        res = flask_client.get("/api/calendarios")
+        body = res.get_json()
+        configured = {c["calendario_id"]: c for c in body["configured"]}
+
+        assert configured["ok"]["connected"] is True
+        assert configured["fail"]["connected"] is False
+        assert configured["new"]["connected"] is None

@@ -92,11 +92,25 @@ class CalendarService:
                 while any(c['calendario_id'] == slug for c in calendars):
                     slug = f"{base_slug}_{suffix}"
                     suffix += 1
+                # imagen puede ser una sola ruta, o thumbnail/logo por separado.
+                # Si viene una sola:
+                #   thumbnail = imagen (reusa el base)
+                #   logo      = <basename>-logo<ext>
+                imagen = item.get('imagen', '').strip()
+                thumbnail = item.get('thumbnail', '').strip()
+                logo = item.get('logo', '').strip()
+                if imagen and not (thumbnail or logo):
+                    thumbnail = imagen
+                    base, ext = os.path.splitext(imagen)
+                    logo = f"{base}-logo{ext}" if ext else f"{base}-logo.png"
                 calendars.append({
                     'calendario_id': slug,
                     'nombre': nombre,
                     'source': source,
                     'url': url,
+                    'imagen': imagen,
+                    'thumbnail': thumbnail,
+                    'logo': logo,
                 })
 
         return calendars

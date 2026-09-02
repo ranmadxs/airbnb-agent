@@ -5,7 +5,8 @@ multi-calendario (v3.0.0+).
 """
 from __future__ import annotations
 
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -144,6 +145,65 @@ class TestLoadCalendars:
         assert cals[0]["nombre"] == "ConUrl"
         assert "sin url, omitido" in capsys.readouterr().out
 
+    # ---- Cobertura feature ui thumbnail/logo ----
+
+    def test_imagen_unica_deriva_thumbnail_y_logo(self, service, monkeypatch):
+        # Si solo viene "imagen", thumbnail reusa el base y logo se deriva con sufijo.
+        monkeypatch.setenv("AIRBNB_CALENDAR_URL",
+                           '[{"nombre":"Paraiso Los Quinquelles 1",'
+                           '"source":"airbnb",'
+                           '"url":"https://a.ics",'
+                           '"imagen":"images/los-quinquelles.png"}]')
+        monkeypatch.delenv("BOOKING_CALENDAR_URL", raising=False)
+        cals = service._load_calendars()
+        assert len(cals) == 1
+        c = cals[0]
+        assert c["imagen"] == "images/los-quinquelles.png"
+        assert c["thumbnail"] == "images/los-quinquelles.png"          # reusa el base
+        assert c["logo"] == "images/los-quinquelles-logo.png"          # derivado
+
+    def test_imagen_sin_extension_logo_asume_png(self, service, monkeypatch):
+        # Si imagen viene sin extensión, el código asume .png para el logo
+        # derivado (convención del proyecto: todos los assets son PNG).
+        # thumbnail reusa el base tal cual (sin extensión).
+        monkeypatch.setenv("AIRBNB_CALENDAR_URL",
+                           '[{"nombre":"Casa",'
+                           '"url":"https://a.ics",'
+                           '"imagen":"images/casa"}]')
+        monkeypatch.delenv("BOOKING_CALENDAR_URL", raising=False)
+        cals = service._load_calendars()
+        c = cals[0]
+        assert c["imagen"] == "images/casa"
+        assert c["thumbnail"] == "images/casa"
+        assert c["logo"] == "images/casa-logo.png"
+
+    def test_thumbnail_y_logo_explicitos_respetan_valores(self, service, monkeypatch):
+        # Si vienen explícitos, NO se derivan del campo imagen.
+        monkeypatch.setenv("AIRBNB_CALENDAR_URL",
+                           '[{"nombre":"A",'
+                           '"url":"https://a.ics",'
+                           '"imagen":"images/a.png",'
+                           '"thumbnail":"static/a-mini.png",'
+                           '"logo":"static/a-circle.svg"}]')
+        monkeypatch.delenv("BOOKING_CALENDAR_URL", raising=False)
+        cals = service._load_calendars()
+        c = cals[0]
+        assert c["thumbnail"] == "static/a-mini.png"
+        assert c["logo"] == "static/a-circle.svg"
+
+    def test_sin_imagen_queda_todo_vacio(self, service, monkeypatch):
+        # Sin 'imagen', 'thumbnail' ni 'logo', los campos quedan vacíos
+        # (la UI cae a emoji genérico).
+        monkeypatch.setenv("AIRBNB_CALENDAR_URL",
+                           '[{"nombre":"Legacy",'
+                           '"url":"https://a.ics"}]')
+        monkeypatch.delenv("BOOKING_CALENDAR_URL", raising=False)
+        cals = service._load_calendars()
+        c = cals[0]
+        assert c["imagen"] == ""
+        assert c["thumbnail"] == ""
+        assert c["logo"] == ""
+
 
 # ============================================================
 # CalendarService.get_stats
@@ -216,3 +276,322 @@ class TestGetStatus:
         assert status["global"]["connected"] is True
         assert status["global"]["events_count"] == 5
         assert status["per_calendar"] == {"a": {"connected": True}}
+
+
+# ============================================================
+# CalendarService.fetch_events
+# ============================================================
+class TestFetchEvents:
+    """Cobertura de fetch_events: sincroniza todos los calendarios y
+    clasifica el resultado en status global + per_calendar."""
+
+    @pytest.fixture
+    def service(self):
+        svc = CalendarService.__new__(CalendarService)
+        svc.calendars = []
+        svc.last_fetch = None
+        svc.cached_events = []
+        svc.status = {"global": {}, "per_calendar": {}}
+        return svc
+
+    def test_sin_calendarios_devuelve_none_y_status_error(
+        self, service
+    ):
+        result = service.fetch_events()
+        assert result is None
+        assert service.status["global"]["connected"] is False
+        assert service.status["global"]["error"] == "No hay calendarios configurados"
+        assert service.status["global"]["calendars_count"] == 0
+        assert service.status["per_calendar"] == {}
+
+    def test_todos_los_calendarios_fallan_devuelve_none(
+        self, service, monkeypatch
+    ):
+        service.calendars = [
+            {"calendario_id": "a", "nombre": "A", "source": "airbnb", "url": "u1"},
+            {"calendario_id": "b", "nombre": "B", "source": "airbnb", "url": "u2"},
+        ]
+        monkeypatch.setattr(service, "_fetch_one", lambda cfg: None)
+
+        result = service.fetch_events()
+        assert result is None
+        assert service.status["global"]["connected"] is False
+        assert service.status["global"]["error"] == "all_calendars_failed"
+        # per_calendar: ambos como failed
+        assert service.status["per_calendar"]["a"]["connected"] is False
+        assert service.status["per_calendar"]["a"]["error"] == "fetch_failed"
+        assert service.status["per_calendar"]["b"]["connected"] is False
+
+    def test_exito_total_devuelve_eventos_y_status_ok(
+        self, service, monkeypatch
+    ):
+        service.calendars = [
+            {"calendario_id": "a", "nombre": "A", "source": "airbnb", "url": "u1"},
+            {"calendario_id": "b", "nombre": "B", "source": "airbnb", "url": "u2"},
+        ]
+        # _fetch_one devuelve eventos distintos por calendario
+        def fake_fetch(cfg):
+            return [
+                {"start": "2099-06-15", "end": "2099-06-17",
+                 "source": cfg["source"], "calendario_id": cfg["calendario_id"]},
+            ]
+        monkeypatch.setattr(service, "_fetch_one", fake_fetch)
+
+        result = service.fetch_events()
+        assert result is not None
+        assert len(result) == 2
+        # Status global: connected=True con contadores correctos
+        assert service.status["global"]["connected"] is True
+        assert service.status["global"]["events_count"] == 2
+        assert service.status["global"]["successful_calendars"] == 2
+        assert service.status["global"]["failed_calendars"] == 0
+        # Eventos ordenados por start
+        assert result[0]["calendario_id"] == "a"
+        assert result[1]["calendario_id"] == "b"
+        # cached_events actualizado
+        assert service.cached_events == result
+        assert service.last_fetch is not None
+
+    def test_fallo_parcial_devuelve_eventos_de_los_que_funcionan(
+        self, service, monkeypatch
+    ):
+        service.calendars = [
+            {"calendario_id": "ok", "nombre": "OK", "source": "airbnb", "url": "u1"},
+            {"calendario_id": "fail", "nombre": "FAIL", "source": "airbnb", "url": "u2"},
+        ]
+        def fake_fetch(cfg):
+            if cfg["calendario_id"] == "ok":
+                return [{"start": "2099-06-10", "end": "2099-06-12",
+                         "calendario_id": "ok", "source": "airbnb"}]
+            return None
+        monkeypatch.setattr(service, "_fetch_one", fake_fetch)
+
+        result = service.fetch_events()
+        # Al menos uno trajo eventos → devuelve lista, no None
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["calendario_id"] == "ok"
+        # Status refleja mixto
+        assert service.status["global"]["connected"] is True
+        assert service.status["global"]["successful_calendars"] == 1
+        assert service.status["global"]["failed_calendars"] == 1
+        assert service.status["per_calendar"]["fail"]["connected"] is False
+
+
+# ============================================================
+# CalendarService._parse_event
+# ============================================================
+class TestParseEvent:
+    """Cobertura del parseo de VEVENTs: taggea source + calendario_id,
+    extrae reservation_url y codigo_reserva del description."""
+
+    @pytest.fixture
+    def service(self):
+        svc = CalendarService.__new__(CalendarService)
+        svc.calendars = []
+        svc.last_fetch = None
+        svc.cached_events = []
+        svc.status = {"global": {}, "per_calendar": {}}
+        return svc
+
+    @pytest.fixture
+    def cal_cfg(self):
+        return {
+            "calendario_id": "paraiso_los_quinquelles_1",
+            "nombre": "Paraiso Los Quinquelles 1",
+            "source": "airbnb",
+            "url": "https://a.ics",
+        }
+
+    @staticmethod
+    def _make_dt(year, month, day):
+        """Helper: crea un objeto con .dt (como hace icalendar)."""
+        from datetime import datetime
+        from types import SimpleNamespace
+        return SimpleNamespace(dt=datetime(year, month, day))
+
+    def test_evento_basico_sin_reservation_url(
+        self, service, cal_cfg
+    ):
+        comp = SimpleNamespace(
+            **{"get": lambda key, default=None: {
+                "dtstart": TestParseEvent._make_dt(2099, 6, 15),
+                "dtend": TestParseEvent._make_dt(2099, 6, 17),
+                "summary": "Reservado por Juan",
+                "description": "Huesped standard",
+            }.get(key, default)}
+        )
+        ev = service._parse_event(comp, cal_cfg)
+        assert ev is not None
+        assert ev["calendario_id"] == "paraiso_los_quinquelles_1"
+        assert ev["source"] == "airbnb"
+        assert ev["nombre"] == "Paraiso Los Quinquelles 1"
+        assert ev["summary"] == "Reservado por Juan"
+        assert ev["days"] == 2
+        assert ev["reservation_url"] is None
+        assert ev["codigo_reserva"] is None
+
+    def test_evento_con_reservation_url_y_code_param(
+        self, service, cal_cfg
+    ):
+        desc = (
+            "Huesped Juan\n"
+            "Reservation URL: https://www.airbnb.com/reservations/details?"
+            "code=HM123ABC&guest=1\n"
+        )
+        comp = SimpleNamespace(
+            **{"get": lambda key, default=None: {
+                "dtstart": TestParseEvent._make_dt(2099, 7, 1),
+                "dtend": TestParseEvent._make_dt(2099, 7, 4),
+                "summary": "Airbnb",
+                "description": desc,
+            }.get(key, default)}
+        )
+        ev = service._parse_event(comp, cal_cfg)
+        assert ev["reservation_url"].startswith("https://www.airbnb.com/")
+        assert ev["codigo_reserva"] == "HM123ABC"
+
+    def test_evento_con_reservation_url_sin_code(
+        self, service, cal_cfg
+    ):
+        # URL con formato /reservations/<id> en el path (no en ?code=)
+        desc = "Reservation URL: https://www.airbnb.com/reservations/RES-20250101\n"
+        comp = SimpleNamespace(
+            **{"get": lambda key, default=None: {
+                "dtstart": TestParseEvent._make_dt(2099, 7, 1),
+                "dtend": TestParseEvent._make_dt(2099, 7, 2),
+                "summary": "Airbnb",
+                "description": desc,
+            }.get(key, default)}
+        )
+        ev = service._parse_event(comp, cal_cfg)
+        assert ev["reservation_url"] is not None
+        # codigo_reserva cae al último segmento del path
+        assert ev["codigo_reserva"] == "RES-20250101"
+
+    def test_evento_sin_dtstart_o_dtend_devuelve_none(
+        self, service, cal_cfg
+    ):
+        comp = SimpleNamespace(
+            **{"get": lambda key, default=None: {
+                "summary": "x", "description": "",
+                # dtstart y dtend faltan
+            }.get(key, default)}
+        )
+        ev = service._parse_event(comp, cal_cfg)
+        assert ev is None
+
+    def test_evento_con_fechas_como_date_no_datetime(
+        self, service, cal_cfg
+    ):
+        # Cuando dtstart es date (no datetime), el código debe
+        # combinarlo con datetime.min.time() (all-day events).
+        from datetime import date
+        from types import SimpleNamespace
+        comp = SimpleNamespace(
+            **{"get": lambda key, default=None: {
+                "dtstart": SimpleNamespace(dt=date(2099, 8, 10)),
+                "dtend": SimpleNamespace(dt=date(2099, 8, 12)),
+                "summary": "All-day",
+                "description": "",
+            }.get(key, default)}
+        )
+        ev = service._parse_event(comp, cal_cfg)
+        assert ev is not None
+        assert ev["days"] == 2
+
+
+# ============================================================
+# CalendarService._fetch_one (con requests mockeado)
+# ============================================================
+class TestFetchOne:
+    """Cobertura del fetch HTTP real: éxito, fallo de red,
+    respuesta que no es iCal válido."""
+
+    @pytest.fixture
+    def service(self):
+        svc = CalendarService.__new__(CalendarService)
+        svc.calendars = []
+        svc.last_fetch = None
+        svc.cached_events = []
+        svc.status = {"global": {}, "per_calendar": {}}
+        return svc
+
+    @pytest.fixture
+    def cal_cfg(self):
+        return {
+            "calendario_id": "paraiso_los_quinquelles_1",
+            "nombre": "Paraiso Los Quinquelles 1",
+            "source": "airbnb",
+            "url": "https://www.airbnb.com/calendar/ical/X.ics",
+        }
+
+    def _ical_with_event(self, summary="Reservado"):
+        """Construye un .ics mínimo con 1 VEVENT."""
+        return (
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//Test//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            "UID:test1@airbnb\r\n"
+            f"SUMMARY:{summary}\r\n"
+            "DTSTART:20990615\r\n"
+            "DTEND:20990617\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        ).encode("utf-8")
+
+    def test_exito_descarga_parsea_y_devuelve_eventos(
+        self, service, cal_cfg, monkeypatch
+    ):
+        mock_response = MagicMock()
+        mock_response.content = self._ical_with_event("Reservado por Juan")
+        mock_response.raise_for_status = MagicMock()
+        monkeypatch.setattr(
+            "airbnb_agent.services.airbnb_calendar.requests.get",
+            MagicMock(return_value=mock_response),
+        )
+
+        result = service._fetch_one(cal_cfg)
+        assert result is not None
+        assert len(result) == 1
+        ev = result[0]
+        assert ev["calendario_id"] == "paraiso_los_quinquelles_1"
+        assert ev["source"] == "airbnb"
+        assert ev["summary"] == "Reservado por Juan"
+        assert ev["start"] == "2099-06-15"
+        assert ev["end"] == "2099-06-17"
+        assert ev["days"] == 2
+
+    def test_error_http_devuelve_none_y_logea(
+        self, service, cal_cfg, monkeypatch, capsys
+    ):
+        # requests.get raises → _fetch_one devuelve None
+        def raise_http(*args, **kwargs):
+            raise ConnectionError("timeout")
+        monkeypatch.setattr(
+            "airbnb_agent.services.airbnb_calendar.requests.get",
+            raise_http,
+        )
+
+        result = service._fetch_one(cal_cfg)
+        assert result is None
+        captured = capsys.readouterr()
+        assert "Error obteniendo calendario" in captured.out
+        assert "paraiso_los_quinquelles_1" in captured.out
+
+    def test_http_error_status_devuelve_none(
+        self, service, cal_cfg, monkeypatch
+    ):
+        # raise_for_status lanza HTTPError (4xx/5xx)
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock(
+            side_effect=Exception("500 Server Error")
+        )
+        monkeypatch.setattr(
+            "airbnb_agent.services.airbnb_calendar.requests.get",
+            MagicMock(return_value=mock_response),
+        )
+
+        result = service._fetch_one(cal_cfg)
+        assert result is None

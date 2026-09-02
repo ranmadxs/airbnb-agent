@@ -16,11 +16,52 @@ permissions:
 
 jobs:
   # ============================================================
+  # Job 0: Semver Check (OBLIGATORIO en todo PR)
+  # ============================================================
+  semver-check:
+    name: Semver Check
+    runs-on: ubuntu-latest
+    # Solo en PRs (no en push directo a main ni en re-run manual de un push).
+    if: github.event_name == 'pull_request'
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check pyproject.toml was bumped
+        run: |
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            echo "Comparando pyproject.toml entre ${BASE_SHA:0:7} (base) y ${HEAD_SHA:0:7} (head)"
+            if git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -q '^pyproject\.toml$'; then
+              echo "✅ pyproject.toml modificado en el PR"
+              git diff "${BASE_SHA}" "${HEAD_SHA}" -- pyproject.toml
+            else
+              echo "❌ pyproject.toml NO fue modificado en este PR"
+              echo ""
+              echo "Política del proyecto: TODO PR debe bumpear la versión en"
+              echo "pyproject.toml siguiendo semver:"
+              echo "  - fix      → patch  (X.Y.Z+1)"
+              echo "  - feat     → minor  (X.Y+1.0)"
+              echo "  - BREAKING → major  (X+1.0.0)"
+              echo ""
+              echo "Editá pyproject.toml y bumpeá [project] version."
+              exit 1
+            fi
+
+  # ============================================================
   # Job 1: Unit Tests (espejo del stage "Unit Tests" de Jenkins)
   # ============================================================
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    needs: semver-check
 
     env:
       SECRET_KEY:                test-secret-key
@@ -34,15 +75,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Python 3.11
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
       - name: Cache pip
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
@@ -56,7 +97,7 @@ jobs:
           poetry --version
 
       - name: Cache Poetry venv
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pypoetry/virtualenvs
           key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
@@ -77,7 +118,7 @@ jobs:
 
       - name: Upload junit report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: junit-report
           path: junit-report.xml
@@ -104,15 +145,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Python 3.11
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
       - name: Cache pip
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
@@ -126,7 +167,7 @@ jobs:
           poetry --version
 
       - name: Cache Poetry venv
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pypoetry/virtualenvs
           key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
@@ -159,7 +200,7 @@ jobs:
       - name: Check coverage threshold
         run: |
           COVERAGE_PCT=$(poetry run coverage report --format=total | tail -n1)
-          THRESHOLD=25
+          THRESHOLD=30
           if (( $(echo "$COVERAGE_PCT < $THRESHOLD" | bc -l) )); then
             echo "❌ Coverage ${COVERAGE_PCT}% < ${THRESHOLD}%"
             exit 1
@@ -171,7 +212,7 @@ jobs:
         # artifact con nombre que comienza con "coverage" y muestra el reporte
         # nativo en el Summary del job y en la pestaña "Files changed" del PR.
         if: github.event_name == 'pull_request' || github.event_name == 'push'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-xml
           path: coverage.xml
@@ -180,7 +221,7 @@ jobs:
 
       - name: Upload coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: |
@@ -201,7 +242,10 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Comment PR with coverage
-        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        # if: always() garantiza que el comentario se postee TANTO en éxito
+        # COMO en fallo del umbral, para que el PR siempre tenga contexto
+        # del estado de cobertura + links al reporte HTML.
+        if: always() && github.event_name == 'pull_request' && github.event.action != 'closed'
         uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: coverage
@@ -211,6 +255,75 @@ jobs:
             | Metric | Value |
             |--------|-------|
             | **Total coverage** | **${{ steps.coverage.outputs.coverage }}%** |
-            | Threshold | 25% |
+            | Threshold | 30% |
 
-            📄 Full HTML report: see `coverage-report` artifact on this run.
+            📄 **Full HTML report**: [coverage-report (artifact)](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) — descargá `coverage-report` y abrí `htmlcov/index.html`.
+
+            🔗 [Ver el run completo](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+  # ============================================================
+  # Job 3: Release (auto-tag al mergear a main)
+  # ============================================================
+  release:
+    name: Release Tag
+    runs-on: ubuntu-latest
+    # Solo se dispara en push directo a main (= merge de PR cerrado),
+    # NO en el push del propio PR ni en pull_request events.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: coverage
+
+    permissions:
+      contents: write   # necesario para crear tags
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # necesitamos git history para chequear tags previos
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -E '^version\s*=\s*"' pyproject.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ -z "$VERSION" ]; then
+            echo "❌ No se pudo extraer la versión de pyproject.toml"
+            exit 1
+          fi
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "📦 Versión detectada: ${VERSION} → tag candidato: ${TAG}"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "⏭️  Tag ${TAG} ya existe, saltando creación."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "🆕 Tag ${TAG} no existe, se creará."
+          fi
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG (auto-generated from pyproject.toml)"
+          git push origin "$TAG"
+          echo "✅ Tag ${TAG} creado y pusheado."
+
+      - name: Tag summary
+        if: always()
+        run: |
+          echo "## 🚀 Release" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Versión en pyproject.toml: \`${{ steps.version.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tag: \`${{ steps.version.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.check_tag.outputs.exists }}" = "true" ]; then
+            echo "- Estado: ⏭️  ya existía (no se recreó)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Estado: ✅ creado y pusheado" >> "$GITHUB_STEP_SUMMARY"
+          fi
