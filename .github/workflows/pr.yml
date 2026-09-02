@@ -34,13 +34,20 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-          cache: 'poetry'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Poetry
         run: |
@@ -48,9 +55,18 @@ jobs:
           python -m pip install poetry
           poetry --version
 
+      - name: Cache Poetry venv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry/virtualenvs
+          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
       - name: Install dependencies
         run: |
           poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project false
           poetry install --with dev --no-interaction --no-ansi
 
       - name: Run unit tests + coverage
@@ -82,7 +98,7 @@ jobs:
 
       - name: Upload coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: |
@@ -91,10 +107,11 @@ jobs:
             junit-report.xml
             coverage.txt
           retention-days: 7
+          if-no-files-found: warn
 
       - name: Upload coverage to Codecov (opcional, requiere token)
         if: env.CODECOV_TOKEN != null
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
@@ -115,11 +132,3 @@ jobs:
             | Threshold | 25% |
 
             📄 Full HTML report: see `coverage-report` artifact on this run.
-
-            <details>
-            <summary>Raw pytest output (last 40 lines)</summary>
-
-            ```
-            $(tail -n 40 junit-report.xml 2>/dev/null || echo "No junit report")
-            ```
-            </details>
