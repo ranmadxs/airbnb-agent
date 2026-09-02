@@ -144,6 +144,65 @@ class TestLoadCalendars:
         assert cals[0]["nombre"] == "ConUrl"
         assert "sin url, omitido" in capsys.readouterr().out
 
+    # ---- Cobertura feature ui thumbnail/logo ----
+
+    def test_imagen_unica_deriva_thumbnail_y_logo(self, service, monkeypatch):
+        # Si solo viene "imagen", thumbnail reusa el base y logo se deriva con sufijo.
+        monkeypatch.setenv("AIRBNB_CALENDAR_URL",
+                           '[{"nombre":"Paraiso Los Quinquelles 1",'
+                           '"source":"airbnb",'
+                           '"url":"https://a.ics",'
+                           '"imagen":"images/los-quinquelles.png"}]')
+        monkeypatch.delenv("BOOKING_CALENDAR_URL", raising=False)
+        cals = service._load_calendars()
+        assert len(cals) == 1
+        c = cals[0]
+        assert c["imagen"] == "images/los-quinquelles.png"
+        assert c["thumbnail"] == "images/los-quinquelles.png"          # reusa el base
+        assert c["logo"] == "images/los-quinquelles-logo.png"          # derivado
+
+    def test_imagen_sin_extension_logo_asume_png(self, service, monkeypatch):
+        # Si imagen viene sin extensión, el código asume .png para el logo
+        # derivado (convención del proyecto: todos los assets son PNG).
+        # thumbnail reusa el base tal cual (sin extensión).
+        monkeypatch.setenv("AIRBNB_CALENDAR_URL",
+                           '[{"nombre":"Casa",'
+                           '"url":"https://a.ics",'
+                           '"imagen":"images/casa"}]')
+        monkeypatch.delenv("BOOKING_CALENDAR_URL", raising=False)
+        cals = service._load_calendars()
+        c = cals[0]
+        assert c["imagen"] == "images/casa"
+        assert c["thumbnail"] == "images/casa"
+        assert c["logo"] == "images/casa-logo.png"
+
+    def test_thumbnail_y_logo_explicitos_respetan_valores(self, service, monkeypatch):
+        # Si vienen explícitos, NO se derivan del campo imagen.
+        monkeypatch.setenv("AIRBNB_CALENDAR_URL",
+                           '[{"nombre":"A",'
+                           '"url":"https://a.ics",'
+                           '"imagen":"images/a.png",'
+                           '"thumbnail":"static/a-mini.png",'
+                           '"logo":"static/a-circle.svg"}]')
+        monkeypatch.delenv("BOOKING_CALENDAR_URL", raising=False)
+        cals = service._load_calendars()
+        c = cals[0]
+        assert c["thumbnail"] == "static/a-mini.png"
+        assert c["logo"] == "static/a-circle.svg"
+
+    def test_sin_imagen_queda_todo_vacio(self, service, monkeypatch):
+        # Sin 'imagen', 'thumbnail' ni 'logo', los campos quedan vacíos
+        # (la UI cae a emoji genérico).
+        monkeypatch.setenv("AIRBNB_CALENDAR_URL",
+                           '[{"nombre":"Legacy",'
+                           '"url":"https://a.ics"}]')
+        monkeypatch.delenv("BOOKING_CALENDAR_URL", raising=False)
+        cals = service._load_calendars()
+        c = cals[0]
+        assert c["imagen"] == ""
+        assert c["thumbnail"] == ""
+        assert c["logo"] == ""
+
 
 # ============================================================
 # CalendarService.get_stats

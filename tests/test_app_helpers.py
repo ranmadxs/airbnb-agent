@@ -420,3 +420,99 @@ class TestHomeFilterByQueryParam:
         # elimina Quinqueños del array events que va al template.
         assert '"calendario_id": "santiago_magno"' in html
         assert '"calendario_id": "los_quinquelles"' not in html
+
+
+# ============================================================
+# /api/calendarios — expone los campos imagen/thumbnail/logo
+# ============================================================
+class TestApiCalendarios:
+    """Cobertura del endpoint /api/calendarios para la feature ui de
+    thumbnail + logo por arriendo (PR #4)."""
+
+    def test_devuelve_imagen_thumbnail_y_logo_por_calendario(
+        self, app_module, flask_client, monkeypatch
+    ):
+        app_module.airbnb_service.calendars = [
+            {
+                "calendario_id": "paraiso_los_quinquelles_1",
+                "nombre": "Paraiso Los Quinquelles 1",
+                "source": "airbnb",
+                "url": "https://a.ics",
+                "imagen": "images/los-quinquelles.png",
+                "thumbnail": "images/los-quinquelles.png",
+                "logo": "images/los-quinquelles-logo.png",
+            },
+            {
+                "calendario_id": "santiago_magno",
+                "nombre": "Santiago Magno",
+                "source": "airbnb",
+                "url": "https://b.ics",
+                "imagen": "images/santiago-magno.png",
+                "thumbnail": "images/santiago-magno.png",
+                "logo": "images/santiago-magno-logo.png",
+            },
+        ]
+        # Mock get_status para evitar acceso a per_cal_status
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={"global": {}, "per_calendar": {}}),
+        )
+        # Mock db_service.connect (no debería entrar si no hay legacy,
+        # pero por las dudas evitamos cualquier acceso de red)
+        monkeypatch.setattr(
+            app_module.db_service,
+            "connect",
+            MagicMock(return_value=False),
+        )
+
+        res = flask_client.get("/api/calendarios")
+        assert res.status_code == 200
+        body = res.get_json()
+
+        assert "configured" in body
+        assert len(body["configured"]) == 2
+
+        c0 = body["configured"][0]
+        assert c0["calendario_id"] == "paraiso_los_quinquelles_1"
+        assert c0["imagen"] == "images/los-quinquelles.png"
+        assert c0["thumbnail"] == "images/los-quinquelles.png"
+        assert c0["logo"] == "images/los-quinquelles-logo.png"
+
+        c1 = body["configured"][1]
+        assert c1["calendario_id"] == "santiago_magno"
+        assert c1["imagen"] == "images/santiago-magno.png"
+        assert c1["thumbnail"] == "images/santiago-magno.png"
+        assert c1["logo"] == "images/santiago-magno-logo.png"
+
+    def test_campos_imagen_vacios_cuando_calendario_no_tiene(self,
+                                                              app_module,
+                                                              flask_client,
+                                                              monkeypatch):
+        # Calendarios sin campo 'imagen' deben devolver string vacío,
+        # no romper la API ni faltar la clave.
+        app_module.airbnb_service.calendars = [
+            {
+                "calendario_id": "legacy",
+                "nombre": "Legacy",
+                "source": "airbnb",
+                "url": "https://a.ics",
+            },
+        ]
+        monkeypatch.setattr(
+            app_module.airbnb_service,
+            "get_status",
+            MagicMock(return_value={"global": {}, "per_calendar": {}}),
+        )
+        monkeypatch.setattr(
+            app_module.db_service,
+            "connect",
+            MagicMock(return_value=False),
+        )
+
+        res = flask_client.get("/api/calendarios")
+        assert res.status_code == 200
+        c0 = res.get_json()["configured"][0]
+        assert c0["imagen"] == ""
+        assert c0["thumbnail"] == ""
+        assert c0["logo"] == ""
