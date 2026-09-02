@@ -16,11 +16,52 @@ permissions:
 
 jobs:
   # ============================================================
+  # Job 0: Semver Check (OBLIGATORIO en todo PR)
+  # ============================================================
+  semver-check:
+    name: Semver Check
+    runs-on: ubuntu-latest
+    # Solo en PRs (no en push directo a main ni en re-run manual de un push).
+    if: github.event_name == 'pull_request'
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check pyproject.toml was bumped
+        run: |
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            echo "Comparando pyproject.toml entre ${BASE_SHA:0:7} (base) y ${HEAD_SHA:0:7} (head)"
+            if git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | grep -q '^pyproject\.toml$'; then
+              echo "✅ pyproject.toml modificado en el PR"
+              git diff "${BASE_SHA}" "${HEAD_SHA}" -- pyproject.toml
+            else
+              echo "❌ pyproject.toml NO fue modificado en este PR"
+              echo ""
+              echo "Política del proyecto: TODO PR debe bumpear la versión en"
+              echo "pyproject.toml siguiendo semver:"
+              echo "  - fix      → patch  (X.Y.Z+1)"
+              echo "  - feat     → minor  (X.Y+1.0)"
+              echo "  - BREAKING → major  (X+1.0.0)"
+              echo ""
+              echo "Editá pyproject.toml y bumpeá [project] version."
+              exit 1
+            fi
+
+  # ============================================================
   # Job 1: Unit Tests (espejo del stage "Unit Tests" de Jenkins)
   # ============================================================
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    needs: semver-check
 
     env:
       SECRET_KEY:                test-secret-key
@@ -159,7 +200,7 @@ jobs:
       - name: Check coverage threshold
         run: |
           COVERAGE_PCT=$(poetry run coverage report --format=total | tail -n1)
-          THRESHOLD=25
+          THRESHOLD=30
           if (( $(echo "$COVERAGE_PCT < $THRESHOLD" | bc -l) )); then
             echo "❌ Coverage ${COVERAGE_PCT}% < ${THRESHOLD}%"
             exit 1
@@ -211,9 +252,11 @@ jobs:
             | Metric | Value |
             |--------|-------|
             | **Total coverage** | **${{ steps.coverage.outputs.coverage }}%** |
-            | Threshold | 25% |
+            | Threshold | 30% |
 
-            📄 Full HTML report: see `coverage-report` artifact on this run.
+            📄 **Full HTML report**: [coverage-report (artifact)](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts) — descargá `coverage-report` y abrí `htmlcov/index.html`.
+
+            🔗 [Ver el run completo](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
   # ============================================================
   # Job 3: Release (auto-tag al mergear a main)
