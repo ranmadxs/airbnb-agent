@@ -242,7 +242,10 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Comment PR with coverage
-        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        # if: always() garantiza que el comentario se postee TANTO en éxito
+        # COMO en fallo del umbral, para que el PR siempre tenga contexto
+        # del estado de cobertura + links al reporte HTML.
+        if: always() && github.event_name == 'pull_request' && github.event.action != 'closed'
         uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: coverage
