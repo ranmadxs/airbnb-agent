@@ -375,6 +375,31 @@ def home():
 
     is_logged_in = session.get('logged_in', False)
 
+    # Paleta de borders para los thumbnails/logos de calendarios (no configurable).
+    # El primer calendario toma el primer color, el segundo el segundo, etc.
+    # Así cada propiedad se distingue visualmente sin mapear nombres a colores.
+    _CAL_PALETTE = [
+        "#dc2626",   # rojo
+        "#2563eb",   # azul
+        "#059669",   # verde
+        "#d97706",   # ámbar
+        "#7c3aed",   # violeta
+        "#0891b2",   # cyan
+        "#db2777",   # rosa
+        "#65a30d",   # lima
+    ]
+
+    # Mapa calendario_id -> {nombre, thumbnail, logo, color} para mostrar el logo
+    # del arriendo en la lista de reservas y en el modal de edición/creación.
+    calendarios_imagenes = {}
+    for _i, _c in enumerate(airbnb_service.calendars):
+        calendarios_imagenes[_c['calendario_id']] = {
+            'nombre': _c['nombre'],
+            'thumbnail': _c.get('thumbnail') or '',
+            'logo': _c.get('logo') or '',
+            'color': _CAL_PALETTE[_i % len(_CAL_PALETTE)],
+        }
+
     return render_template('calendar.html',
                          events=events,
                          stats=stats,
@@ -385,16 +410,7 @@ def home():
                          is_logged_in=is_logged_in,
                          today=now.strftime('%Y-%m-%d'),
                          now_time=now.strftime('%H:%M'),
-                         # Mapa calendario_id -> {nombre, thumbnail, logo} para
-                         # mostrar el logo del arriendo en la lista de reservas.
-                         calendarios_imagenes={
-                             c['calendario_id']: {
-                                 'nombre': c['nombre'],
-                                 'thumbnail': c.get('thumbnail') or '',
-                                 'logo': c.get('logo') or '',
-                             }
-                             for c in airbnb_service.calendars
-                         })
+                         calendarios_imagenes=calendarios_imagenes)
 
 
 @app.route('/reservatinaja-ingresar')
@@ -506,6 +522,16 @@ def reservatinaja(codigo_reserva):
                          mercadopago_botones=MERCADOPAGO_BOTONES,
                          mercadopago_link=MERCADOPAGO_LINK,
                          )
+
+
+def _validate_calendario_id(valor):
+    """Devuelve el calendario_id si está en airbnb_service.calendars;
+    si no, devuelve None. Server-side validation contra config."""
+    s = (valor or '').strip()
+    if not s:
+        return None
+    valid = {c['calendario_id'] for c in airbnb_service.calendars}
+    return s if s in valid else None
 
 
 def _validar_firma_webhook_mp(payment_id: str, x_signature: str, x_request_id: str, secret: str) -> bool:
@@ -1178,7 +1204,10 @@ def api_guardar_reserva():
         'extra_valor': data.get('extra_valor', 0),
         'extra_pago_confirmado': data.get('extra_pago_confirmado', False),
         'comuna': data.get('comuna', ''),
-        'pais': data.get('pais', '')
+        'pais': data.get('pais', ''),
+        # calendario_id: opcional. Si viene vacío, queda None (legacy).
+        # Solo se acepta si está en airbnb_service.calendars (validación server-side).
+        'calendario_id': _validate_calendario_id(data.get('calendario_id')),
     }
     
     if datos['event_start'] >= datos['event_end']:

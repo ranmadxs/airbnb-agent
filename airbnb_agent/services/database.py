@@ -643,6 +643,10 @@ class DatabaseService:
                 "user_origin": audit.get("user_origin", "admin"),
                 "user_agent": audit.get("user_agent", "admin")
             }
+            # calendario_id: solo se setea en creación (None si no se eligió).
+            # En edición NO se toca (mantiene el valor original de la DB).
+            if not reserva_id and 'calendario_id' in datos:
+                doc["calendario_id"] = datos.get('calendario_id') or None
             
             if reserva_id:
                 # Actualizar existente
