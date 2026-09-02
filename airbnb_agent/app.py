@@ -325,20 +325,47 @@ def logout():
 @app.route('/')
 def home():
     """Página principal."""
+    # v3.0.1: Respetar ?cal=... del query string para deep links
+    # (ej. https://.../?cal=santiago_magno). Si está, filtramos los
+    # eventos desde el render inicial. Si no, dejamos todos.
+    cal_param = request.args.get('cal', '').strip()
+    calendario_ids_inicial = None
+    include_legacy_inicial = False
+    if cal_param:
+        raw_ids = [c.strip() for c in cal_param.split(',') if c.strip()]
+        # Filtrar solo ids válidos contra los calendarios configurados
+        valid_ids = {c['calendario_id'] for c in airbnb_service.calendars}
+        valid_raw = [cid for cid in raw_ids if cid != '__legacy__' and cid in valid_ids]
+        include_legacy_inicial = '__legacy__' in raw_ids
+        # Mantener `__legacy__` dentro de la lista para que
+        # `obtener_eventos_formato_ical()` lo maneje en su query Mongo.
+        calendario_ids_inicial = valid_raw + (['__legacy__'] if include_legacy_inicial else [])
+
     # 1. Leer MongoDB PRIMERO para evitar race condition con el sync en background.
     #    Si se leyera DESPUÉS de disparar el sync, el thread podría estar escribiendo
     #    simultáneamente y el render mostraría datos inconsistentes.
-    events = db_service.obtener_eventos_formato_ical()
+    events = db_service.obtener_eventos_formato_ical(calendario_ids=calendario_ids_inicial)
 
     # 2. Sincronizar desde iCal en background (actualiza MongoDB para la PRÓXIMA carga)
     ical_events = airbnb_service.fetch_events()
     if ical_events is not None:
         db_service.sync_en_background(ical_events, get_audit_info())
 
-    # 3. Fallback a iCal solo si MongoDB está vacío y el fetch fue exitoso
+    # 3. Fallback a iCal solo si MongoDB está vacío y el fetch fue exitoso.
+    #    Si había filtro activo, aplicarlo también al fallback.
     if not events and ical_events:
         events = ical_events
-    
+        if cal_param:
+            eventos_filtrados = []
+            for ev in ical_events:
+                cid = ev.get('calendario_id')
+                if cid is None or cid == '':
+                    if include_legacy_inicial:
+                        eventos_filtrados.append(ev)
+                elif calendario_ids_inicial is None or cid in calendario_ids_inicial:
+                    eventos_filtrados.append(ev)
+            events = eventos_filtrados
+
     stats = airbnb_service.get_stats(events)
 
     now = _now_local()
