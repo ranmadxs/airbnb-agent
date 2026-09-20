@@ -1144,7 +1144,8 @@ def _reserva_to_json(reserva) -> dict:
         "extra_valor": reserva.get('extra_valor', 0),
         "extra_pago_confirmado": reserva.get('extra_pago_confirmado', False),
         "comuna": reserva.get('comuna', ''),
-        "pais": reserva.get('pais', '')
+        "pais": reserva.get('pais', ''),
+        "calendario_id": reserva.get('calendario_id', '')
     }
 
 
