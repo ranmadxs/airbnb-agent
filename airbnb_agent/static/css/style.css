@@ -1181,106 +1181,67 @@ header {
     margin-bottom: 20px;
 }
 
-/* v3.0.0: barra de filtros por calendario (iconos-casa) */
+/* v3.0.0: barra de filtros por calendario - pills clickeables */
 .calendar-filter-bar {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 16px;
-    padding: 8px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
     background: var(--bg-secondary, #f9fafb);
     border-radius: 12px;
-    min-height: 44px;
     align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 .calendar-filter-bar:empty {
-    display: none; /* Si no hay calendarios configurados, ocultar */
+    display: none;
 }
-.calendar-filter-chip {
+.calendar-filter-item {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
     background: white;
     border: 2px solid transparent;
-    border-radius: 18px;
-    font-size: 0.82em;
-    font-weight: 500;
-    color: var(--airbnb-dark, #222);
+    border-radius: 20px;
     cursor: pointer;
     transition: all 0.15s ease;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     user-select: none;
+    white-space: nowrap;
 }
-.calendar-filter-chip:hover {
-    background: #fff;
-    border-color: rgba(0,0,0,0.1);
+.calendar-filter-item:hover {
+    border-color: rgba(0,0,0,0.15);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
-.calendar-filter-chip.active {
+.calendar-filter-item.active {
     border-color: var(--airbnb-red, #FF5A5F);
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(255, 90, 95, 0.08);
+    background: rgba(255, 90, 95, 0.05);
+    box-shadow: 0 0 0 3px rgba(255, 90, 95, 0.12);
 }
-.calendar-filter-chip.disabled {
-    opacity: 0.4;
-    background: #f3f4f6;
-}
-.calendar-filter-chip .chip-icon {
-    width: 16px;
-    height: 16px;
+.filter-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
     flex-shrink: 0;
 }
-.calendar-filter-chip .chip-count {
-    background: var(--airbnb-red, #FF5A5F);
-    color: white;
-    border-radius: 10px;
-    padding: 1px 7px;
-    font-size: 0.85em;
-    font-weight: 600;
-    min-width: 22px;
-    text-align: center;
-}
-.calendar-filter-chip.active .chip-count {
-    background: var(--airbnb-red, #FF5A5F);
-}
-.calendar-filter-chip.disabled .chip-count {
-    background: #9ca3af;
-}
-
-/* Miniatura (thumbnail) del arriendo en el chip de filtro de calendario.
-   Border color: el JS aplica inline style (border-color) según la paleta
-   por índice: 1er calendario = rojo, 2do = azul, 3ro = verde, etc. */
-.calendar-filter-chip .chip-thumb {
-    width: 24px;
-    height: 24px;
+.filter-thumb {
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
-    border: 2px solid var(--chip-border-color, rgba(0,0,0,0.08));
 }
-
-/* Logo badge del arriendo en la celda de checkout (esquina inferior-izquierda).
-   Solo aparece en el último día de la reserva (marcado con dot rojo de checkout),
-   posición elegida para no tapar price-bubble / extra-bubble que están arriba. */
-  .day-cell > .cal-logo-badge {
-      position: absolute;
-      bottom: 2px;
-      left: 2px;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      object-fit: cover;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-      pointer-events: none;
-      z-index: 3;
-      background: #fff;
-      border: 1.5px solid #9ca3af;   /* fallback; el JS aplica el color del calendario */
-  }
-  /* El badge no debe tapar el guest-bubble si coincide en la misma celda
-  . (caso raro: checkout con nombre_huesped → guest-bubble se apila arriba). */
-  .day-cell > .cal-logo-badge ~ .guest-bubble {
-      bottom: 22px;
-  }
+.filter-label {
+    font-size: 0.82em;
+    font-weight: 600;
+    color: var(--airbnb-dark, #222);
+    line-height: 1.2;
+}
+.calendar-filter-item.active .filter-label {
+    color: var(--airbnb-red, #FF5A5F);
+}
 
 /* Responsive: scroll horizontal en mobile */
 @media (max-width: 768px) {
@@ -1289,18 +1250,15 @@ header {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: thin;
-        padding: 6px;
+        padding: 8px;
     }
-    .calendar-filter-chip {
+    .calendar-filter-item {
         flex-shrink: 0;
-        font-size: 0.75em;
-        padding: 5px 10px;
     }
-    .calendar-filter-chip .chip-name {
-        max-width: 100px;
+    .filter-label {
+        max-width: 80px;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
     }
 }
 
