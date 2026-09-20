@@ -1,3 +1,9 @@
+## [3.2.6] - 2026-09-20
+### Fixed
+- El calendario no aparecía seleccionado al editar una reserva desde el calendario
+- `_reserva_to_json()` ahora incluye `calendario_id` para que el frontend pueda pre-seleccionarlo
+- `guardarReserva()` envía el valor actual del hidden en vez de `null` cuando el select está en modo edición
+
 # Changelog
 
 Todos los cambios notables de este proyecto serán documentados en este archivo.
