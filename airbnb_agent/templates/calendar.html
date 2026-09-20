@@ -2263,10 +2263,10 @@
                 extra_pago_confirmado: document.getElementById('reserva-extra-pago-confirmado').checked,
                 comuna: document.getElementById('reserva-comuna').value,
                 pais: document.getElementById('reserva-pais').value,
-                // calendario_id: si el select está disabled (edición), NO se
-                // envía (backend lo ignora y mantiene el valor de la DB).
+                // calendario_id: si el select está disabled (edición),
+                // enviar el valor actual del hidden field para preservarlo.
                 calendario_id: document.getElementById('reserva-calendario').disabled
-                    ? null
+                    ? (document.getElementById('reserva-calendario-id').value || '')
                     : (document.getElementById('reserva-calendario').value || '')
             };
             
