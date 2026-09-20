@@ -1,12 +1,16 @@
+## [3.3.0] - 2026-09-20
+### Changed
+- Filtro de calendarios reimplementado como radio buttons con foto circular y nombre
+- Diseño actualizado: `.calendar-filter-radio` reemplaza `.calendar-filter-chip`
+- Botón "Todos" como primer elemento del selector de filtro
+- Indicador de selección con círculo rojo en esquina superior derecha
+
 ## [3.2.6] - 2026-09-20
 ### Fixed
-- El calendario no aparecía seleccionado al editar una reserva desde el calendario
-- `_reserva_to_json()` ahora incluye `calendario_id` para que el frontend pueda pre-seleccionarlo
-- `guardarReserva()` envía el valor actual del hidden en vez de `null` cuando el select está en modo edición
+- El calendario no aparecía seleccionado al editar una reserva
+- `_reserva_to_json()` ahora incluye `calendario_id`
+- `guardarReserva()` envía valor del hidden en vez de `null` en modo edición
 
-# Changelog
-
-Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 ## [2.46.0] - 2026-09-01
 ### Added

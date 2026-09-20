@@ -1254,84 +1254,65 @@
         function renderFilterBar() {
             const bar = document.getElementById('calendar-filter-bar');
             if (!bar) return;
-            // Si no hay calendarios configurados, ocultar la barra
             if (calendariosDisponibles.length === 0) {
                 bar.innerHTML = '';
                 return;
             }
             let html = '';
-            // Chip "Todos": reset
             const allActive = calendariosActivos.size === calendariosDisponibles.length && !includeLegacy;
-            html += `<button class="calendar-filter-chip ${allActive ? 'active' : ''}" data-cal-action="all">
-                <span class="chip-icon">🏠</span><span class="chip-name">Todos</span>
-            </button>`;
-            // Un chip por calendario configurado
-            // Paleta determinística por índice (no configurable): el 1er calendario
-            // toma el primer color, el 2do el segundo, etc. Así cada propiedad se
-            // distingue visualmente sin tener que mapear nombres a colores.
-            const CHIP_PALETTE = [
-                "#dc2626",   // 1) rojo
-                "#2563eb",   // 2) azul
-                    "#059669",   // 3) verde
-                    "#d97706",   // 4) ámbar
-                    "#7c3aed",   // 5) violeta
-                    "#0891b2",   // 6) cyan
-                    "#db2777",   // 7) rosa
-                    "#65a30d",   // 8) lima
-                ];
-                calendariosDisponibles.forEach((c, i) => {
-                    const active = calendariosActivos.has(c.calendario_id);
-                    const sourceIcon = c.source === 'airbnb' ? '🏠' : (c.source === 'booking' ? '🏨' : '📅');
-                    const thumbUrl = c.thumbnail ? `${STATIC_BASE}/${c.thumbnail}` : '';
-                    const borderColor = CHIP_PALETTE[i % CHIP_PALETTE.length];
-                    const thumbStyle = `border-color: ${borderColor};`;
-                    const thumbTag = thumbUrl
-                        ? `<img class="chip-thumb" src="${thumbUrl}" alt="" loading="lazy" style="${thumbStyle}" onerror="this.style.display='none'">`
-                        : `<span class="chip-icon" style="color: ${borderColor};">${sourceIcon}</span>`;
-                    html += `<button class="calendar-filter-chip ${active ? 'active' : 'disabled'}"
-                                      data-cal-action="toggle"
-                                      data-calendario-id="${c.calendario_id}"
-                                      title="${c.nombre} (${c.source})">
-                        ${thumbTag}
-                    <span class="chip-name">${c.nombre}</span>
-                </button>`;
+            html += `<div class="calendar-filter-item ${allActive ? 'active' : ''}" data-calendario-id="__all__">
+                <span class="filter-dot" style="background: #6b7280;"></span>
+                <span class="filter-label">🏠 Todos</span>
+            </div>`;
+            const PALETTE = ["#dc2626", "#2563eb", "#059669", "#d97706", "#7c3aed", "#0891b2", "#db2777", "#65a30d"];
+            calendariosDisponibles.forEach((c, i) => {
+                const active = calendariosActivos.has(c.calendario_id);
+                const color = PALETTE[i % PALETTE.length];
+                const thumbUrl = c.thumbnail ? `${STATIC_BASE}/${c.thumbnail}` : '';
+                const photoHtml = thumbUrl
+                    ? `<img class="filter-thumb" src="${thumbUrl}" alt="${c.nombre}" loading="lazy">`
+                    : '';
+                const icon = c.source === 'airbnb' ? '🏠' : c.source === 'booking' ? '🏨' : '📅';
+                html += `<div class="calendar-filter-item ${active ? 'active' : ''}" data-calendario-id="${c.calendario_id}">
+                    <span class="filter-dot" style="background: ${color};"></span>
+                    ${photoHtml}
+                    <span class="filter-label">${icon} ${c.nombre}</span>
+                </div>`;
             });
             bar.innerHTML = html;
-            // Bind clicks
-            bar.querySelectorAll('.calendar-filter-chip').forEach(btn => {
-                btn.addEventListener('click', () => onFilterChipClick(btn));
+            bar.querySelectorAll('.calendar-filter-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const calId = item.dataset.calendarioId;
+                    if (calId === '__all__') {
+                        if (calendariosActivos.size === calendariosDisponibles.length) {
+                            calendariosActivos.clear();
+                        } else {
+                            calendariosActivos = new Set(calendariosDisponibles.map(c => c.calendario_id));
+                        }
+                        includeLegacy = false;
+                    } else {
+                        if (calendariosActivos.has(calId)) {
+                            calendariosActivos.delete(calId);
+                        } else {
+                            calendariosActivos.add(calId);
+                        }
+                    }
+                    try {
+                        localStorage.setItem('calendar_filters_v3', JSON.stringify({
+                            calendario_ids: Array.from(calendariosActivos),
+                            include_legacy: includeLegacy
+                        }));
+                    } catch {}
+                    renderFilterBar();
+                    console.log('[Filtro] calendariosActivos:', Array.from(calendariosActivos));
+                    console.log('[Filtro] getActiveCalendarioIdsParam:', getActiveCalendarioIdsParam());
+                    cargarMes(currentYear, currentMonth);
+                    filtrarReservasPorCalendario();
+                    updateUrlFilter();
+                });
             });
         }
 
-        function onFilterChipClick(btn) {
-            const action = btn.dataset.calAction;
-            if (action === 'all') {
-                // Reset: todos activos, sin legacy
-                calendariosActivos = new Set(calendariosDisponibles.map(c => c.calendario_id));
-                includeLegacy = false;
-            } else if (action === 'toggle') {
-                const cid = btn.dataset.calendarioId;
-                if (calendariosActivos.has(cid)) {
-                    calendariosActivos.delete(cid);
-                } else {
-                    calendariosActivos.add(cid);
-                }
-            }
-            // Persistir en localStorage
-            try {
-                localStorage.setItem('calendar_filters_v3', JSON.stringify({
-                    calendario_ids: Array.from(calendariosActivos),
-                    include_legacy: includeLegacy
-                }));
-            } catch {}
-            renderFilterBar();
-            // Refetch del mes con filtro nuevo
-            cargarMes(currentYear, currentMonth);
-            // v3.0.1: Filtrar también la lista de reservas por calendario
-            filtrarReservasPorCalendario();
-            // Actualizar URL sin recargar
-            updateUrlFilter();
-        }
 
         function updateUrlFilter() {
             const params = new URLSearchParams();
