@@ -1472,7 +1472,7 @@ header {
 }
 
 .day-cell {
-    aspect-ratio: 1;
+    aspect-ratio: 5 / 4;
     display: flex;
     align-items: center;
     justify-content: center;

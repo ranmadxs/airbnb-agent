@@ -1304,6 +1304,8 @@
                         }));
                     } catch {}
                     renderFilterBar();
+                    console.log('[Filtro] calendariosActivos:', Array.from(calendariosActivos));
+                    console.log('[Filtro] getActiveCalendarioIdsParam:', getActiveCalendarioIdsParam());
                     cargarMes(currentYear, currentMonth);
                     filtrarReservasPorCalendario();
                     updateUrlFilter();
