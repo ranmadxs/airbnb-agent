@@ -1824,6 +1824,82 @@
             const d = String(date.getDate()).padStart(2, '0');
             return `${y}-${m}-${d}`;
         }
+
+        function eventIdDe(ev) {
+            return ev.id || (ev.start + '_' + ev.end + '_' + (ev.calendario_id || ev.source));
+        }
+
+        // Fila inline de un evento dentro de la celda (modo expandido / botón +).
+        // Incluye el logo redondo de la propiedad (o dot de color si no hay logo).
+        function construirFilaEventoDia(ev) {
+            const row = document.createElement('div');
+            row.className = 'day-event-row';
+            row.dataset.source = ev.source || 'unknown';
+            row.dataset.calendarioId = ev.calendario_id || '';
+            row.dataset.eventId = eventIdDe(ev);
+            const nombre = (ev.nombre_huesped || '?').substring(0, 12);
+            const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+            const totalPersonas = (ev.adultos || 0) + (ev.ninos || 0);
+            const precio = isAdmin && ev.precio ? `$${(ev.precio || 0).toLocaleString('es-CL')}` : '';
+            const evLogo = calLogoUrl(calendariosImagenes[ev.calendario_id || ''] || {});
+            row.innerHTML = `
+                ${evLogo ? `<img class="day-event-logo" src="${evLogo}" alt="" loading="lazy" onerror="this.remove()">` : '<span class="day-event-dot"></span>'}
+                <span class="day-event-name">${ini}${totalPersonas > 1 ? ` +${totalPersonas - 1}` : ''}</span>
+                ${precio ? `<span class="day-event-price">${precio}</span>` : ''}
+            `;
+            row.title = `${ev.nombre_huesped || ''} — ${ev.calendario_id || ev.source || ''}`;
+            return row;
+        }
+
+        // Expande/contrae un día multievento inline (misma mini-lista del modo expandido).
+        function toggleExpandDia(cell) {
+            const evs = cell._eventosDia || [];
+            if (!evs.length) return;
+            const exp = cell.querySelector(':scope > .day-expander');
+            if (cell.classList.contains('expanded-day')) {
+                cell.querySelector(':scope > .day-event-list')?.remove();
+                cell.classList.remove('expanded-day');
+                evs.forEach(ev => {
+                    // Al contraer se restauran bandas, salvo de eventos que
+                    // terminan ese día (el checkout se marca con colita, no banda).
+                    if (formatDate(new Date(ev.end + 'T00:00:00')) === cell.dataset.date) return;
+                    const evId = eventIdDe(ev);
+                    if (!cell.querySelector(`.band[data-event-id="${evId}"]`)) {
+                        const band = document.createElement('div');
+                        band.className = 'band';
+                        band.dataset.source = ev.source || 'unknown';
+                        band.dataset.calendarioId = ev.calendario_id || '';
+                        band.dataset.eventId = evId;
+                        cell.appendChild(band);
+                    }
+                });
+                if (exp) { exp.textContent = `+${evs.length}`; exp.classList.remove('open'); exp.title = 'Ver eventos del día'; }
+            } else {
+                cell.classList.add('multi-band', 'expanded-day');
+                cell.querySelectorAll(':scope > .band').forEach(b => b.remove());
+                const list = document.createElement('div');
+                list.className = 'day-event-list';
+                evs.forEach(ev => list.appendChild(construirFilaEventoDia(ev)));
+                cell.appendChild(list);
+                if (exp) { exp.textContent = '−'; exp.classList.add('open'); exp.title = 'Contraer'; }
+            }
+        }
+
+        // Agrega el botón +/− a una celda multievento (una sola vez).
+        // cell._eventosDia debe estar seteado antes de llamar.
+        function agregarExpanderDia(cell) {
+            if (cell.querySelector(':scope > .day-expander')) return;
+            const evs = cell._eventosDia || [];
+            if (evs.length < 2) return;
+            const exp = document.createElement('button');
+            exp.type = 'button';
+            const abierto = cell.classList.contains('expanded-day');
+            exp.className = 'day-expander' + (abierto ? ' open' : '');
+            exp.textContent = abierto ? '−' : `+${evs.length}`;
+            exp.title = abierto ? 'Contraer' : 'Ver eventos del día';
+            exp.addEventListener('click', (e) => { e.stopPropagation(); toggleExpandDia(cell); });
+            cell.appendChild(exp);
+        }
         
         // Marcar días reservados
         function marcarDias() {
@@ -1852,10 +1928,44 @@
                 return event.estado === 'reservado';
             };
             // Pago de arriendo con alias: evento sintético de 1 día, se pinta
-            // aparte (estrella + logo central), nunca como franja de estadía.
+            // como fila inline (PASO 2b), nunca como franja de estadía.
             const esPagoArriendo = (event) => {
                 return event.source === 'arriendo';
             };
+
+            // Suma de arriendos por día (globito verde): si varios arriendos
+            // pintan burbuja de precio el mismo día, se muestra UNA con el total.
+            // Los azules (tinaja) no se tocan: siguen uno por reserva.
+            // Todo sale de `events` (ya filtrado por calendario) así que respeta filtros.
+            const sumaVerdePorDia = new Map(); // dia -> {total, nombres:[], proporcional}
+            const gruposVerdePintados = new Set();
+            {
+                const _ini = new Date(currentYear, currentMonth - 1, 1);
+                const _fin = new Date(currentYear, currentMonth, 0);
+                events.filter(e => esReserva(e) && !esPagoArriendo(e)).forEach(event => {
+                    const start = new Date(event.start + 'T00:00:00');
+                    const end = new Date(event.end + 'T00:00:00');
+                    if (end < _ini || start > _fin) return;
+                    const empieza = start >= _ini && start <= _fin;
+                    const diaBurbuja = empieza ? formatDate(start) : formatDate(_ini);
+                    const diasTotales = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+                    const endInclusive = new Date(end.getTime() + 86400000);
+                    const overlapStart = new Date(Math.max(start.getTime(), _ini.getTime()));
+                    const overlapEnd = new Date(Math.min(endInclusive.getTime(), _fin.getTime() + 86400000));
+                    const diasEnMes = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
+                    const prop = diasEnMes / diasTotales;
+                    const esProp = diasEnMes < diasTotales;
+                    const muestra = esProp ? Math.round((event.precio || 0) * prop) : (event.precio || 0);
+                    if (!isAdmin || muestra <= 0) return;
+                    if (!sumaVerdePorDia.has(diaBurbuja)) {
+                        sumaVerdePorDia.set(diaBurbuja, {total: 0, nombres: [], proporcional: false});
+                    }
+                    const g = sumaVerdePorDia.get(diaBurbuja);
+                    g.total += muestra;
+                    g.proporcional = g.proporcional || esProp;
+                    g.nombres.push(`${event.nombre_huesped || event.summary || '?'} $${muestra.toLocaleString('es-CL')}`);
+                });
+            }
 
             // PASO 1: Primero marcar TODOS los bloqueos (gris)
             events.filter(e => !esReserva(e) && !esPagoArriendo(e)).forEach(event => {
@@ -1925,25 +2035,7 @@
                                 cell.classList.add('multi-band', 'expanded-day');
                                 const list = document.createElement('div');
                                 list.className = 'day-event-list';
-                                eventosEseDia.forEach(ev => {
-                                    const row = document.createElement('div');
-                                    row.className = 'day-event-row';
-                                    row.dataset.source = ev.source || 'unknown';
-                                    row.dataset.calendarioId = ev.calendario_id || '';
-                                    const evId = ev.id || (ev.start + '_' + ev.end + '_' + (ev.calendario_id || ev.source));
-                                    row.dataset.eventId = evId;
-                                    const nombre = (ev.nombre_huesped || '?').substring(0, 12);
-                                    const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
-                                    const totalPersonas = (ev.adultos || 0) + (ev.ninos || 0);
-                                    const precio = isAdmin && ev.precio ? `$${(ev.precio || 0).toLocaleString('es-CL')}` : '';
-                                    row.innerHTML = `
-                                        <span class="day-event-dot"></span>
-                                        <span class="day-event-name">${ini}${totalPersonas > 1 ? ` +${totalPersonas - 1}` : ''}</span>
-                                        ${precio ? `<span class="day-event-price">${precio}</span>` : ''}
-                                    `;
-                                    row.title = `${ev.nombre_huesped || ''} — ${ev.calendario_id || ev.source || ''}`;
-                                    list.appendChild(row);
-                                });
+                                eventosEseDia.forEach(ev => list.appendChild(construirFilaEventoDia(ev)));
                                 cell.appendChild(list);
                             }
                             // No aplicar .reserved (la celda se ve con la lista)
@@ -1968,34 +2060,48 @@
                             }
                         }
 
+                        // Guardar eventos del día para el botón +/− y el click en el logo.
+                        cell._eventosDia = eventosEseDia;
+                        if (eventosEseDia.length > 1) {
+                            agregarExpanderDia(cell);
+                        }
+
                         if (esCache) cell.classList.add('from-cache');
                         const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
 
-                        // Logo badge del arriendo en la celda de checkout (último día de la reserva).
-                        // Solo se muestra en el día rojo/checkout para:
-                        //   - no tapar el price-bubble / extra-bubble que están arriba
-                        //   - identificar el arriendo de un vistazo en el día de salida
-                        // El border toma el color de la paleta del calendario (no rojo fijo),
-                        // así no se confunde con el dot rojo de checkout.
+                        // Logo badge de la propiedad al INICIO del evento (primer día
+                        // de la reserva o día 1 si viene del mes anterior).
+                        // El border toma el color del calendario; si el día es
+                        // multievento, el logo es clicable y expande como el botón +.
                         const cid = event.calendario_id || '';
                         const calImg = calendariosImagenes[cid] || {};
                         const logoPath = calLogoUrl(calImg);
                         const calColor = calImg.color || '#9ca3af';
-                        if (logoPath && esUltimoDiaReserva && !cell.querySelector(':scope > .cal-logo-badge')) {
+
+                        // Mostrar globitos en: primer día de reserva O primer día del mes si viene de antes
+                        // NO mostrar en día de checkout (las franjas se manejan con CSS)
+                        const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
+
+                        // Logo al inicio: se pinta junto con los globitos del primer día.
+                        if (logoPath && mostrarGlobitos && !cell.querySelector(':scope > .cal-logo-badge')) {
                             const badge = document.createElement('img');
                             badge.className = 'cal-logo-badge';
                             badge.src = logoPath;
                             badge.alt = '';
                             badge.loading = 'lazy';
                             badge.style.borderColor = calColor;
-                            badge.title = `Checkout - ${calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || ''}`;
+                            const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || cid;
+                            const diaMulti = (eventosPorFecha.get(dateStr) || []).length > 1;
+                            if (diaMulti) {
+                                badge.classList.add('clickable');
+                                badge.title = `${nombreCal} — ver eventos del día`;
+                                badge.addEventListener('click', (e) => { e.stopPropagation(); toggleExpandDia(cell); });
+                            } else {
+                                badge.title = nombreCal;
+                            }
                             badge.onerror = () => badge.remove();
                             cell.appendChild(badge);
                         }
-
-                        // Mostrar globitos en: primer día de reserva O primer día del mes si viene de antes
-                        // NO mostrar en día de checkout (las franjas se manejan con CSS)
-                        const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
 
                         if (mostrarGlobitos) {
                             // Marcar checkin solo si es el primer día real de la reserva
@@ -2046,10 +2152,23 @@
                             }
 
                             // Globito de precio (solo admin) - verde con valor proporcional
-                            // Siempre usar proporción si la reserva cruza meses
+                            // Siempre usar proporción si la reserva cruza meses.
+                            // Si varios arriendos comparten día de burbuja, UNA burbuja con la suma.
                             const esProporcional = diasEnEsteMes < diasTotales;
                             const precioMostrar = esProporcional ? precioProporcion : (event.precio || 0);
-                            if (isAdmin && precioMostrar > 0) {
+                            const grupoVerde = sumaVerdePorDia.get(dateStr);
+                            const esGrupoVerde = isAdmin && grupoVerde && grupoVerde.nombres.length > 1;
+                            if (esGrupoVerde && !gruposVerdePintados.has(dateStr)) {
+                                const totalBubble = document.createElement('div');
+                                totalBubble.className = 'price-bubble total-dia';
+                                if (grupoVerde.proporcional) {
+                                    totalBubble.classList.add('proporcional');
+                                }
+                                totalBubble.innerHTML = `$${grupoVerde.total.toLocaleString('es-CL')}`;
+                                totalBubble.title = grupoVerde.nombres.join(' + ') + ` = $${grupoVerde.total.toLocaleString('es-CL')}`;
+                                cell.appendChild(totalBubble);
+                                gruposVerdePintados.add(dateStr);
+                            } else if (isAdmin && precioMostrar > 0 && !esGrupoVerde) {
                                 const priceBubble = document.createElement('div');
                                 priceBubble.className = 'price-bubble';
                                 if (esProporcional) {

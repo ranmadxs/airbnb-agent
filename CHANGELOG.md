@@ -5,6 +5,7 @@
 ## [3.4.0] - 2026-10-03
 ### Added
 - Pagos de arriendo con alias en el calendario (solo admin): transacciones BCI con alias categoria `arriendo` mapeadas a una propiedad aparecen como fila estilo mini-lista (logo redondo + ⭐ + monto) en el día de pago y como fila genérica en la lista; suman a ingresos del mes de pago. Otras categorías quedan excluidas. Derivado en vivo, sin migración.
+- Logo de la propiedad al inicio del evento (antes solo en checkout), botón +/− para expandir días multievento inline (filas con logo de cada propiedad, click en el logo también expande) y globito verde con la suma si varios arriendos inician el mismo día (azules de tinaja intactos).
 
 ## [3.3.0] - 2026-10-03
 ### Added
