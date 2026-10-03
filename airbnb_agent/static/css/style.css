@@ -1153,15 +1153,28 @@ header {
 }
 .income-subtotal-row {
     display: flex;
+    align-items: center;
+    gap: 8px;
     justify-content: space-between;
     padding: 4px 0;
     border-top: 1px solid #f3f4f6;
+}
+.income-subtotal-logo {
+    width: 22px;
+    height: 22px;
+    border-radius: 15%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #fff;
+    border: 1.5px solid #9ca3af;
 }
 .income-subtotal-row:first-of-type {
     border-top: none;
 }
 .income-subtotal-label {
     color: var(--airbnb-dark, #222);
+    flex: 1;
+    min-width: 0;
     max-width: 60%;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -1580,8 +1580,12 @@
             const sorted = keys.sort((a, b) => porCal[b].total - porCal[a].total);
             let html = '<div class="income-subtotals-title">Por calendario</div>';
             for (const cid of sorted) {
-                const label = cid === '__legacy__' ? 'Sin asignar' : cid;
-                html += `<div class="income-subtotal-row" data-calendario-id="${cid}">
+                const cal = calendariosDisponibles.find(c => c.calendario_id === cid) || calendariosImagenes[cid] || {};
+                const label = cid === '__legacy__' ? 'Sin asignar' : (cal.nombre || cid);
+                const imgUrl = calThumbUrl(cal);
+                const color = cal.color || '#9ca3af';
+                html += `<div class="income-subtotal-row" data-calendario-id="${cid}" title="${cid}">
+                    ${imgUrl ? `<img class="income-subtotal-logo" src="${imgUrl}" alt="" loading="lazy" style="border-color: ${color};" onerror="this.remove()">` : ''}
                     <span class="income-subtotal-label">${label}</span>
                     <span class="income-subtotal-value">$${porCal[cid].total.toLocaleString('es-CL')}</span>
                 </div>`;
