@@ -183,6 +183,19 @@
         .desempeno-trx-list-valor.ingreso { color: #059669; }
         .desempeno-trx-list-valor.egreso { color: #dc2626; }
         .desempeno-trx-list-saldo { color: #9ca3af; margin-left: 6px; }
+        .desempeno-trx-alias-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+        .desempeno-trx-alias-btn { padding: 2px 8px; border: 1px dashed #9ca3af; background: #f9fafb; border-radius: 999px; cursor: pointer; font-size: 0.68em; font-weight: 700; color: #6b7280; letter-spacing: 0.04em; }
+        .desempeno-trx-alias-btn:hover { border-color: #1d4ed8; color: #1d4ed8; background: #eff6ff; }
+        .desempeno-trx-alias-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 999px; font-size: 0.72em; font-weight: 600; color: #1d4ed8; max-width: 100%; }
+        .desempeno-trx-alias-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+        .desempeno-trx-alias-edit { padding: 0 8px; border: none; background: transparent; cursor: pointer; font-size: 1em; color: #1d4ed8; }
+        .desempeno-trx-alias-edit:hover { transform: scale(1.15); }
+        .desempeno-trx-alias-form { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+        .desempeno-trx-alias-input { flex: 1; min-width: 120px; padding: 4px 8px; border: 2px solid #1d4ed8; border-radius: 8px; font-size: 0.8em; }
+        .desempeno-trx-alias-input:focus { outline: none; border-color: #1e40af; }
+        .desempeno-trx-alias-save { padding: 4px 10px; border: none; background: #1d4ed8; color: white; border-radius: 8px; cursor: pointer; font-size: 0.75em; font-weight: 700; }
+        .desempeno-trx-alias-save:disabled { opacity: 0.6; cursor: wait; }
+        .desempeno-trx-alias-cancel { padding: 4px 10px; border: 1px solid #e5e7eb; background: white; border-radius: 8px; cursor: pointer; font-size: 0.75em; }
         .desempeno-trx-list-item + .desempeno-trx-list-item { border-top: 1px solid #f3f4f6; }
 
         /* Calendario tipo cuadrícula */
@@ -1800,6 +1813,32 @@
         document.getElementById('trx-nav-prev').onclick = () => navegarTrxMes(-1);
         document.getElementById('trx-nav-next').onclick = () => navegarTrxMes(1);
         document.getElementById('trx-filtro-egresos').onchange = () => renderizarTrx();
+        document.getElementById('trx-list').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-alias-action]');
+            if (!btn) return;
+            const action = btn.dataset.aliasAction;
+            const idx = btn.dataset.idx !== undefined && btn.dataset.idx !== '' ? Number(btn.dataset.idx) : null;
+            if (action === 'edit' && idx !== null && trxAllData[idx]) {
+                trxEditingDesc = (trxAllData[idx].descripcion || '').trim();
+                renderizarLista();
+            } else if (action === 'cancel') {
+                trxEditingDesc = null;
+                renderizarLista();
+            } else if (action === 'save' && idx !== null && trxAllData[idx]) {
+                const input = document.querySelector('#trx-list [data-alias-input]');
+                guardarAlias(trxAllData[idx].descripcion, input ? input.value : '');
+            }
+        });
+        document.getElementById('trx-list').addEventListener('keydown', (e) => {
+            if (!e.target.matches('[data-alias-input]')) return;
+            if (e.key === 'Enter') {
+                const btn = document.querySelector('#trx-list [data-alias-action="save"]');
+                if (btn) btn.click();
+            } else if (e.key === 'Escape') {
+                trxEditingDesc = null;
+                renderizarLista();
+            }
+        });
 
         function cambiarVista(vista) {
             trxVistaActual = vista;
@@ -2018,6 +2057,13 @@
             if (detalleEl) detalleEl.innerHTML = trxDiaSeleccionado ? '' : '';
         }
 
+        function escapeHtml(s) {
+            return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        let trxEditingDesc = null;
+
         function renderizarLista() {
             const listEl = document.getElementById('trx-list');
             if (!listEl) return;
@@ -2031,10 +2077,6 @@
             let items = fuente.map(t => {
                 const abono = parseFloat(t.abono) || 0;
                 const cargo = parseFloat(t.cargo) || 0;
-                const neto = abono - cargo;
-                const clases = [];
-                if (abono > 0) clases.push('ingreso');
-                if (cargo > 0) clases.push('egreso');
                 const saldoStr = fmt(t.saldo || 0);
                 let valorStr;
                 if (abono > 0 && cargo > 0) valorStr = `+${fmt(abono)} / -${fmt(cargo)}`;
@@ -2049,11 +2091,28 @@
 
                 const hideRow = !mostrarEgresos && cargo > 0 && abono === 0;
 
+                const descKey = (t.descripcion || '').trim();
+                const aliasVal = (t.alias || '').trim();
+                const idx = trxAllData.indexOf(t);
+                let aliasHtml = '';
+                if (descKey && trxEditingDesc === descKey) {
+                    aliasHtml = `<div class="desempeno-trx-alias-form">
+                        <input class="desempeno-trx-alias-input" data-alias-input value="${escapeHtml(aliasVal)}" maxlength="60" placeholder="Ej: Arriendo Juan" />
+                        <button type="button" class="desempeno-trx-alias-save" data-alias-action="save" data-idx="${idx}">Guardar</button>
+                        <button type="button" class="desempeno-trx-alias-cancel" data-alias-action="cancel">✕</button>
+                    </div>`;
+                } else if (descKey && aliasVal) {
+                    aliasHtml = `<div class="desempeno-trx-alias-row"><span class="desempeno-trx-alias-chip" title="${escapeHtml(t.descripcion || '')}">🏷️ <span>${escapeHtml(aliasVal)}</span><button type="button" class="desempeno-trx-alias-edit" data-alias-action="edit" data-idx="${idx}" title="Editar alias (aplica a todas con esta descripción)">✏️</button></span></div>`;
+                } else if (descKey) {
+                    aliasHtml = `<div class="desempeno-trx-alias-row"><button type="button" class="desempeno-trx-alias-btn" data-alias-action="edit" data-idx="${idx}" title="Asignar alias a todas las transacciones con esta descripción">ALIAS</button></div>`;
+                }
+
                 return {
                     html: `<div class="desempeno-trx-list-item ${rowClass}" ${hideRow ? 'style="display:none"' : ''}>
                         <div class="desempeno-trx-list-left">
-                            <span class="desempeno-trx-list-desc">${t.descripcion || 'Sin descripción'}</span>
-                            <span class="desempeno-trx-list-fecha">${t.fecha}</span>
+                            <span class="desempeno-trx-list-desc">${escapeHtml(t.descripcion || 'Sin descripción')}</span>
+                            ${aliasHtml}
+                            <span class="desempeno-trx-list-fecha">${escapeHtml(t.fecha)}</span>
                         </div>
                         <span class="desempeno-trx-list-valor ${abono > 0 ? 'ingreso' : 'egreso'}" title="Saldo: ${saldoStr}">${valorStr} <span class="desempeno-trx-list-saldo" title="Saldo: ${saldoStr}">| ${saldoStr}</span></span>
                     </div>`,
@@ -2070,6 +2129,8 @@
             listEl.innerHTML = items.length
                 ? items.map(i => i.html).join('')
                 : '<div style="padding:24px;text-align:center;color:#6b7280">No hay transacciones en este mes</div>';
+            const input = listEl.querySelector('[data-alias-input]');
+            if (input) { input.focus(); input.select(); }
         }
 
         function mostrarDetalleTrxDia(diaNum) {
