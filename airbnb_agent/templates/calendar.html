@@ -2069,10 +2069,11 @@
                         if (esCache) cell.classList.add('from-cache');
                         const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
 
-                        // Logo badge de la propiedad al INICIO del evento (primer día
-                        // de la reserva o día 1 si viene del mes anterior).
-                        // El border toma el color del calendario; si el día es
-                        // multievento, el logo es clicable y expande como el botón +.
+                        // Logo badge de la propiedad ANCLADO a la franja:
+                        // inicio (azul) abajo-izquierda sobre el azul,
+                        // checkout (rojo) abajo-derecha sobre el rojo,
+                        // continuación (negra) esquina inferior-izquierda.
+                        // Solape ~25% sin tapar el número (centrado en la franja).
                         const cid = event.calendario_id || '';
                         const calImg = calendariosImagenes[cid] || {};
                         const logoPath = calLogoUrl(calImg);
@@ -2082,10 +2083,10 @@
                         // NO mostrar en día de checkout (las franjas se manejan con CSS)
                         const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
 
-                        // Logo al inicio: se pinta junto con los globitos del primer día.
-                        if (logoPath && mostrarGlobitos && !cell.querySelector(':scope > .cal-logo-badge')) {
+                        // Logo: al inicio del evento o en checkout (1 día = checkout).
+                        if (logoPath && (mostrarGlobitos || esUltimoDiaReserva) && !cell.querySelector(':scope > .cal-logo-badge')) {
                             const badge = document.createElement('img');
-                            badge.className = 'cal-logo-badge';
+                            badge.className = 'cal-logo-badge ' + (esUltimoDiaReserva ? 'pos-checkout' : (esPrimerDiaReserva ? 'pos-inicio' : 'pos-medio'));
                             badge.src = logoPath;
                             badge.alt = '';
                             badge.loading = 'lazy';
@@ -2097,7 +2098,7 @@
                                 badge.title = `${nombreCal} — ver eventos del día`;
                                 badge.addEventListener('click', (e) => { e.stopPropagation(); toggleExpandDia(cell); });
                             } else {
-                                badge.title = nombreCal;
+                                badge.title = esUltimoDiaReserva ? `${nombreCal} (checkout)` : nombreCal;
                             }
                             badge.onerror = () => badge.remove();
                             cell.appendChild(badge);

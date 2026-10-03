@@ -1259,13 +1259,15 @@ header {
     border: 2px solid var(--chip-border-color, rgba(0,0,0,0.08));
 }
 
-/* Logo badge de la propiedad al INICIO del evento (esquina superior-izquierda
-   del primer día). El border toma el color del calendario. En días multievento
-   es clicable y expande como el botón +. */
+/* Logo badge de la propiedad ANCLADO a la franja (solape ~25%, sin tapar el número):
+   - inicio (azul): borde inferior-izquierdo del azul, sobrepuesto al azul.
+   - checkout (rojo): sobre el rojo, inferior-derecha.
+   - continuación (negra): esquina inferior-izquierda de la celda.
+   Las franjas miden 28px centradas: su borde inferior está en 50% + 14px;
+   con badge de 18px y top en 50% + 9px el solape vertical es ~5px. */
   .day-cell > .cal-logo-badge {
       position: absolute;
-      top: 2px;
-      left: 2px;
+      top: calc(50% + 9px);
       width: 18px;
       height: 18px;
       border-radius: 50%;
@@ -1276,16 +1278,21 @@ header {
       background: #fff;
       border: 1.5px solid #9ca3af;   /* fallback; el JS aplica el color del calendario */
   }
+  .day-cell > .cal-logo-badge.pos-inicio {
+      left: calc(15% - 9px);
+  }
+  .day-cell > .cal-logo-badge.pos-checkout {
+      right: calc(15% - 9px);
+  }
+  .day-cell > .cal-logo-badge.pos-medio {
+      left: 2px;
+  }
   .day-cell > .cal-logo-badge.clickable {
       pointer-events: auto;
       cursor: pointer;
   }
   .day-cell > .cal-logo-badge.clickable:hover {
       box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2563eb;
-  }
-  /* Desplazar apenas el número del día para no taparlo con el badge. */
-  .day-cell:has(> .cal-logo-badge) > .day-number {
-      transform: translateX(9px);
   }
 
 /* Botón +/− para expandir días multievento inline. */
