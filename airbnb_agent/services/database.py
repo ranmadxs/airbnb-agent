@@ -1687,13 +1687,14 @@ class DatabaseService:
                 desc_raw = doc.get('descripcion', '') or ''
                 entry = alias_map.get(desc_raw.strip()) or {}
                 if isinstance(entry, str):
-                    entry = {"alias": entry, "categoria": ""}
+                    entry = {"alias": entry, "categoria": "", "calendario_id": ""}
                 transacciones.append({
                     'id': str(doc.get('_id')),
                     'fecha': doc.get('fecha', ''),
                     'descripcion': desc_raw,
                     'alias': entry.get("alias", ""),
                     'alias_categoria': entry.get("categoria", ""),
+                    'alias_calendario_id': entry.get("calendario_id", ""),
                     'abono': doc.get('abono', 0.0) or 0.0,
                     'cargo': doc.get('cargo', 0.0) or 0.0,
                     'saldo': doc.get('saldo', 0.0) or 0.0,
@@ -1710,7 +1711,7 @@ class DatabaseService:
     ALIAS_CATEGORIAS = ('arriendo', 'sueldo', 'transferencia', 'airbnb')
 
     def obtener_alias_map(self) -> dict:
-        """Retorna {descripcion: {"alias": str, "categoria": str}} solo con alias no vacíos."""
+        """Retorna {descripcion: {"alias": str, "categoria": str, "calendario_id": str}} solo con alias no vacíos."""
         if not self.connect():
             return {}
         try:
@@ -1719,26 +1720,28 @@ class DatabaseService:
                 coll = self.db_bci["alias_descripcion"]
                 self.alias_descripcion = coll
             out = {}
-            for doc in coll.find({}, {"descripcion": 1, "alias": 1, "categoria": 1}):
+            for doc in coll.find({}, {"descripcion": 1, "alias": 1, "categoria": 1, "calendario_id": 1}):
                 desc = (doc.get("descripcion") or "").strip()
                 alias = (doc.get("alias") or "").strip()
                 cat = (doc.get("categoria") or "").strip()
                 if cat not in self.ALIAS_CATEGORIAS:
                     cat = ""
+                cid = (doc.get("calendario_id") or "").strip()
                 if desc and alias:
-                    out[desc] = {"alias": alias, "categoria": cat}
+                    out[desc] = {"alias": alias, "categoria": cat, "calendario_id": cid}
             return out
         except Exception as e:
             print(f"❌ Error obteniendo alias: {e}")
             return {}
 
-    def guardar_alias(self, descripcion: str, alias: str, categoria: str = "") -> dict:
+    def guardar_alias(self, descripcion: str, alias: str, categoria: str = "", calendario_id: str = "") -> dict:
         """Upsert de alias por descripción exacta. Alias vacío => borra el doc."""
         desc = (descripcion or "").strip()
         val = (alias or "").strip()[:60]
         cat = (categoria or "").strip()
         if cat not in self.ALIAS_CATEGORIAS:
             cat = ""
+        cid = (calendario_id or "").strip()
         if not desc:
             return {"success": False, "error": "Descripción vacía"}
         if not self.connect():
@@ -1751,16 +1754,89 @@ class DatabaseService:
             from datetime import datetime as _dt
             if not val:
                 coll.delete_one({"descripcion": desc})
-                return {"success": True, "descripcion": desc, "alias": "", "categoria": "", "deleted": True}
+                return {"success": True, "descripcion": desc, "alias": "", "categoria": "", "calendario_id": "", "deleted": True}
             coll.update_one(
                 {"descripcion": desc},
-                {"$set": {"descripcion": desc, "alias": val, "categoria": cat, "updated_at": _dt.now().isoformat()}},
+                {"$set": {"descripcion": desc, "alias": val, "categoria": cat, "calendario_id": cid, "updated_at": _dt.now().isoformat()}},
                 upsert=True,
             )
-            return {"success": True, "descripcion": desc, "alias": val, "categoria": cat}
+            return {"success": True, "descripcion": desc, "alias": val, "categoria": cat, "calendario_id": cid}
         except Exception as e:
             print(f"❌ Error guardando alias: {e}")
             return {"success": False, "error": str(e)}
+
+    def obtener_pagos_arriendo_mes(self, year: int, month: int) -> list:
+        """Deriva eventos de calendario desde transacciones BCI con alias categoria==arriendo.
+
+        Solo entran transacciones con alias no vacío, categoria arriendo,
+        calendario_id mapeado y abono > 0. Otras categorías (sueldo,
+        transferencia, airbnb) y sin alias se excluyen. No persiste nada:
+        se calcula en vivo para que antiguas y nuevas aparezcan igual.
+        Retorna eventos de 1 día {start==end==fecha pago ISO}.
+        """
+        if not self.connect():
+            return []
+        if self.transacciones_bci is None:
+            return []
+        try:
+            mes_str = str(month).zfill(2)
+            regex = f"^(.{{2}})-{mes_str}-{year}$"
+            cursor = self.transacciones_bci.find({
+                'fecha': {'$regex': regex}
+            }).sort('fecha', 1)
+            try:
+                alias_map = self.obtener_alias_map()
+            except Exception:
+                alias_map = {}
+            pagos = []
+            for doc in cursor:
+                desc_raw = (doc.get('descripcion', '') or '').strip()
+                entry = alias_map.get(desc_raw) or {}
+                if isinstance(entry, str):
+                    entry = {"alias": entry, "categoria": "", "calendario_id": ""}
+                if not entry.get("alias"):
+                    continue
+                if (entry.get("categoria") or "") != "arriendo":
+                    continue
+                cid = (entry.get("calendario_id") or "").strip()
+                if not cid:
+                    continue
+                try:
+                    abono = float(doc.get('abono', 0.0) or 0.0)
+                except Exception:
+                    abono = 0.0
+                if abono <= 0:
+                    continue
+                fecha_raw = (doc.get('fecha', '') or '').strip()
+                try:
+                    dd, mm, yyyy = fecha_raw.split('-')
+                    fecha_iso = f"{int(yyyy):04d}-{int(mm):02d}-{int(dd):02d}"
+                except Exception:
+                    continue
+                alias = entry.get("alias", "")
+                pagos.append({
+                    "id": f"arriendo-{doc.get('trx_key') or doc.get('_id')}",
+                    "start": fecha_iso,
+                    "end": fecha_iso,
+                    "days": 1,
+                    "summary": f"Pago arriendo {alias}",
+                    "source": "arriendo",
+                    "calendario_id": cid,
+                    "estado": "reservado",
+                    "readonly": True,
+                    "tipo": "pago_arriendo",
+                    "precio": round(abono),
+                    "extra_valor": 0,
+                    "alias": alias,
+                    "descripcion": desc_raw,
+                    "abono": abono,
+                    "fecha_pago": fecha_iso,
+                    "trx_key": doc.get('trx_key', ''),
+                })
+            return pagos
+        except Exception as e:
+            print(f"❌ Error obteniendo pagos arriendo: {e}")
+            return []
 
 
 # Instancia singleton

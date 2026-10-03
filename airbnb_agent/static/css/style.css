@@ -1282,6 +1282,66 @@ header {
       bottom: 22px;
   }
 
+/* Pago de arriendo con alias (solo admin): 1 solo día, estrella + logo central.
+   No usa franja negra (.reserved) ni colita de checkout para no confundir
+   con una estadía: fondo dorado suave, estrella centrada y logo circular. */
+.day-cell.arriendo-pago {
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.28), rgba(250, 204, 21, 0.12));
+    border: 1.5px dashed #d97706;
+}
+.day-cell.arriendo-pago .day-number {
+    color: #92400e;
+    font-weight: 700;
+}
+.arriendo-star {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -62%);
+    font-size: 22px;
+    line-height: 1;
+    color: #d97706;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    pointer-events: none;
+    z-index: 3;
+}
+.arriendo-logo-central {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #fff;
+    border: 1.5px solid #d97706;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    pointer-events: none;
+    z-index: 3;
+}
+.arriendo-count {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #92400e;
+    background: rgba(255,255,255,0.85);
+    border-radius: 8px;
+    padding: 0 4px;
+    z-index: 4;
+}
+/* Fila genérica de pago de arriendo en la lista (solo admin). */
+.reservation-item.is-arriendo-pago {
+    border-left: 4px solid #d97706;
+}
+.reservation-item.is-arriendo-pago .type-badge.arriendo-pago {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
 /* Responsive: scroll horizontal en mobile */
 @media (max-width: 768px) {
     .calendar-filter-bar {

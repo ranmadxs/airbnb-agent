@@ -178,12 +178,15 @@ def get_audit_info() -> dict:
 
 
 def get_month_calendar(year: int, month: int, include_events: bool = False,
-                       calendario_ids: list = None) -> dict:
+                       calendario_ids: list = None, eventos_extra: list = None) -> dict:
     """Genera datos del calendario para un mes.
 
     Args:
         calendario_ids: Lista de calendario_id a incluir (None = todos).
                        '__legacy__' incluye docs sin calendario_id.
+        eventos_extra: Eventos sintéticos (pagos arriendo) ya filtrados por
+                       el llamante o sin filtrar (aquí se aplica calendario_ids).
+                       Solo se fusionan cuando include_events=True.
     """
     cal = calendar.Calendar(firstweekday=0)
     result = {
@@ -202,6 +205,16 @@ def get_month_calendar(year: int, month: int, include_events: bool = False,
             fin_mes = date(year, month + 1, 1)
 
         all_events = db_service.obtener_eventos_formato_ical(calendario_ids=calendario_ids)
+        if eventos_extra:
+            extras = list(eventos_extra)
+            if calendario_ids is not None:
+                filtrados = []
+                for ev in extras:
+                    cid = ev.get('calendario_id') or '__legacy__'
+                    if cid in calendario_ids:
+                        filtrados.append(ev)
+                extras = filtrados
+            all_events = list(all_events) + extras
         events_mes = []
         for ev in all_events:
             try:
@@ -346,6 +359,25 @@ def home():
     #    simultáneamente y el render mostraría datos inconsistentes.
     events = db_service.obtener_eventos_formato_ical(calendario_ids=calendario_ids_inicial)
 
+    is_logged_in = session.get('logged_in', False)
+
+    # Pagos de arriendo con alias (solo admin, derivados en vivo; antiguas y
+    # nuevas aparecen igual sin migración). Respetan ?cal=... como las reservas.
+    pagos_inicial = []
+    try:
+        fn = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
+        now_tmp = _now_local()
+        if is_logged_in and callable(fn):
+            res_tmp = fn(now_tmp.year, now_tmp.month)
+            pagos_inicial = res_tmp if isinstance(res_tmp, list) else []
+    except Exception:
+        pagos_inicial = []
+    if pagos_inicial:
+        if calendario_ids_inicial is not None:
+            pagos_inicial = [p for p in pagos_inicial
+                             if (p.get('calendario_id') or '__legacy__') in calendario_ids_inicial]
+        events = list(events) + pagos_inicial
+
     # 2. Sincronizar desde iCal en background (actualiza MongoDB para la PRÓXIMA carga)
     ical_events = airbnb_service.fetch_events()
     if ical_events is not None:
@@ -372,8 +404,6 @@ def home():
     current = get_month_calendar(now.year, now.month)
     arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(events, now.year, now.month)
     ingresos_mes_actual = {'arriendo': arriendo, 'tinaja': tinaja, 'total': arriendo + tinaja}
-
-    is_logged_in = session.get('logged_in', False)
 
     # Paleta de borders para los thumbnails/logos de calendarios (no configurable).
     # El primer calendario toma el primer color, el segundo el segundo, etc.
@@ -733,6 +763,20 @@ def api_desempeno():
         db_service.sync_en_background(ical_events, get_audit_info())
 
     all_events = db_service.obtener_eventos_formato_ical()
+    # Pagos arriendo con alias (solo arriendo, derivados en vivo) para que
+    # desempeño cuadre con calendario. login_required ya garantiza admin.
+    try:
+        fn_pagos = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
+        if callable(fn_pagos):
+            pagos_anio = []
+            for _m in range(1, 13):
+                _r = fn_pagos(year, _m)
+                if isinstance(_r, list) and _r:
+                    pagos_anio.extend(_r)
+            if pagos_anio:
+                all_events = list(all_events) + pagos_anio
+    except Exception:
+        pass
     gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
 
     meses_data = []
@@ -860,14 +904,15 @@ def api_transacciones_alias_get():
 @app.route('/api/transacciones-alias', methods=['POST'])
 @login_required
 def api_transacciones_alias_post():
-    """API: Crea/actualiza/borra alias. Body {descripcion, alias, categoria}. Alias vacío => borra."""
+    """API: Crea/actualiza/borra alias. Body {descripcion, alias, categoria, calendario_id}. Alias vacío => borra."""
     data = request.get_json(silent=True) or {}
     descripcion = (data.get('descripcion') or '').strip()
     alias = (data.get('alias') or '').strip()[:60]
     categoria = (data.get('categoria') or '').strip()
     if not descripcion:
         return jsonify({'success': False, 'error': 'Descripción vacía'}), 400
-    return jsonify(db_service.guardar_alias(descripcion, alias, categoria))
+    calendario_id = _validate_calendario_id(data.get('calendario_id')) or ''
+    return jsonify(db_service.guardar_alias(descripcion, alias, categoria, calendario_id))
 
 
 def _parse_calendario_ids() -> list | None:
@@ -878,6 +923,23 @@ def _parse_calendario_ids() -> list | None:
     return [c.strip() for c in raw.split(',') if c.strip()]
 
 
+def _pagos_arriendo_si_admin(year: int, month: int) -> list:
+    """Retorna pagos de arriendo del mes solo si hay sesión admin.
+
+    Defensivo: si db_service está mockeado sin lista real, retorna [].
+    """
+    try:
+        if not session.get('logged_in'):
+            return []
+        fn = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
+        if not callable(fn):
+            return []
+        res = fn(year, month)
+        return res if isinstance(res, list) else []
+    except Exception:
+        return []
+
+
 @app.route('/api/month')
 def api_month():
     """API: Datos de un mes específico con eventos.
@@ -886,12 +948,16 @@ def api_month():
         year, month: año/mes a consultar (default: mes actual)
         calendario_ids: lista separada por comas de calendario_id a incluir
                         (None = todos). '__legacy__' incluye docs sin calendario_id.
+    Pagos de arriendo (alias categoria==arriendo) solo se fusionan con
+    sesión admin; anónimo recibe solo reservas iCal/manual.
     """
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
     calendario_ids = _parse_calendario_ids()
+    pagos = _pagos_arriendo_si_admin(year, month)
     return jsonify(get_month_calendar(year, month, include_events=True,
-                                      calendario_ids=calendario_ids))
+                                      calendario_ids=calendario_ids,
+                                      eventos_extra=pagos or None))
 
 
 @app.route('/api/month/tinaja')

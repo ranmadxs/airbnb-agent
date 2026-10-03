@@ -1833,10 +1833,13 @@
                 trxEditingDesc = (trxAllData[idx].descripcion || '').trim();
                 trxEditingCat = (trxAllData[idx].alias_categoria || '').trim();
                 if (!ALIAS_CATEGORIAS[trxEditingCat]) trxEditingCat = '';
+                trxEditingCal = (trxAllData[idx].alias_calendario_id || '').trim();
+                cargarCalendariosPropiedad().then(() => renderizarLista());
                 renderizarLista();
             } else if (action === 'cancel') {
                 trxEditingDesc = null;
                 trxEditingCat = '';
+                trxEditingCal = '';
                 renderizarLista();
             } else if (action === 'cat' || action === 'nocat') {
                 trxEditingCat = action === 'cat' ? (btn.dataset.cat || '') : '';
@@ -1846,7 +1849,8 @@
                 });
             } else if (action === 'save' && idx !== null && trxAllData[idx]) {
                 const input = document.querySelector('#trx-list [data-alias-input]');
-                guardarAlias(trxAllData[idx].descripcion, input ? input.value : '', trxEditingCat);
+                const calSel = document.querySelector('#trx-list [data-alias-cal]');
+                guardarAlias(trxAllData[idx].descripcion, input ? input.value : '', trxEditingCat, calSel ? calSel.value : trxEditingCal);
             }
         });
         document.getElementById('trx-list').addEventListener('keydown', (e) => {
@@ -1857,6 +1861,7 @@
             } else if (e.key === 'Escape') {
                 trxEditingDesc = null;
                 trxEditingCat = '';
+                trxEditingCal = '';
                 renderizarLista();
             }
         });
@@ -1872,6 +1877,7 @@
             trxDiaSeleccionado = null;
             trxEditingDesc = null;
             trxEditingCat = '';
+            trxEditingCal = '';
             document.getElementById('trx-dia-detalle').innerHTML = '';
             renderizarTrx();
         }
@@ -1952,6 +1958,8 @@
             trxDiaSeleccionado = null;
             trxEditingDesc = null;
             trxEditingCat = '';
+            trxEditingCal = '';
+            await cargarCalendariosPropiedad();
             const detalleEl = document.getElementById('trx-dia-detalle');
             if (detalleEl) detalleEl.innerHTML = '';
 
@@ -2089,6 +2097,21 @@
 
         let trxEditingDesc = null;
         let trxEditingCat = '';
+        let trxEditingCal = '';
+        let calendariosPropiedad = [];
+
+        async function cargarCalendariosPropiedad() {
+            if (calendariosPropiedad.length) return calendariosPropiedad;
+            try {
+                const resp = await fetchConTimeout('/api/calendarios', 10000);
+                const data = await resp.json();
+                calendariosPropiedad = data.configured || [];
+            } catch (err) {
+                console.error('Error cargando calendarios:', err);
+                calendariosPropiedad = [];
+            }
+            return calendariosPropiedad;
+        }
 
         const ALIAS_CATEGORIAS = {
             arriendo: {emoji: '🏠', label: 'Arriendo'},
@@ -2134,6 +2157,9 @@
                     const catsHtml = Object.entries(ALIAS_CATEGORIAS).map(([id, c]) =>
                         `<button type="button" class="desempeno-trx-alias-cat${trxEditingCat === id ? ' selected' : ''}" data-alias-action="cat" data-cat="${id}">${c.emoji} ${c.label}</button>`
                     ).join('');
+                    const calsHtml = calendariosPropiedad.map(c =>
+                        `<option value="${escapeHtml(c.calendario_id)}"${trxEditingCal === c.calendario_id ? ' selected' : ''}>${escapeHtml(c.nombre)}</option>`
+                    ).join('');
                     aliasHtml = `<div class="desempeno-trx-alias-form">
                         <input class="desempeno-trx-alias-input" data-alias-input value="${escapeHtml(aliasVal)}" maxlength="60" placeholder="Ej: Arriendo Juan" />
                         <button type="button" class="desempeno-trx-alias-save" data-alias-action="save" data-idx="${idx}">Guardar</button>
@@ -2142,11 +2168,21 @@
                     <div class="desempeno-trx-alias-cats">
                         <button type="button" class="desempeno-trx-alias-cat${trxEditingCat === '' ? ' selected' : ''}" data-alias-action="nocat">Sin icono</button>
                         ${catsHtml}
+                    </div>
+                    <div class="desempeno-trx-alias-cals">
+                        <label>Propiedad (solo Arriendo → calendario):</label>
+                        <select data-alias-cal>
+                            <option value="">— Sin propiedad —</option>
+                            ${calsHtml}
+                        </select>
                     </div>`;
                 } else if (descKey && aliasVal) {
                     const chipClass = catDef ? `desempeno-trx-alias-chip alias-cat-${catVal}` : 'desempeno-trx-alias-chip';
                     const chipEmoji = catDef ? catDef.emoji : '🏷️';
-                    aliasHtml = `<div class="desempeno-trx-alias-row"><span class="${chipClass}" title="${escapeHtml(t.descripcion || '')}">${chipEmoji} <span>${escapeHtml(aliasVal)}</span><button type="button" class="desempeno-trx-alias-edit" data-alias-action="edit" data-idx="${idx}" title="Editar alias (aplica a todas con esta descripción)">✏️</button></span></div>`;
+                    const calIdVal = (t.alias_calendario_id || '').trim();
+                    const calNombre = calendariosPropiedad.find(c => c.calendario_id === calIdVal)?.nombre || '';
+                    const calSuffix = (catVal === 'arriendo' && calNombre) ? ` · ${escapeHtml(calNombre)}` : '';
+                    aliasHtml = `<div class="desempeno-trx-alias-row"><span class="${chipClass}" title="${escapeHtml(t.descripcion || '')}${calSuffix}">${chipEmoji} <span>${escapeHtml(aliasVal)}${calSuffix}</span><button type="button" class="desempeno-trx-alias-edit" data-alias-action="edit" data-idx="${idx}" title="Editar alias (aplica a todas con esta descripción)">✏️</button></span></div>`;
                 } else if (descKey) {
                     aliasHtml = `<div class="desempeno-trx-alias-row"><button type="button" class="desempeno-trx-alias-btn" data-alias-action="edit" data-idx="${idx}" title="Asignar alias a todas las transacciones con esta descripción">ALIAS</button></div>`;
                 }
@@ -2177,29 +2213,32 @@
             if (input) { input.focus(); input.select(); }
         }
 
-        async function guardarAlias(descripcion, aliasRaw, categoriaRaw) {
+        async function guardarAlias(descripcion, aliasRaw, categoriaRaw, calendarioIdRaw) {
             const descKey = (descripcion || '').trim();
             if (!descKey) return;
             const alias = (aliasRaw || '').trim().slice(0, 60);
             const categoria = ALIAS_CATEGORIAS[(categoriaRaw || '').trim()] ? (categoriaRaw || '').trim() : '';
+            const calendario_id = (calendarioIdRaw || '').trim();
             const saveBtn = document.querySelector('#trx-list [data-alias-action="save"]');
             if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando…'; }
             try {
                 const resp = await fetchConTimeout('/api/transacciones-alias', 10000, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({descripcion: descKey, alias, categoria})
+                    body: JSON.stringify({descripcion: descKey, alias, categoria, calendario_id})
                 });
                 if (!resp.ok) throw new Error('API ' + resp.status);
                 const data = await resp.json();
                 if (!data.success) throw new Error(data.error || 'Error al guardar');
                 const nuevo = data.deleted ? '' : (data.alias || alias);
                 const nuevaCat = data.deleted ? '' : (data.categoria ?? categoria);
+                const nuevoCal = data.deleted ? '' : (data.calendario_id ?? calendario_id);
                 trxAllData.forEach(t => {
-                    if ((t.descripcion || '').trim() === descKey) { t.alias = nuevo; t.alias_categoria = nuevaCat; }
+                    if ((t.descripcion || '').trim() === descKey) { t.alias = nuevo; t.alias_categoria = nuevaCat; t.alias_calendario_id = nuevoCal; }
                 });
                 trxEditingDesc = null;
                 trxEditingCat = '';
+                trxEditingCal = '';
                 renderizarLista();
             } catch (err) {
                 console.error('Error guardando alias:', err);

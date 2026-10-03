@@ -286,9 +286,36 @@
                             {% set is_upcoming = event.start > today and is_reservation and not is_deleted and not is_canceled %}
                             {% set is_next = is_upcoming and not ns.found_next %}
                             {% if is_next %}{% set ns.found_next = true %}{% endif %}
-                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}"
-                                 data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}"
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-arriendo-pago' if event.source == 'arriendo' else '' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}"
+                                 data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}" data-source="{{ event.source or '' }}"
                                  data-calendario-id="{{ event.calendario_id or '__legacy__' }}">
+                                {% if event.source == 'arriendo' and is_logged_in %}
+                                {# Pago de arriendo con alias: evento genérico de 1 día, solo admin. #}
+                                {% set cal_imagen = calendarios_imagenes.get(event.calendario_id or '') or {} %}
+                                {% set cal_thumb = cal_imagen.get('thumbnail') or '' %}
+                                {% set cal_color = cal_imagen.get('color') or '#d97706' %}
+                                {% if cal_thumb %}
+                                <img class="reservation-logo" src="{{ url_for('static', filename=cal_thumb) }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
+                                {% endif %}
+                                <div class="reservation-type">
+                                    <span class="type-badge arriendo-pago">💰 Pago arriendo</span>
+                                    <span class="nights-badge">1 día</span>
+                                </div>
+                                <div class="dates-row">
+                                    <div class="date-block">
+                                        <span class="date-label">Fecha de pago</span>
+                                        <span class="date-value">{{ event.start }}</span>
+                                    </div>
+                                </div>
+                                <div class="reservation-info">
+                                    <span>⭐ Arriendo de {{ event.start[:7] }} pagado el {{ event.start }} — {{ event.alias or event.summary }}</span>
+                                </div>
+                                {% if event.precio %}
+                                <div class="price-row">
+                                    <span class="price-value price-main">💰 ${{ "{:,.0f}".format(event.precio).replace(",", ".") }}</span>
+                                </div>
+                                {% endif %}
+                                {% else %}
 
                                 {% set cal_imagen = calendarios_imagenes.get(event.calendario_id or '') or {} %}
                                 {% set cal_thumb = cal_imagen.get('thumbnail') or '' %}
@@ -455,6 +482,7 @@
                                     {% endif %}
                                 </div>
                                 {% endif %}
+                                {% endif %}{# cierra if pago-arriendo / else reservas normales #}
                             </div>
                         {% endfor %}
                     {% else %}
@@ -1386,6 +1414,11 @@
                 if (Array.isArray(data.events)) {
                     events = data.events;
                 }
+                // Pagos de arriendo de meses navegados no están en el DOM inicial
+                // (solo trae el mes actual): inyectarlos como filas genéricas.
+                if (isAdmin) {
+                    asegurarPagosEnLista();
+                }
                 renderizarMes(data);
                 marcarDias();
                 filtrarReservasPorMes(year, month);
@@ -1455,6 +1488,61 @@
                 </div>`;
             }
             cont.innerHTML = html;
+        }
+
+        // Pagos de arriendo con alias (solo admin): los meses navegados vía
+        // /api/month traen pagos que no existen en el DOM inicial (render del
+        // mes actual). Se inyectan como filas genéricas de 1 día para que la
+        // lista los muestre; los filtros por mes/calendario los procesan igual
+        // que al resto (se llaman después en cargarMes).
+        function asegurarPagosEnLista() {
+            if (!isAdmin) return;
+            const list = document.getElementById('reservations-list');
+            if (!list) return;
+            const pagos = events.filter(e => e.source === 'arriendo' && e.start);
+            if (!pagos.length) return;
+            const emptyMsg = list.querySelector('.no-reservations');
+            if (emptyMsg) emptyMsg.remove();
+            pagos.forEach(pago => {
+                const evId = pago.id || ('arriendo_' + pago.start);
+                if (list.querySelector(`.reservation-item[data-id="${evId}"]`)) return;
+                const cid = pago.calendario_id || '';
+                const calImg = calendariosImagenes[cid] || {};
+                const logoPath = calImg.thumbnail || '';
+                const calColor = calImg.color || '#d97706';
+                const item = document.createElement('div');
+                item.className = 'reservation-item is-reservation is-arriendo-pago';
+                item.dataset.start = pago.start;
+                item.dataset.end = pago.end || pago.start;
+                item.dataset.id = evId;
+                item.dataset.estado = 'reservado';
+                item.dataset.source = 'arriendo';
+                item.dataset.calendarioId = cid || '__legacy__';
+                const monto = (pago.precio || 0).toLocaleString('es-CL');
+                const detalle = pago.alias || pago.summary || 'Pago arriendo';
+                item.innerHTML = `
+                    ${logoPath ? `<img class="reservation-logo" src="${STATIC_BASE}/${logoPath}" alt="" loading="lazy" style="border-color: ${calColor};">` : ''}
+                    <div class="reservation-type">
+                        <span class="type-badge arriendo-pago">💰 Pago arriendo</span>
+                        <span class="nights-badge">1 día</span>
+                    </div>
+                    <div class="dates-row">
+                        <div class="date-block">
+                            <span class="date-label">Fecha de pago</span>
+                            <span class="date-value">${pago.start}</span>
+                        </div>
+                    </div>
+                    <div class="reservation-info">
+                        <span>⭐ Arriendo de ${String(pago.start).slice(0, 7)} pagado el ${pago.start} — ${detalle}</span>
+                    </div>
+                    <div class="price-row">
+                        <span class="price-value price-main">💰 $${monto}</span>
+                    </div>`;
+                const siblings = [...list.querySelectorAll('.reservation-item')];
+                const next = siblings.find(sib => (sib.dataset.start || '') > pago.start);
+                if (next) list.insertBefore(item, next);
+                else list.appendChild(item);
+            });
         }
 
         function filtrarReservasPorMes(year, month) {
@@ -1542,8 +1630,9 @@
                 ingresoTinaja = ingresosApi.tinaja || 0;
             }
 
-            // Solo considerar reservas (no bloqueos)
-            const reservas = events.filter(e => e.estado === 'reservado');
+            // Solo considerar reservas (no bloqueos ni pagos de arriendo:
+            // los pagos no ocupan noches, solo suman a ingresos vía API)
+            const reservas = events.filter(e => e.estado === 'reservado' && e.source !== 'arriendo');
 
             reservas.forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
@@ -1670,9 +1759,14 @@
             const esReserva = (event) => {
                 return event.estado === 'reservado';
             };
+            // Pago de arriendo con alias: evento sintético de 1 día, se pinta
+            // aparte (estrella + logo central), nunca como franja de estadía.
+            const esPagoArriendo = (event) => {
+                return event.source === 'arriendo';
+            };
 
             // PASO 1: Primero marcar TODOS los bloqueos (gris)
-            events.filter(e => !esReserva(e)).forEach(event => {
+            events.filter(e => !esReserva(e) && !esPagoArriendo(e)).forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 const esCache = event.source === 'cache_airbnb';
@@ -1690,7 +1784,8 @@
             });
 
             // PASO 2: Después marcar TODAS las reservas (franja negra, tiene prioridad)
-            events.filter(e => esReserva(e)).forEach(event => {
+            // (los pagos de arriendo van en el PASO 2b con estrella, no como estadía)
+            events.filter(e => esReserva(e) && !esPagoArriendo(e)).forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 const reservationUrl = event.reservation_url;
@@ -1916,6 +2011,52 @@
                     checkoutCell.classList.add('checkout-day');
                 }
             });
+
+            // PASO 2b: Pagos de arriendo con alias (solo admin). Un solo día:
+            // estrella + logo central de la propiedad. Sin franja negra ni
+            // checkout-day para no confundir con una estadía.
+            if (isAdmin) {
+                const pagosArriendo = events.filter(e => esPagoArriendo(e) && e.start);
+                const conteoPorDia = {};
+                pagosArriendo.forEach(p => {
+                    conteoPorDia[p.start] = (conteoPorDia[p.start] || 0) + 1;
+                });
+                pagosArriendo.forEach(pago => {
+                    const dateStr = pago.start; // start == end (día de pago)
+                    const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                    if (!cell) return;
+                    cell.classList.add('arriendo-pago');
+                    const evId = pago.id || ('arriendo_' + pago.start);
+                    if (!cell.querySelector(`.arriendo-star[data-event-id="${evId}"]`)) {
+                        const star = document.createElement('span');
+                        star.className = 'arriendo-star';
+                        star.dataset.eventId = evId;
+                        star.textContent = '★';
+                        const cid = pago.calendario_id || '';
+                        const nombreCal = (calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre) || pago.alias || '';
+                        star.title = `Arriendo de ${String(dateStr).slice(0, 7)} pagado el ${dateStr}${nombreCal ? ' — ' + nombreCal : ''}`;
+                        cell.appendChild(star);
+                        const calImg = calendariosImagenes[cid] || {};
+                        const logoPath = calImg.thumbnail || calImg.logo || '';
+                        if (logoPath && !cell.querySelector(':scope > .arriendo-logo-central')) {
+                            const logo = document.createElement('img');
+                            logo.className = 'arriendo-logo-central';
+                            logo.src = `${STATIC_BASE}/${logoPath}`;
+                            logo.alt = '';
+                            logo.loading = 'lazy';
+                            logo.style.borderColor = calImg.color || '#d97706';
+                            logo.onerror = () => logo.remove();
+                            cell.appendChild(logo);
+                        }
+                    }
+                    if ((conteoPorDia[dateStr] || 0) > 1 && !cell.querySelector('.arriendo-count')) {
+                        const badge = document.createElement('span');
+                        badge.className = 'arriendo-count';
+                        badge.textContent = `x${conteoPorDia[dateStr]}`;
+                        cell.appendChild(badge);
+                    }
+                });
+            }
 
             // PASO 3: Reservas canceladas - añadir cruz roja al lado de cada día
             events.filter(e => e.estado === 'cancelado').forEach(event => {

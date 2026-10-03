@@ -21,13 +21,13 @@ def make_svc(monkeypatch):
 def test_obtener_alias_map_devuelve_dict(monkeypatch):
     svc = make_svc(monkeypatch)
     svc.alias_descripcion.find.return_value = [
-        {"descripcion": "CENTRA TRANSFER DE JUAN", "alias": "Arriendo Juan", "categoria": "arriendo"},
+        {"descripcion": "CENTRA TRANSFER DE JUAN", "alias": "Arriendo Juan", "categoria": "arriendo", "calendario_id": "casa_costa"},
         {"descripcion": "VIRT U PAGO RECIBIDO X", "alias": ""},
         {"descripcion": "OTRA", "alias": "Sueldo", "categoria": "invalida"},
     ]
     assert svc.obtener_alias_map() == {
-        "CENTRA TRANSFER DE JUAN": {"alias": "Arriendo Juan", "categoria": "arriendo"},
-        "OTRA": {"alias": "Sueldo", "categoria": ""},
+        "CENTRA TRANSFER DE JUAN": {"alias": "Arriendo Juan", "categoria": "arriendo", "calendario_id": "casa_costa"},
+        "OTRA": {"alias": "Sueldo", "categoria": "", "calendario_id": ""},
     }
 
 
@@ -35,7 +35,7 @@ def test_guardar_alias_upsert_y_borrado(monkeypatch):
     svc = make_svc(monkeypatch)
     svc.alias_descripcion.update_one.return_value = MagicMock(upserted_id=None)
     r = svc.guardar_alias("CENTRA TRANSFER DE JUAN", "Arriendo Juan", "arriendo")
-    assert r == {"success": True, "descripcion": "CENTRA TRANSFER DE JUAN", "alias": "Arriendo Juan", "categoria": "arriendo"}
+    assert r == {"success": True, "descripcion": "CENTRA TRANSFER DE JUAN", "alias": "Arriendo Juan", "categoria": "arriendo", "calendario_id": ""}
     assert svc.alias_descripcion.update_one.called
     args, _ = svc.alias_descripcion.update_one.call_args
     assert args[1]["$set"]["categoria"] == "arriendo"
@@ -76,14 +76,14 @@ def test_obtener_transacciones_mes_incluye_alias(monkeypatch):
 
 def test_api_transacciones_alias_get_y_post(logged_in_flask_client, app_module):
     app_module.db_service.obtener_alias_map.return_value = {
-        "A": {"alias": "Alias A", "categoria": "sueldo"},
+        "A": {"alias": "Alias A", "categoria": "sueldo", "calendario_id": ""},
     }
     r = logged_in_flask_client.get("/api/transacciones-alias")
     assert r.status_code == 200
-    assert r.get_json() == {"aliases": {"A": {"alias": "Alias A", "categoria": "sueldo"}}}
+    assert r.get_json() == {"aliases": {"A": {"alias": "Alias A", "categoria": "sueldo", "calendario_id": ""}}}
 
     app_module.db_service.guardar_alias.return_value = {
-        "success": True, "descripcion": "A", "alias": "Alias A", "categoria": "sueldo",
+        "success": True, "descripcion": "A", "alias": "Alias A", "categoria": "sueldo", "calendario_id": "",
     }
     r2 = logged_in_flask_client.post(
         "/api/transacciones-alias",
@@ -92,7 +92,7 @@ def test_api_transacciones_alias_get_y_post(logged_in_flask_client, app_module):
     assert r2.status_code == 200
     assert r2.get_json()["success"] is True
     called_args, _ = app_module.db_service.guardar_alias.call_args
-    assert called_args == ("A", "Alias A", "sueldo")
+    assert called_args == ("A", "Alias A", "sueldo", "")
 
     r3 = logged_in_flask_client.post("/api/transacciones-alias", json={"descripcion": "  ", "alias": "x"})
     assert r3.status_code == 400
