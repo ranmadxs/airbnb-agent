@@ -55,6 +55,11 @@ class DatabaseService:
                 # Base de datos BCI (transacciones) - misma instancia MongoDB
                 self.db_bci = self.client["bci"]
                 self.transacciones_bci = self.db_bci["transacciones"]
+                self.alias_descripcion = self.db_bci["alias_descripcion"]
+                try:
+                    self.alias_descripcion.create_index("descripcion", unique=True)
+                except Exception:
+                    pass
                 
                 # Crear índices
                 # 3.0.0: índice único cambió de (event_start, event_end) a
@@ -1671,13 +1676,20 @@ class DatabaseService:
             cursor = self.transacciones_bci.find({
                 'fecha': {'$regex': regex}
             }).sort('fecha', 1)
+
+            try:
+                alias_map = self.obtener_alias_map()
+            except Exception:
+                alias_map = {}
             
             transacciones = []
             for doc in cursor:
+                desc_raw = doc.get('descripcion', '') or ''
                 transacciones.append({
                     'id': str(doc.get('_id')),
                     'fecha': doc.get('fecha', ''),
-                    'descripcion': doc.get('descripcion', ''),
+                    'descripcion': desc_raw,
+                    'alias': alias_map.get(desc_raw.strip(), ''),
                     'abono': doc.get('abono', 0.0) or 0.0,
                     'cargo': doc.get('cargo', 0.0) or 0.0,
                     'saldo': doc.get('saldo', 0.0) or 0.0,
@@ -1690,6 +1702,53 @@ class DatabaseService:
         except Exception as e:
             print(f"❌ Error obteniendo transacciones BCI: {e}")
             return []
+
+    def obtener_alias_map(self) -> dict:
+        """Retorna {descripcion: alias} solo con alias no vacíos."""
+        if not self.connect():
+            return {}
+        try:
+            coll = getattr(self, "alias_descripcion", None)
+            if coll is None:
+                coll = self.db_bci["alias_descripcion"]
+                self.alias_descripcion = coll
+            out = {}
+            for doc in coll.find({}, {"descripcion": 1, "alias": 1}):
+                desc = (doc.get("descripcion") or "").strip()
+                alias = (doc.get("alias") or "").strip()
+                if desc and alias:
+                    out[desc] = alias
+            return out
+        except Exception as e:
+            print(f"❌ Error obteniendo alias: {e}")
+            return {}
+
+    def guardar_alias(self, descripcion: str, alias: str) -> dict:
+        """Upsert de alias por descripción exacta. Alias vacío => borra el doc."""
+        desc = (descripcion or "").strip()
+        val = (alias or "").strip()[:60]
+        if not desc:
+            return {"success": False, "error": "Descripción vacía"}
+        if not self.connect():
+            return {"success": False, "error": "Sin conexión a DB"}
+        try:
+            coll = getattr(self, "alias_descripcion", None)
+            if coll is None:
+                coll = self.db_bci["alias_descripcion"]
+                self.alias_descripcion = coll
+            from datetime import datetime as _dt
+            if not val:
+                coll.delete_one({"descripcion": desc})
+                return {"success": True, "descripcion": desc, "alias": "", "deleted": True}
+            coll.update_one(
+                {"descripcion": desc},
+                {"$set": {"descripcion": desc, "alias": val, "updated_at": _dt.now().isoformat()}},
+                upsert=True,
+            )
+            return {"success": True, "descripcion": desc, "alias": val}
+        except Exception as e:
+            print(f"❌ Error guardando alias: {e}")
+            return {"success": False, "error": str(e)}
 
 
 # Instancia singleton
