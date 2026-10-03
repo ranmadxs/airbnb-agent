@@ -1,9 +1,12 @@
 ## [3.3.0] - 2026-09-20
 ### Changed
-- Filtro de calendarios reimplementado como radio buttons con foto circular y nombre
-- Diseño actualizado: `.calendar-filter-radio` reemplaza `.calendar-filter-chip`
-- Botón "Todos" como primer elemento del selector de filtro
-- Indicador de selección con círculo rojo en esquina superior derecha
+- Filtro de calendarios como pills con foto circular, dot de color por paleta y nombre
+- Diseño actualizado: `.calendar-filter-item` reemplaza `.calendar-filter-chip`
+- Botón "Todos" como primer elemento: siempre restaura todos los calendarios (nunca vacía el filtro)
+- Filtro con `aria-pressed` y teclado nativo (botones en grupo accesible)
+### Fixed
+- Celdas del calendario a tamaño compacto: `aspect-ratio: 1` y tope a `multi-band`/`expanded-day` para que un día ocupado no estire toda la semana
+- Restaurado `.cal-logo-badge` de 18px en checkout (el PR lo había borrado y la foto a tamaño natural agrandaba la celda)
 
 ## [3.2.6] - 2026-09-20
 ### Fixed
