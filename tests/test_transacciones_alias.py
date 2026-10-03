@@ -52,3 +52,18 @@ def test_obtener_transacciones_mes_incluye_alias(monkeypatch):
     trxs = svc.obtener_transacciones_mes(2026, 3)
     assert trxs[0]["alias"] == "Arriendo Juan"
     assert trxs[0]["descripcion"] == "CENTRA TRANSFER DE JUAN"
+
+
+def test_api_transacciones_alias_get_y_post(logged_in_flask_client, app_module):
+    app_module.db_service.obtener_alias_map.return_value = {"A": "Alias A"}
+    r = logged_in_flask_client.get("/api/transacciones-alias")
+    assert r.status_code == 200
+    assert r.get_json() == {"aliases": {"A": "Alias A"}}
+
+    app_module.db_service.guardar_alias.return_value = {"success": True, "descripcion": "A", "alias": "Alias A"}
+    r2 = logged_in_flask_client.post("/api/transacciones-alias", json={"descripcion": "A", "alias": "Alias A"})
+    assert r2.status_code == 200
+    assert r2.get_json()["success"] is True
+
+    r3 = logged_in_flask_client.post("/api/transacciones-alias", json={"descripcion": "  ", "alias": "x"})
+    assert r3.status_code == 400

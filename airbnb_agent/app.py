@@ -850,6 +850,25 @@ def api_transacciones_mes():
     })
 
 
+@app.route('/api/transacciones-alias', methods=['GET'])
+@login_required
+def api_transacciones_alias_get():
+    """API: Mapa global descripcion -> alias."""
+    return jsonify({'aliases': db_service.obtener_alias_map()})
+
+
+@app.route('/api/transacciones-alias', methods=['POST'])
+@login_required
+def api_transacciones_alias_post():
+    """API: Crea/actualiza/borra alias. Body {descripcion, alias}. Alias vacío => borra."""
+    data = request.get_json(silent=True) or {}
+    descripcion = (data.get('descripcion') or '').strip()
+    alias = (data.get('alias') or '').strip()[:60]
+    if not descripcion:
+        return jsonify({'success': False, 'error': 'Descripción vacía'}), 400
+    return jsonify(db_service.guardar_alias(descripcion, alias))
+
+
 def _parse_calendario_ids() -> list | None:
     """Lee ?calendario_ids=a,b,c y devuelve ['a','b','c'] o None si no se envía."""
     raw = request.args.get('calendario_ids', '').strip()
