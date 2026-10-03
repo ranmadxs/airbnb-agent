@@ -143,6 +143,10 @@
         .desempeno-anual-neto-valor.negativo { color: #dc2626; }
         .desempeno-anual-desglose-item { display: flex; align-items: center; gap: 6px 10px; font-size: 0.85em; color: #6b7280; cursor: pointer; margin-bottom: 4px; width: 100%; }
         .desempeno-anual-desglose-item input { width: 14px; height: 14px; cursor: pointer; }
+        .desempeno-anual-desglose-cal { margin-left: 2em; margin-bottom: 4px; display: flex; flex-direction: column; }
+        .desempeno-anual-cal-item { display: flex; align-items: center; gap: 8px; font-size: 0.8em; color: #6b7280; margin-bottom: 3px; }
+        .desempeno-anual-cal-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .desempeno-anual-cal-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .desempeno-anual-plus { color: #9ca3af; font-weight: 600; min-width: 12px; }
         .desempeno-anual-desglose-valor { font-weight: 600; color: #374151; margin-left: auto; }
         .desempeno-anual-gasto-valor { color: #dc2626; }
@@ -381,6 +385,7 @@
                             <span>Arriendo</span>
                             <span class="desempeno-anual-desglose-valor" id="anual-valor-arriendo">—</span>
                         </label>
+                        <div class="desempeno-anual-desglose-cal" id="anual-desglose-arriendo"></div>
                         <label class="desempeno-anual-desglose-item">
                             <span class="desempeno-anual-plus">+</span>
                             <input type="checkbox" id="anual-cb-tinaja" checked>
@@ -1234,6 +1239,7 @@
         // Tabs Mensual / Anual
         let mesesDataAnual = [];
         let totalArriendoAnual = 0, totalTinajaAnual = 0;
+        let arriendoPorCalAnual = {};
         let totalAguaAnual = 0, totalInternetAnual = 0, totalGasolinaAnual = 0, totalAseoAnual = 0, totalOtrosAnual = 0, totalElectricidadAnual = 0;
         let totalReservasAnual = 0, totalReservasTinajaAnual = 0, totalAdultosAnual = 0, totalNinosAnual = 0, totalMascotasAnual = 0;
         let puntosAnualCompletos = [];
@@ -1268,6 +1274,7 @@
             const yearsToFetch = [];
             for (let y = y1; y <= y2; y++) yearsToFetch.push(y);
             try {
+                await cargarCalendariosPropiedad(); // nombres/colores del desglose
                 const allRes = await Promise.all(yearsToFetch.map(y => fetchConTimeout(`/api/desempeno?year=${y}`)));
                 for (const r of allRes) { if (!r.ok) throw new Error('API ' + r.status); }
                 const allData = await Promise.all(allRes.map(r => r.json()));
@@ -1288,6 +1295,7 @@
             if (desde > hasta) return;
             const puntos = [];
             totalArriendoAnual = 0;
+            arriendoPorCalAnual = {};
             totalTinajaAnual = 0;
             totalAguaAnual = 0;
             totalInternetAnual = 0;
@@ -1317,6 +1325,10 @@
                 const ninosVal = d ? (d.ninos || 0) : 0;
                 const mascotasVal = d ? (d.mascotas || 0) : 0;
                 totalArriendoAnual += arriendo;
+                const apc = d ? (d.arriendo_por_calendario || {}) : {};
+                for (const [cid, vals] of Object.entries(apc)) {
+                    arriendoPorCalAnual[cid] = (arriendoPorCalAnual[cid] || 0) + (vals.arriendo || 0);
+                }
                 totalTinajaAnual += tinaja;
                 totalAguaAnual += agua;
                 totalInternetAnual += internet;
@@ -1350,6 +1362,7 @@
             if (datos.length === 0) {
                 document.getElementById('anual-line-svg').innerHTML = '<text x="200" y="125" text-anchor="middle" fill="#6b7280" font-size="14">Sin datos para el rango</text>';
                 totalArriendoAnual = 0;
+                arriendoPorCalAnual = {};
                 totalTinajaAnual = 0;
                 totalAguaAnual = 0;
                 totalInternetAnual = 0;
@@ -1371,6 +1384,7 @@
                 document.getElementById('anual-valor-otros').textContent = '-$0';
                 document.getElementById('anual-valor-electricidad').textContent = '-$0';
                 document.getElementById('anual-gastos-valor').textContent = '-$0';
+                renderizarDesgloseArriendoAnual();
                 actualizarStatsAnual(0);
                 actualizarTotalAnual();
                 return;
@@ -1380,6 +1394,7 @@
             const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
             const fmtNeg = (v) => '-$' + Math.round(v).toLocaleString('es-CL');
             document.getElementById('anual-valor-arriendo').textContent = fmt(totalArriendoAnual);
+            renderizarDesgloseArriendoAnual();
             document.getElementById('anual-valor-tinaja').textContent = fmt(totalTinajaAnual);
             document.getElementById('anual-valor-agua').textContent = fmtNeg(totalAguaAnual);
             document.getElementById('anual-valor-internet').textContent = fmtNeg(totalInternetAnual);
@@ -1389,6 +1404,32 @@
             document.getElementById('anual-valor-electricidad').textContent = fmtNeg(totalElectricidadAnual);
             actualizarTotalAnual();
             actualizarStatsAnual(puntos.length);
+        }
+
+        // Desglose del Arriendo anual por calendario (suma al total mostrado).
+        function renderizarDesgloseArriendoAnual() {
+            const cont = document.getElementById('anual-desglose-arriendo');
+            if (!cont) return;
+            const entradas = Object.entries(arriendoPorCalAnual || {})
+                .filter(([, v]) => (v || 0) > 0)
+                .sort((a, b) => b[1] - a[1]);
+            if (!entradas.length) {
+                cont.innerHTML = '';
+                cont.style.display = 'none';
+                return;
+            }
+            cont.style.display = 'flex';
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+            cont.innerHTML = entradas.map(([cid, total]) => {
+                const cal = (calendariosPropiedad || []).find(c => c.calendario_id === cid);
+                const nombre = cid === '__legacy__' ? 'Sin asignar' : (cal?.nombre || cid);
+                const color = cal?.color || '#9ca3af';
+                return `<div class="desempeno-anual-cal-item" title="${escapeHtml(nombre)}">`
+                    + `<span class="desempeno-anual-cal-dot" style="background:${escapeHtml(color)};"></span>`
+                    + `<span class="desempeno-anual-cal-nombre">${escapeHtml(nombre)}</span>`
+                    + `<span class="desempeno-anual-desglose-valor">${fmt(total)}</span>`
+                    + `</div>`;
+            }).join('');
         }
 
         function actualizarStatsAnual(numMeses) {

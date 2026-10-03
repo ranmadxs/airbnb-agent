@@ -873,6 +873,8 @@ def api_desempeno():
             'anio': year,
             'arriendo': ingreso_arriendo,
             'tinaja': ingreso_tinaja,
+            # Desglose para el Resumen Anual: cada calendario suma al total.
+            'arriendo_por_calendario': _calcular_ingresos_por_calendario(all_events, year, mes),
             'agua': gasto_agua,
             'internet': gasto_internet,
             'gasolina': gasto_gasolina,
