@@ -1,3 +1,7 @@
+## [3.4.0] - 2026-10-03
+### Added
+- Pagos de arriendo con alias en el calendario (solo admin): transacciones BCI con alias categoria `arriendo` mapeadas a una propiedad aparecen como evento de 1 día con ⭐ + logo central y fila genérica en la lista; suman a ingresos del mes de pago. Otras categorías quedan excluidas. Derivado en vivo, sin migración.
+
 ## [3.3.0] - 2026-10-03
 ### Added
 - Alias por descripción en vista lista de Transacciones BCI (`/desempeno`): botón ALIAS por fila, chip editable, propagación global por descripción exacta entre meses (`GET/POST /api/transacciones-alias`, colección `bci.alias_descripcion`)
