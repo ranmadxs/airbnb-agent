@@ -1347,55 +1347,33 @@ header {
     font-size: 0.85em;
 }
 
-/* Pago de arriendo con alias (solo admin): 1 solo día, estrella + logo central.
-   No usa franja negra (.reserved) ni colita de checkout para no confundir
-   con una estadía: fondo dorado suave, estrella centrada y logo circular. */
-.day-cell.arriendo-pago {
-    background: linear-gradient(135deg, rgba(250, 204, 21, 0.28), rgba(250, 204, 21, 0.12));
-    border: 1.5px dashed #d97706;
+/* Pago de arriendo con alias (solo admin): filas inline estilo mini-lista
+   (logo redondo + estrella + monto), igual que los días con varios eventos.
+   Convive con bandas/globitos de reservas del mismo día. */
+.day-cell .day-event-row.is-arriendo-pago {
+    background: rgba(254, 243, 199, 0.95);
+    border: 1px solid #f59e0b;
 }
-.day-cell.arriendo-pago .day-number {
-    color: #92400e;
-    font-weight: 700;
+.day-cell .day-event-row.is-arriendo-pago:hover {
+    background: #fef3c7;
 }
-.arriendo-star {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -62%);
-    font-size: 22px;
-    line-height: 1;
-    color: #d97706;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
-    pointer-events: none;
-    z-index: 3;
-}
-.arriendo-logo-central {
-    position: absolute;
-    bottom: 2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 20px;
-    height: 20px;
+.day-cell .day-event-logo {
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     object-fit: cover;
+    flex-shrink: 0;
     background: #fff;
-    border: 1.5px solid #d97706;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-    pointer-events: none;
-    z-index: 3;
+    border: 1px solid #d97706;
 }
-.arriendo-count {
-    position: absolute;
-    top: 2px;
-    right: 4px;
-    font-size: 10px;
-    font-weight: 700;
+.day-cell .day-event-star {
+    color: #d97706;
+    font-size: 1em;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.day-cell .day-event-row.is-arriendo-pago .day-event-price {
     color: #92400e;
-    background: rgba(255,255,255,0.85);
-    border-radius: 8px;
-    padding: 0 4px;
-    z-index: 4;
 }
 /* Fila genérica de pago de arriendo en la lista (solo admin). */
 .reservation-item.is-arriendo-pago {

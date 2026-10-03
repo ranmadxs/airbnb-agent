@@ -1837,7 +1837,9 @@
                 while (current <= end) {
                     const d = formatDate(current);
                     diasOcupados.add(d);
-                    if (event.estado === 'reservado') {
+                    // Los pagos de arriendo se pintan como filas propias (PASO 2b),
+                    // no cuentan para el stack multi/expanded de las reservas.
+                    if (event.estado === 'reservado' && event.source !== 'arriendo') {
                         if (!eventosPorFecha.has(d)) eventosPorFecha.set(d, []);
                         eventosPorFecha.get(d).push(event);
                     }
@@ -2102,49 +2104,42 @@
                 }
             });
 
-            // PASO 2b: Pagos de arriendo con alias (solo admin). Un solo día:
-            // estrella + logo central de la propiedad. Sin franja negra ni
-            // checkout-day para no confundir con una estadía.
+            // PASO 2b: Pagos de arriendo con alias (solo admin). Se pintan como
+            // filas inline estilo mini-lista (logo redondo + ★ + alias + monto),
+            // igual que los días con varios eventos. Reutiliza .day-event-list
+            // si la celda ya la tiene (modo expandido); si no, crea una propia.
+            // Convive con bandas/globitos de reservas del mismo día.
             if (isAdmin) {
-                const pagosArriendo = events.filter(e => esPagoArriendo(e) && e.start);
-                const conteoPorDia = {};
-                pagosArriendo.forEach(p => {
-                    conteoPorDia[p.start] = (conteoPorDia[p.start] || 0) + 1;
-                });
-                pagosArriendo.forEach(pago => {
+                events.filter(e => esPagoArriendo(e) && e.start).forEach(pago => {
                     const dateStr = pago.start; // start == end (día de pago)
                     const cell = document.querySelector(`[data-date="${dateStr}"]`);
                     if (!cell) return;
-                    cell.classList.add('arriendo-pago');
                     const evId = pago.id || ('arriendo_' + pago.start);
-                    if (!cell.querySelector(`.arriendo-star[data-event-id="${evId}"]`)) {
-                        const star = document.createElement('span');
-                        star.className = 'arriendo-star';
-                        star.dataset.eventId = evId;
-                        star.textContent = '★';
-                        const cid = pago.calendario_id || '';
-                        const nombreCal = (calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre) || pago.alias || '';
-                        star.title = `Arriendo de ${String(dateStr).slice(0, 7)} pagado el ${dateStr}${nombreCal ? ' — ' + nombreCal : ''}`;
-                        cell.appendChild(star);
-                        const calImg = calendariosImagenes[cid] || {};
-                        const logoPath = calLogoUrl(calImg);
-                        if (logoPath && !cell.querySelector(':scope > .arriendo-logo-central')) {
-                            const logo = document.createElement('img');
-                            logo.className = 'arriendo-logo-central';
-                            logo.src = logoPath;
-                            logo.alt = '';
-                            logo.loading = 'lazy';
-                            logo.style.borderColor = calImg.color || '#d97706';
-                            logo.onerror = () => logo.remove();
-                            cell.appendChild(logo);
-                        }
+                    if (cell.querySelector(`.day-event-row[data-event-id="${evId}"]`)) return;
+                    let list = cell.querySelector(':scope > .day-event-list');
+                    if (!list) {
+                        list = document.createElement('div');
+                        list.className = 'day-event-list arriendo-list';
+                        cell.appendChild(list);
                     }
-                    if ((conteoPorDia[dateStr] || 0) > 1 && !cell.querySelector('.arriendo-count')) {
-                        const badge = document.createElement('span');
-                        badge.className = 'arriendo-count';
-                        badge.textContent = `x${conteoPorDia[dateStr]}`;
-                        cell.appendChild(badge);
-                    }
+                    const cid = pago.calendario_id || '';
+                    const calImg = calendariosImagenes[cid] || {};
+                    const logoPath = calLogoUrl(calImg);
+                    const alias = (pago.alias || pago.summary || 'Arriendo').substring(0, 14);
+                    const monto = (pago.precio || 0).toLocaleString('es-CL');
+                    const row = document.createElement('div');
+                    row.className = 'day-event-row is-arriendo-pago';
+                    row.dataset.source = 'arriendo';
+                    row.dataset.calendarioId = cid;
+                    row.dataset.eventId = evId;
+                    row.title = `Arriendo de ${String(dateStr).slice(0, 7)} pagado el ${dateStr} — ${pago.alias || ''} ($${monto})`;
+                    row.innerHTML = `
+                        ${logoPath ? `<img class="day-event-logo" src="${logoPath}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+                        <span class="day-event-star">★</span>
+                        <span class="day-event-name">${alias}</span>
+                        <span class="day-event-price">$${monto}</span>
+                    `;
+                    list.appendChild(row);
                 });
             }
 
