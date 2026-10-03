@@ -860,13 +860,14 @@ def api_transacciones_alias_get():
 @app.route('/api/transacciones-alias', methods=['POST'])
 @login_required
 def api_transacciones_alias_post():
-    """API: Crea/actualiza/borra alias. Body {descripcion, alias}. Alias vacío => borra."""
+    """API: Crea/actualiza/borra alias. Body {descripcion, alias, categoria}. Alias vacío => borra."""
     data = request.get_json(silent=True) or {}
     descripcion = (data.get('descripcion') or '').strip()
     alias = (data.get('alias') or '').strip()[:60]
+    categoria = (data.get('categoria') or '').strip()
     if not descripcion:
         return jsonify({'success': False, 'error': 'Descripción vacía'}), 400
-    return jsonify(db_service.guardar_alias(descripcion, alias))
+    return jsonify(db_service.guardar_alias(descripcion, alias, categoria))
 
 
 def _parse_calendario_ids() -> list | None:

@@ -1685,11 +1685,15 @@ class DatabaseService:
             transacciones = []
             for doc in cursor:
                 desc_raw = doc.get('descripcion', '') or ''
+                entry = alias_map.get(desc_raw.strip()) or {}
+                if isinstance(entry, str):
+                    entry = {"alias": entry, "categoria": ""}
                 transacciones.append({
                     'id': str(doc.get('_id')),
                     'fecha': doc.get('fecha', ''),
                     'descripcion': desc_raw,
-                    'alias': alias_map.get(desc_raw.strip(), ''),
+                    'alias': entry.get("alias", ""),
+                    'alias_categoria': entry.get("categoria", ""),
                     'abono': doc.get('abono', 0.0) or 0.0,
                     'cargo': doc.get('cargo', 0.0) or 0.0,
                     'saldo': doc.get('saldo', 0.0) or 0.0,
@@ -1703,8 +1707,10 @@ class DatabaseService:
             print(f"❌ Error obteniendo transacciones BCI: {e}")
             return []
 
+    ALIAS_CATEGORIAS = ('arriendo', 'sueldo', 'transferencia', 'airbnb')
+
     def obtener_alias_map(self) -> dict:
-        """Retorna {descripcion: alias} solo con alias no vacíos."""
+        """Retorna {descripcion: {"alias": str, "categoria": str}} solo con alias no vacíos."""
         if not self.connect():
             return {}
         try:
@@ -1713,20 +1719,26 @@ class DatabaseService:
                 coll = self.db_bci["alias_descripcion"]
                 self.alias_descripcion = coll
             out = {}
-            for doc in coll.find({}, {"descripcion": 1, "alias": 1}):
+            for doc in coll.find({}, {"descripcion": 1, "alias": 1, "categoria": 1}):
                 desc = (doc.get("descripcion") or "").strip()
                 alias = (doc.get("alias") or "").strip()
+                cat = (doc.get("categoria") or "").strip()
+                if cat not in self.ALIAS_CATEGORIAS:
+                    cat = ""
                 if desc and alias:
-                    out[desc] = alias
+                    out[desc] = {"alias": alias, "categoria": cat}
             return out
         except Exception as e:
             print(f"❌ Error obteniendo alias: {e}")
             return {}
 
-    def guardar_alias(self, descripcion: str, alias: str) -> dict:
+    def guardar_alias(self, descripcion: str, alias: str, categoria: str = "") -> dict:
         """Upsert de alias por descripción exacta. Alias vacío => borra el doc."""
         desc = (descripcion or "").strip()
         val = (alias or "").strip()[:60]
+        cat = (categoria or "").strip()
+        if cat not in self.ALIAS_CATEGORIAS:
+            cat = ""
         if not desc:
             return {"success": False, "error": "Descripción vacía"}
         if not self.connect():
@@ -1739,13 +1751,13 @@ class DatabaseService:
             from datetime import datetime as _dt
             if not val:
                 coll.delete_one({"descripcion": desc})
-                return {"success": True, "descripcion": desc, "alias": "", "deleted": True}
+                return {"success": True, "descripcion": desc, "alias": "", "categoria": "", "deleted": True}
             coll.update_one(
                 {"descripcion": desc},
-                {"$set": {"descripcion": desc, "alias": val, "updated_at": _dt.now().isoformat()}},
+                {"$set": {"descripcion": desc, "alias": val, "categoria": cat, "updated_at": _dt.now().isoformat()}},
                 upsert=True,
             )
-            return {"success": True, "descripcion": desc, "alias": val}
+            return {"success": True, "descripcion": desc, "alias": val, "categoria": cat}
         except Exception as e:
             print(f"❌ Error guardando alias: {e}")
             return {"success": False, "error": str(e)}
