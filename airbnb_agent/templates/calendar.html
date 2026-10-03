@@ -2082,11 +2082,10 @@
                         if (esCache) cell.classList.add('from-cache');
                         const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
 
-                        // Logo badge de la propiedad ANCLADO a la franja:
-                        // inicio (azul) abajo-izquierda sobre el azul,
-                        // checkout (rojo) abajo-derecha sobre el rojo,
-                        // continuación (negra) esquina inferior-izquierda.
-                        // Solape ~25% sin tapar el número (centrado en la franja).
+                        // Logo badge de la propiedad ANCLADO a la franja (UN SOLO badge
+                        // por evento y mes): inicio (azul) abajo-izquierda sobre el azul,
+                        // checkout (rojo) abajo-derecha sobre el rojo si el azul no se ve,
+                        // travesía completa del mes → día 1. Solape ~25% sin tapar el número.
                         const cid = event.calendario_id || '';
                         const calImg = calendariosImagenes[cid] || {};
                         const logoPath = calLogoUrl(calImg);
@@ -2096,10 +2095,25 @@
                         // NO mostrar en día de checkout (las franjas se manejan con CSS)
                         const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
 
-                        // Logo: al inicio del evento o en checkout (1 día = checkout).
-                        if (logoPath && (mostrarGlobitos || esUltimoDiaReserva) && !cell.querySelector(':scope > .cal-logo-badge')) {
+                        // Logo: UN SOLO badge por evento y mes.
+                        // - Empieza aquí (azul visible) → solo al inicio.
+                        // - Viene de otro mes y termina aquí → solo en checkout (rojo).
+                        // - Atraviesa el mes completo → día 1.
+                        const terminaAqui = end >= inicioMesVisible && end <= finMesVisible;
+                        let ponerBadge = false, posClase = '';
+                        if (empiezaEnEsteMes) {
+                            ponerBadge = esPrimerDiaReserva;
+                            posClase = (esPrimerDiaReserva && esUltimoDiaReserva) ? 'pos-checkout' : 'pos-inicio';
+                        } else if (terminaAqui) {
+                            ponerBadge = esUltimoDiaReserva;
+                            posClase = 'pos-checkout';
+                        } else {
+                            ponerBadge = (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
+                            posClase = 'pos-medio';
+                        }
+                        if (logoPath && ponerBadge && !cell.querySelector(':scope > .cal-logo-badge')) {
                             const badge = document.createElement('img');
-                            badge.className = 'cal-logo-badge ' + (esUltimoDiaReserva ? 'pos-checkout' : (esPrimerDiaReserva ? 'pos-inicio' : 'pos-medio'));
+                            badge.className = 'cal-logo-badge ' + posClase;
                             badge.src = logoPath;
                             badge.alt = '';
                             badge.loading = 'lazy';
@@ -2111,7 +2125,7 @@
                                 badge.title = `${nombreCal} — ver eventos del día`;
                                 badge.addEventListener('click', (e) => { e.stopPropagation(); toggleExpandDia(cell); });
                             } else {
-                                badge.title = esUltimoDiaReserva ? `${nombreCal} (checkout)` : nombreCal;
+                                badge.title = posClase === 'pos-checkout' ? `${nombreCal} (checkout)` : nombreCal;
                             }
                             badge.onerror = () => badge.remove();
                             cell.appendChild(badge);
