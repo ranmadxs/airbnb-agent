@@ -194,9 +194,24 @@ class CalendarService:
         now = datetime.now().isoformat()
         per_calendar_status = {}
         all_failed = True
+        consultados = 0
 
         for cfg in self.calendars:
             cid = cfg['calendario_id']
+            if not (cfg.get('url') or '').strip():
+                # Calendario manual (sin iCal): no hay nada que descargar,
+                # no cuenta como fallo para no envenenar el estado global.
+                per_calendar_status[cid] = {
+                    "connected": None,
+                    "last_check": now,
+                    "events_count": 0,
+                    "error": None,
+                    "url": cfg.get('url', ''),
+                    "source": cfg.get('source', ''),
+                    "nombre": cfg.get('nombre', ''),
+                }
+                continue
+            consultados += 1
             events = self._fetch_one(cfg)
             if events is None:
                 per_calendar_status[cid] = {
@@ -221,7 +236,7 @@ class CalendarService:
             }
             all_events.extend(events)
 
-        if all_failed:
+        if all_failed and consultados:
             self.status = {
                 "global": {
                     "connected": False,

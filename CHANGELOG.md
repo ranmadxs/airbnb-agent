@@ -1,3 +1,7 @@
+## [3.5.0] - 2026-10-03
+### Added
+- Crear calendarios desde el home (solo admin): modal con nombre, plataforma, URL iCal opcional, color a elección y subida de logo (PNG/JPG/WEBP/SVG ≤ 2 MB; imagen por defecto si no se sube). Los calendarios de `.env` no se pueden eliminar; los creados sí (✕ en el chip).
+
 ## [3.4.0] - 2026-10-03
 ### Added
 - Pagos de arriendo con alias en el calendario (solo admin): transacciones BCI con alias categoria `arriendo` mapeadas a una propiedad aparecen como evento de 1 día con ⭐ + logo central y fila genérica en la lista; suman a ingresos del mes de pago. Otras categorías quedan excluidas. Derivado en vivo, sin migración.

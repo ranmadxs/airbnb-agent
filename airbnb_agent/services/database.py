@@ -2,9 +2,12 @@
 Servicio para operaciones de base de datos MongoDB
 """
 import os
+import re
 import threading
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+
+from .airbnb_calendar import _slugify
 
 load_dotenv()
 
@@ -58,6 +61,13 @@ class DatabaseService:
                 self.alias_descripcion = self.db_bci["alias_descripcion"]
                 try:
                     self.alias_descripcion.create_index("descripcion", unique=True)
+                except Exception:
+                    pass
+
+                # Calendarios creados por admin (logo + color propios).
+                self.calendarios = self.db["calendarios"]
+                try:
+                    self.calendarios.create_index("calendario_id", unique=True)
                 except Exception:
                     pass
                 
@@ -1764,6 +1774,106 @@ class DatabaseService:
         except Exception as e:
             print(f"❌ Error guardando alias: {e}")
             return {"success": False, "error": str(e)}
+
+    CALENDARIO_SOURCES = ('airbnb', 'booking', 'otro')
+
+    @staticmethod
+    def _validar_color_calendario(color: str) -> str:
+        """Acepta '#rrggbb' (hex). Cualquier otra cosa => '' (usa paleta)."""
+        c = (color or '').strip().lower()
+        if re.fullmatch(r'#[0-9a-f]{6}', c):
+            return c
+        return ''
+
+    def listar_calendarios(self) -> list:
+        """Retorna calendarios creados por admin desde MongoDB."""
+        if not self.connect():
+            return []
+        try:
+            coll = getattr(self, "calendarios", None)
+            if coll is None:
+                coll = self.db["calendarios"]
+                self.calendarios = coll
+            out = []
+            for doc in coll.find({}).sort("nombre", 1):
+                out.append({
+                    "id": str(doc.get("_id")),
+                    "calendario_id": doc.get("calendario_id", ""),
+                    "nombre": doc.get("nombre", ""),
+                    "source": doc.get("source", "airbnb"),
+                    "url": doc.get("url", ""),
+                    "color": doc.get("color", ""),
+                    "imagen": doc.get("imagen", ""),
+                    "thumbnail": doc.get("thumbnail", ""),
+                    "logo": doc.get("logo", ""),
+                    "dinamico": True,
+                })
+            return out
+        except Exception as e:
+            print(f"❌ Error listando calendarios: {e}")
+            return []
+
+    def guardar_calendario(self, datos: dict, calendario_id: str = None) -> dict:
+        """Crea o actualiza un calendario de admin. Genera slug desde el nombre
+        (con sufijo si colisiona). Retorna {success, calendario_id, ...}."""
+        nombre = ((datos or {}).get("nombre") or "").strip()
+        if not nombre:
+            return {"success": False, "error": "Nombre requerido"}
+        source = ((datos or {}).get("source") or "airbnb").strip().lower()
+        if source not in self.CALENDARIO_SOURCES:
+            source = "airbnb"
+        url = ((datos or {}).get("url") or "").strip()
+        if url and not url.lower().startswith("http"):
+            return {"success": False, "error": "URL iCal inválida"}
+        color = self._validar_color_calendario((datos or {}).get("color", ""))
+        thumbnail = ((datos or {}).get("thumbnail") or "").strip()
+        logo = ((datos or {}).get("logo") or "").strip()
+        imagen = ((datos or {}).get("imagen") or "").strip() or thumbnail
+        if not self.connect():
+            return {"success": False, "error": "Sin conexión a DB"}
+        try:
+            coll = getattr(self, "calendarios", None)
+            if coll is None:
+                coll = self.db["calendarios"]
+                self.calendarios = coll
+            slug = (calendario_id or "").strip()
+            if not slug:
+                base = _slugify(nombre)
+                slug = base
+                suffix = 2
+                while coll.find_one({"calendario_id": slug}):
+                    slug = f"{base}_{suffix}"
+                    suffix += 1
+            from datetime import datetime as _dt
+            coll.update_one(
+                {"calendario_id": slug},
+                {"$set": {"calendario_id": slug, "nombre": nombre,
+                          "source": source, "url": url, "color": color,
+                          "imagen": imagen, "thumbnail": thumbnail,
+                          "logo": logo, "updated_at": _dt.now().isoformat()}},
+                upsert=True,
+            )
+            return {"success": True, "calendario_id": slug, "nombre": nombre,
+                    "source": source, "url": url, "color": color,
+                    "thumbnail": thumbnail, "logo": logo}
+        except Exception as e:
+            print(f"❌ Error guardando calendario: {e}")
+            return {"success": False, "error": str(e)}
+
+    def eliminar_calendario(self, calendario_id: str) -> bool:
+        """Elimina un calendario de admin. Retorna True si existía."""
+        if not self.connect():
+            return False
+        try:
+            coll = getattr(self, "calendarios", None)
+            if coll is None:
+                coll = self.db["calendarios"]
+                self.calendarios = coll
+            res = coll.delete_one({"calendario_id": (calendario_id or "").strip()})
+            return bool(res.deleted_count)
+        except Exception as e:
+            print(f"❌ Error eliminando calendario: {e}")
+            return False
 
     def obtener_pagos_arriendo_mes(self, year: int, month: int) -> list:
         """Deriva eventos de calendario desde transacciones BCI con alias categoria==arriendo.

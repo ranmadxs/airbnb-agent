@@ -489,8 +489,8 @@ class TestApiCalendarios:
                                                               app_module,
                                                               flask_client,
                                                               monkeypatch):
-        # Calendarios sin campo 'imagen' deben devolver string vacío,
-        # no romper la API ni faltar la clave.
+        # Calendarios sin campo 'imagen' reciben la imagen por defecto,
+        # no rompen la API ni les falta la clave.
         app_module.airbnb_service.calendars = [
             {
                 "calendario_id": "legacy",
@@ -513,9 +513,9 @@ class TestApiCalendarios:
         res = flask_client.get("/api/calendarios")
         assert res.status_code == 200
         c0 = res.get_json()["configured"][0]
-        assert c0["imagen"] == ""
-        assert c0["thumbnail"] == ""
-        assert c0["logo"] == ""
+        assert c0["imagen"] == "images/default-calendario.svg"
+        assert c0["thumbnail"] == "images/default-calendario.svg"
+        assert c0["logo"] == "images/default-calendario.svg"
 
     def test_has_legacy_true_cuando_db_tiene_reservas_sin_calendario(
         self, app_module, flask_client, monkeypatch
