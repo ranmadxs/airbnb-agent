@@ -506,11 +506,11 @@
         </main>
 
         {% if is_logged_in %}
-        <!-- Modal nuevo calendario (solo admin): nombre + logo + color -->
+        <!-- Modal nuevo/editar calendario (solo admin): nombre + logo + color -->
         <div id="calendario-modal" class="modal-overlay" style="display: none;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>＋ Nuevo calendario</h3>
+                    <h3 id="calendario-modal-title">＋ Nuevo calendario</h3>
                     <button class="modal-close" onclick="cerrarModalCalendario()">&times;</button>
                 </div>
                 <form id="calendario-form" onsubmit="guardarCalendario(event)">
@@ -1394,22 +1394,31 @@
                     const thumbTag = thumbUrl
                         ? `<img class="chip-thumb" src="${thumbUrl}" alt="" loading="lazy" style="${thumbStyle}" onerror="this.style.display='none'">`
                         : `<span class="chip-icon" style="color: ${borderColor};">${sourceIcon}</span>`;
-                    // Solo admin puede eliminar calendarios creados por admin.
+                    // Solo admin puede editar/eliminar calendarios creados por admin.
                     const delTag = (isAdmin && c.dinamico)
                         ? `<span class="chip-delete" data-cal-delete="${c.calendario_id}" title="Eliminar calendario">✕</span>`
+                        : '';
+                    const editTag = (isAdmin && c.dinamico)
+                        ? `<span class="chip-edit" data-cal-edit="${c.calendario_id}" title="Editar calendario">✏️</span>`
                         : '';
                     html += `<button class="calendar-filter-chip ${active ? 'active' : 'disabled'}"
                                       data-cal-action="toggle"
                                       data-calendario-id="${c.calendario_id}"
                                       title="${c.nombre} (${c.source})">
                         ${thumbTag}
-                    <span class="chip-name">${c.nombre}</span>${delTag}
+                    <span class="chip-name">${c.nombre}</span>${editTag}${delTag}
                 </button>`;
             });
             bar.innerHTML = html;
             // Bind clicks
             bar.querySelectorAll('.calendar-filter-chip').forEach(btn => {
                 btn.addEventListener('click', (e) => {
+                    const edit = e.target.closest('[data-cal-edit]');
+                    if (edit) {
+                        e.stopPropagation();
+                        abrirModalCalendario(edit.dataset.calEdit);
+                        return;
+                    }
                     const del = e.target.closest('[data-cal-delete]');
                     if (del) {
                         e.stopPropagation();
@@ -2588,16 +2597,49 @@
         // ============================================================
         // Modal NUEVO CALENDARIO (solo admin)
         // ============================================================
-        function abrirModalCalendario() {
+        function abrirModalCalendario(calendarioId) {
             if (!isAdmin) return;
             const modal = document.getElementById('calendario-modal');
             if (!modal) return;
-            document.getElementById('calendario-form').reset();
-            document.getElementById('cal-color').value = '#2563eb';
-            document.getElementById('cal-imagen-preview').style.display = 'none';
+            const form = document.getElementById('calendario-form');
+            form.reset();
+            form.dataset.editId = '';
+            const title = document.getElementById('calendario-modal-title');
+            const btn = document.getElementById('cal-btn-guardar');
+            const preview = document.getElementById('cal-imagen-preview');
+            const hint = document.getElementById('cal-imagen-hint');
             const err = document.getElementById('cal-form-error');
             err.style.display = 'none';
             err.textContent = '';
+            if (calendarioId) {
+                // Modo edición: precargar datos del calendario dinámico.
+                const cal = calendariosDisponibles.find(c => c.calendario_id === calendarioId);
+                if (!cal) return;
+                form.dataset.editId = calendarioId;
+                title.textContent = `✏️ Editar ${cal.nombre}`;
+                btn.textContent = 'Guardar cambios';
+                document.getElementById('cal-nombre').value = cal.nombre || '';
+                document.getElementById('cal-source').value = cal.source || 'airbnb';
+                document.getElementById('cal-url').value = cal.url || '';
+                document.getElementById('cal-color').value = /^#[0-9a-fA-F]{6}$/.test(cal.color || '') ? cal.color : '#2563eb';
+                const actual = cal.logo_url || (cal.thumbnail ? `${STATIC_BASE}/${cal.thumbnail}` : '');
+                if (actual) {
+                    preview.src = actual;
+                    preview.style.display = 'inline-block';
+                    hint.textContent = 'Logo actual (sube otro para reemplazarlo).';
+                } else {
+                    preview.style.display = 'none';
+                    preview.removeAttribute('src');
+                    hint.textContent = 'PNG, JPG, WEBP o SVG hasta 2 MB.';
+                }
+            } else {
+                title.textContent = '＋ Nuevo calendario';
+                btn.textContent = 'Crear calendario';
+                document.getElementById('cal-color').value = '#2563eb';
+                preview.style.display = 'none';
+                preview.removeAttribute('src');
+                hint.textContent = 'PNG, JPG, WEBP o SVG hasta 2 MB.';
+            }
             modal.style.display = 'flex';
         }
 
@@ -2634,9 +2676,11 @@
             if (!isAdmin) return;
             const err = document.getElementById('cal-form-error');
             const btn = document.getElementById('cal-btn-guardar');
+            const editId = document.getElementById('calendario-form').dataset.editId || '';
+            const esEdicion = !!editId;
             err.style.display = 'none';
             btn.disabled = true;
-            btn.textContent = 'Creando…';
+            btn.textContent = esEdicion ? 'Guardando…' : 'Creando…';
             try {
                 const fd = new FormData();
                 fd.append('nombre', document.getElementById('cal-nombre').value.trim());
@@ -2654,8 +2698,8 @@
                     }
                     fd.append('imagen', file);
                 }
-                const res = await fetch('/api/calendarios', {
-                    method: 'POST', body: fd, credentials: 'include',
+                const res = await fetch(esEdicion ? `/api/calendarios/${encodeURIComponent(editId)}` : '/api/calendarios', {
+                    method: esEdicion ? 'PUT' : 'POST', body: fd, credentials: 'include',
                 });
                 // Parseo defensivo: ante un error inesperado del servidor (p. ej.
                 // página HTML), mostrar mensaje legible en vez de reventar.
@@ -2667,10 +2711,10 @@
                     throw new Error(`El servidor devolvió un error inesperado (HTTP ${res.status}). Intenta de nuevo.`);
                 }
                 if (!res.ok || !data.success) {
-                    throw new Error(data.error || 'No se pudo crear el calendario');
+                    throw new Error(data.error || (esEdicion ? 'No se pudo guardar los cambios' : 'No se pudo crear el calendario'));
                 }
                 cerrarModalCalendario();
-                // Activar el nuevo calendario y refrescar todo
+                // Activar el calendario y refrescar todo
                 calendariosActivos.add(data.calendario_id);
                 await loadCalendarFilters();
                 calendariosActivos.add(data.calendario_id);
@@ -2681,7 +2725,7 @@
                 err.style.display = 'block';
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Crear calendario';
+                btn.textContent = esEdicion ? 'Guardar cambios' : 'Crear calendario';
             }
         }
 

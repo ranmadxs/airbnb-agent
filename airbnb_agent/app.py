@@ -1157,6 +1157,7 @@ def api_calendarios():
             "calendario_id": c['calendario_id'],
             "nombre": c['nombre'],
             "source": c['source'],
+            "url": c.get('url') or '',
             # Por defecto unknown si nunca se hizo fetch; si hubo, refleja el último estado.
             "connected": per_cal_status.get(c['calendario_id'], {}).get('connected', None),
             "imagen": c.get('imagen') or c.get('thumbnail') or CALENDARIO_DEFAULT_IMAGEN,
@@ -1213,14 +1214,10 @@ def _logo_url_calendario(calendario: dict) -> str:
     return f"/api/calendarios/{calendario['calendario_id']}/logo"
 
 
-@app.route('/api/calendarios', methods=['POST'])
-@login_required
-def api_calendarios_crear():
-    """API: Crea un calendario (solo admin). Acepta multipart con logo o JSON.
+def _leer_campos_calendario():
+    """Lee y valida nombre/source/url/color (+archivo opcional) del request.
 
-    Campos: nombre* (requerido), source (airbnb/booking/otro), url iCal
-    (opcional), color hex (opcional), imagen (opcional; si no se sube,
-    se usa la imagen por defecto).
+    Retorna (campos, archivo, error). Si error no es None, es tupla (body, status).
     """
     if request.content_type and 'multipart/form-data' in request.content_type:
         form = request.form
@@ -1238,15 +1235,31 @@ def api_calendarios_crear():
         archivo = None
 
     if not nombre:
-        return jsonify({"success": False, "error": "Nombre requerido"}), 400
+        return None, None, ({"success": False, "error": "Nombre requerido"}, 400)
     if source not in CALENDARIO_SOURCES:
-        return jsonify({"success": False, "error": "Plataforma inválida"}), 400
+        return None, None, ({"success": False, "error": "Plataforma inválida"}, 400)
     if url and not url.lower().startswith('http'):
-        return jsonify({"success": False, "error": "URL iCal inválida"}), 400
+        return None, None, ({"success": False, "error": "URL iCal inválida"}, 400)
     if color:
         import re as _re
         if not _re.fullmatch(r'#[0-9a-fA-F]{6}', color):
-            return jsonify({"success": False, "error": "Color inválido (usa formato #rrggbb)"}), 400
+            return None, None, ({"success": False, "error": "Color inválido (usa formato #rrggbb)"}, 400)
+    return {"nombre": nombre, "source": source, "url": url, "color": color}, archivo, None
+
+
+@app.route('/api/calendarios', methods=['POST'])
+@login_required
+def api_calendarios_crear():
+    """API: Crea un calendario (solo admin). Acepta multipart con logo o JSON.
+
+    Campos: nombre* (requerido), source (airbnb/booking/otro), url iCal
+    (opcional), color hex (opcional), imagen (opcional; si no se sube,
+    se usa la imagen por defecto).
+    """
+    campos, archivo, error = _leer_campos_calendario()
+    if error:
+        body, status = error
+        return jsonify(body), status
 
     contenido_logo, mime_logo, nombre_logo = b'', '', ''
     if archivo is not None:
@@ -1256,7 +1269,7 @@ def api_calendarios_crear():
             return jsonify({"success": False, "error": str(e)}), 400
 
     resultado = db_service.guardar_calendario({
-        "nombre": nombre, "source": source, "url": url, "color": color,
+        **campos,
         "logo_bytes": contenido_logo, "logo_mime": mime_logo,
         "logo_nombre": nombre_logo,
     })
@@ -1265,6 +1278,54 @@ def api_calendarios_crear():
     slug = resultado['calendario_id']
 
     obtener_todos_calendarios()  # refresca memoria (fetch/validación/filtros)
+    respuesta = {"success": True, **resultado}
+    if resultado.get('tiene_logo'):
+        respuesta["logo_url"] = f"/api/calendarios/{slug}/logo"
+    return jsonify(respuesta)
+
+
+@app.route('/api/calendarios/<calendario_id>', methods=['PUT'])
+@login_required
+def api_calendarios_editar(calendario_id):
+    """API: Edita un calendario creado por admin (solo admin).
+
+    Acepta los mismos campos que POST. Sin imagen nueva se conserva el logo
+    guardado. Los calendarios de .env no se pueden editar aquí.
+    """
+    slug = (calendario_id or '').strip()
+    env_ids = {c['calendario_id'] for c in airbnb_service.calendars
+               if not c.get('dinamico')}
+    if slug in env_ids:
+        return jsonify({"success": False,
+                        "error": "Ese calendario viene de configuración (.env) y no se puede editar aquí"}), 400
+    try:
+        existentes = db_service.listar_calendarios() or []
+    except Exception:
+        existentes = []
+    if not any((c.get('calendario_id') or '') == slug for c in existentes):
+        return jsonify({"success": False, "error": "Calendario no encontrado"}), 404
+
+    campos, archivo, error = _leer_campos_calendario()
+    if error:
+        body, status = error
+        return jsonify(body), status
+
+    contenido_logo, mime_logo, nombre_logo = b'', '', ''
+    if archivo is not None:
+        try:
+            contenido_logo, mime_logo, nombre_logo = _validar_logo_subido(archivo)
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
+
+    resultado = db_service.guardar_calendario({
+        **campos,
+        "logo_bytes": contenido_logo, "logo_mime": mime_logo,
+        "logo_nombre": nombre_logo,
+    }, calendario_id=slug)
+    if not resultado.get('success'):
+        return jsonify(resultado), 400
+
+    obtener_todos_calendarios()
     respuesta = {"success": True, **resultado}
     if resultado.get('tiene_logo'):
         respuesta["logo_url"] = f"/api/calendarios/{slug}/logo"

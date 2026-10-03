@@ -1,6 +1,6 @@
 ## [3.5.0] - 2026-10-03
 ### Added
-- Crear calendarios desde el home (solo admin): modal con nombre, plataforma, URL iCal opcional, color a elección y subida de logo (PNG/JPG/WEBP/SVG ≤ 2 MB; imagen por defecto si no se sube). El logo se guarda en MongoDB y se sirve por endpoint, así funciona en serverless sin disco escribible. Los calendarios de `.env` no se pueden eliminar; los creados sí (✕ en el chip).
+- Crear calendarios desde el home (solo admin): modal con nombre, plataforma, URL iCal opcional, color a elección y subida de logo (PNG/JPG/WEBP/SVG ≤ 2 MB; imagen por defecto si no se sube). El logo se guarda en MongoDB y se sirve por endpoint, así funciona en serverless sin disco escribible. Los calendarios de `.env` no se pueden eliminar; los creados sí (✕ en el chip). Lápiz ✏️ para editar nombre, plataforma, URL, color y reemplazar el logo (sin subir nada se conserva).
 
 ## [3.4.0] - 2026-10-03
 ### Added

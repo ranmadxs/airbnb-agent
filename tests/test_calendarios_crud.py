@@ -214,6 +214,82 @@ def test_post_calendario_requiere_login(flask_client, app_module):
     assert r.status_code == 401
 
 
+def test_api_calendarios_incluye_url(logged_in_flask_client, app_module, monkeypatch):
+    from unittest.mock import MagicMock
+    app_module.airbnb_service.calendars = [
+        {"calendario_id": "env_uno", "nombre": "Env", "source": "airbnb",
+         "url": "https://x.ics", "imagen": "", "thumbnail": "", "logo": ""},
+    ]
+    app_module.db_service.listar_calendarios.return_value = []
+    monkeypatch.setattr(app_module.db_service, "connect", MagicMock(return_value=False))
+    c0 = logged_in_flask_client.get("/api/calendarios").get_json()["configured"][0]
+    assert c0["url"] == "https://x.ics"
+
+
+def test_put_calendario_actualiza(logged_in_flask_client, app_module):
+    app_module.airbnb_service.calendars = [
+        {"calendario_id": "env_uno", "nombre": "Env", "source": "airbnb", "url": "https://x"},
+    ]
+    app_module.db_service.listar_calendarios.return_value = [
+        {"calendario_id": "casa_lago", "nombre": "Casa Lago", "source": "airbnb",
+         "url": "", "color": "", "tiene_logo": True, "dinamico": True},
+    ]
+    app_module.db_service.guardar_calendario.return_value = {
+        "success": True, "calendario_id": "casa_lago", "nombre": "Casa Lago Nuevo",
+        "tiene_logo": True,
+    }
+    png = b"\x89PNG" + b"1" * 100
+    r = logged_in_flask_client.put(
+        "/api/calendarios/casa_lago",
+        data={"nombre": "Casa Lago Nuevo", "source": "booking",
+              "url": "https://example.com/n.ics", "color": "#00ff00",
+              "imagen": (io.BytesIO(png), "nuevo.png")},
+        content_type="multipart/form-data",
+    )
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["success"] is True
+    assert data["logo_url"] == "/api/calendarios/casa_lago/logo"
+    args, kwargs = app_module.db_service.guardar_calendario.call_args
+    assert kwargs.get("calendario_id") == "casa_lago" or (len(args) > 1 and args[1] == "casa_lago")
+    assert args[0]["nombre"] == "Casa Lago Nuevo"
+    assert args[0]["logo_bytes"] == png
+
+
+def test_put_calendario_sin_logo_conserva_binario(logged_in_flask_client, app_module):
+    app_module.airbnb_service.calendars = []
+    app_module.db_service.listar_calendarios.return_value = [
+        {"calendario_id": "casa_lago", "nombre": "Casa Lago", "dinamico": True,
+         "tiene_logo": True},
+    ]
+    app_module.db_service.guardar_calendario.return_value = {
+        "success": True, "calendario_id": "casa_lago", "tiene_logo": True,
+    }
+    r = logged_in_flask_client.put(
+        "/api/calendarios/casa_lago",
+        data={"nombre": "Casa Lago Editada"},
+        content_type="multipart/form-data",
+    )
+    assert r.status_code == 200
+    args, _ = app_module.db_service.guardar_calendario.call_args
+    assert not args[0].get("logo_bytes")
+
+
+def test_put_calendario_env_rechazado(logged_in_flask_client, app_module):
+    app_module.airbnb_service.calendars = [
+        {"calendario_id": "env_uno", "nombre": "Env", "source": "airbnb", "url": "https://x"},
+    ]
+    r = logged_in_flask_client.put("/api/calendarios/env_uno", data={"nombre": "X"})
+    assert r.status_code == 400
+
+
+def test_put_calendario_inexistente_404(logged_in_flask_client, app_module):
+    app_module.airbnb_service.calendars = []
+    app_module.db_service.listar_calendarios.return_value = []
+    r = logged_in_flask_client.put("/api/calendarios/fantasma", data={"nombre": "X"})
+    assert r.status_code == 404
+
+
 def test_delete_calendario_dinamico(logged_in_flask_client, app_module):
     app_module.airbnb_service.calendars = [
         {"calendario_id": "env_uno", "nombre": "Env", "source": "airbnb", "url": "https://x"},
