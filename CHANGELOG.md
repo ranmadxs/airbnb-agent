@@ -1,6 +1,7 @@
 ## [3.3.0] - 2026-10-03
 ### Added
 - Alias por descripción en vista lista de Transacciones BCI (`/desempeno`): botón ALIAS por fila, chip editable, propagación global por descripción exacta entre meses (`GET/POST /api/transacciones-alias`, colección `bci.alias_descripcion`)
+- Categoría opcional del alias (Arriendo 🏠, Sueldo 💰, Transferencia 🤝, Airbnb 🏨) con color de fondo propio; sin categoría mantiene el estilo por defecto
 
 ## [3.2.6] - 2026-09-20
 ### Fixed

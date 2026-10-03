@@ -196,6 +196,17 @@
         .desempeno-trx-alias-save { padding: 4px 10px; border: none; background: #1d4ed8; color: white; border-radius: 8px; cursor: pointer; font-size: 0.75em; font-weight: 700; }
         .desempeno-trx-alias-save:disabled { opacity: 0.6; cursor: wait; }
         .desempeno-trx-alias-cancel { padding: 4px 10px; border: 1px solid #e5e7eb; background: white; border-radius: 8px; cursor: pointer; font-size: 0.75em; }
+        .desempeno-trx-alias-chip.alias-cat-arriendo { background: #dcfce7; border-color: #86efac; color: #166534; }
+        .desempeno-trx-alias-chip.alias-cat-sueldo { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+        .desempeno-trx-alias-chip.alias-cat-transferencia { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+        .desempeno-trx-alias-chip.alias-cat-airbnb { background: #fce7f3; border-color: #f9a8d4; color: #9d174d; }
+        .desempeno-trx-alias-cats { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+        .desempeno-trx-alias-cat { padding: 4px 8px; border: 2px solid #e5e7eb; background: white; border-radius: 999px; cursor: pointer; font-size: 0.72em; font-weight: 600; color: #374151; }
+        .desempeno-trx-alias-cat.selected { border-color: #1d4ed8; box-shadow: 0 0 0 1px #1d4ed8; }
+        .desempeno-trx-alias-cat[data-cat="arriendo"].selected { background: #dcfce7; border-color: #16a34a; box-shadow: 0 0 0 1px #16a34a; }
+        .desempeno-trx-alias-cat[data-cat="sueldo"].selected { background: #dbeafe; border-color: #1d4ed8; }
+        .desempeno-trx-alias-cat[data-cat="transferencia"].selected { background: #fef3c7; border-color: #d97706; box-shadow: 0 0 0 1px #d97706; }
+        .desempeno-trx-alias-cat[data-cat="airbnb"].selected { background: #fce7f3; border-color: #db2777; box-shadow: 0 0 0 1px #db2777; }
         .desempeno-trx-list-item + .desempeno-trx-list-item { border-top: 1px solid #f3f4f6; }
 
         /* Calendario tipo cuadrícula */
@@ -1820,13 +1831,22 @@
             const idx = btn.dataset.idx !== undefined && btn.dataset.idx !== '' ? Number(btn.dataset.idx) : null;
             if (action === 'edit' && idx !== null && trxAllData[idx]) {
                 trxEditingDesc = (trxAllData[idx].descripcion || '').trim();
+                trxEditingCat = (trxAllData[idx].alias_categoria || '').trim();
+                if (!ALIAS_CATEGORIAS[trxEditingCat]) trxEditingCat = '';
                 renderizarLista();
             } else if (action === 'cancel') {
                 trxEditingDesc = null;
+                trxEditingCat = '';
                 renderizarLista();
+            } else if (action === 'cat' || action === 'nocat') {
+                trxEditingCat = action === 'cat' ? (btn.dataset.cat || '') : '';
+                const listEl = e.currentTarget;
+                listEl.querySelectorAll('[data-alias-action="cat"], [data-alias-action="nocat"]').forEach(b => {
+                    b.classList.toggle('selected', (b.dataset.cat || '') === trxEditingCat);
+                });
             } else if (action === 'save' && idx !== null && trxAllData[idx]) {
                 const input = document.querySelector('#trx-list [data-alias-input]');
-                guardarAlias(trxAllData[idx].descripcion, input ? input.value : '');
+                guardarAlias(trxAllData[idx].descripcion, input ? input.value : '', trxEditingCat);
             }
         });
         document.getElementById('trx-list').addEventListener('keydown', (e) => {
@@ -1836,6 +1856,7 @@
                 if (btn) btn.click();
             } else if (e.key === 'Escape') {
                 trxEditingDesc = null;
+                trxEditingCat = '';
                 renderizarLista();
             }
         });
@@ -1850,6 +1871,7 @@
             if (tipos) tipos.style.display = vista === 'lista' ? 'flex' : 'none';
             trxDiaSeleccionado = null;
             trxEditingDesc = null;
+            trxEditingCat = '';
             document.getElementById('trx-dia-detalle').innerHTML = '';
             renderizarTrx();
         }
@@ -1929,6 +1951,7 @@
 
             trxDiaSeleccionado = null;
             trxEditingDesc = null;
+            trxEditingCat = '';
             const detalleEl = document.getElementById('trx-dia-detalle');
             if (detalleEl) detalleEl.innerHTML = '';
 
@@ -2065,6 +2088,14 @@
         }
 
         let trxEditingDesc = null;
+        let trxEditingCat = '';
+
+        const ALIAS_CATEGORIAS = {
+            arriendo: {emoji: '🏠', label: 'Arriendo'},
+            sueldo: {emoji: '💰', label: 'Sueldo'},
+            transferencia: {emoji: '🤝', label: 'Transferencia'},
+            airbnb: {emoji: '🏨', label: 'Airbnb'}
+        };
 
         function renderizarLista() {
             const listEl = document.getElementById('trx-list');
@@ -2095,16 +2126,27 @@
 
                 const descKey = (t.descripcion || '').trim();
                 const aliasVal = (t.alias || '').trim();
+                const catVal = (t.alias_categoria || '').trim();
+                const catDef = ALIAS_CATEGORIAS[catVal] || null;
                 const idx = trxAllData.indexOf(t);
                 let aliasHtml = '';
                 if (descKey && trxEditingDesc === descKey) {
+                    const catsHtml = Object.entries(ALIAS_CATEGORIAS).map(([id, c]) =>
+                        `<button type="button" class="desempeno-trx-alias-cat${trxEditingCat === id ? ' selected' : ''}" data-alias-action="cat" data-cat="${id}">${c.emoji} ${c.label}</button>`
+                    ).join('');
                     aliasHtml = `<div class="desempeno-trx-alias-form">
                         <input class="desempeno-trx-alias-input" data-alias-input value="${escapeHtml(aliasVal)}" maxlength="60" placeholder="Ej: Arriendo Juan" />
                         <button type="button" class="desempeno-trx-alias-save" data-alias-action="save" data-idx="${idx}">Guardar</button>
                         <button type="button" class="desempeno-trx-alias-cancel" data-alias-action="cancel">✕</button>
+                    </div>
+                    <div class="desempeno-trx-alias-cats">
+                        <button type="button" class="desempeno-trx-alias-cat${trxEditingCat === '' ? ' selected' : ''}" data-alias-action="nocat">Sin icono</button>
+                        ${catsHtml}
                     </div>`;
                 } else if (descKey && aliasVal) {
-                    aliasHtml = `<div class="desempeno-trx-alias-row"><span class="desempeno-trx-alias-chip" title="${escapeHtml(t.descripcion || '')}">🏷️ <span>${escapeHtml(aliasVal)}</span><button type="button" class="desempeno-trx-alias-edit" data-alias-action="edit" data-idx="${idx}" title="Editar alias (aplica a todas con esta descripción)">✏️</button></span></div>`;
+                    const chipClass = catDef ? `desempeno-trx-alias-chip alias-cat-${catVal}` : 'desempeno-trx-alias-chip';
+                    const chipEmoji = catDef ? catDef.emoji : '🏷️';
+                    aliasHtml = `<div class="desempeno-trx-alias-row"><span class="${chipClass}" title="${escapeHtml(t.descripcion || '')}">${chipEmoji} <span>${escapeHtml(aliasVal)}</span><button type="button" class="desempeno-trx-alias-edit" data-alias-action="edit" data-idx="${idx}" title="Editar alias (aplica a todas con esta descripción)">✏️</button></span></div>`;
                 } else if (descKey) {
                     aliasHtml = `<div class="desempeno-trx-alias-row"><button type="button" class="desempeno-trx-alias-btn" data-alias-action="edit" data-idx="${idx}" title="Asignar alias a todas las transacciones con esta descripción">ALIAS</button></div>`;
                 }
@@ -2135,26 +2177,29 @@
             if (input) { input.focus(); input.select(); }
         }
 
-        async function guardarAlias(descripcion, aliasRaw) {
+        async function guardarAlias(descripcion, aliasRaw, categoriaRaw) {
             const descKey = (descripcion || '').trim();
             if (!descKey) return;
             const alias = (aliasRaw || '').trim().slice(0, 60);
+            const categoria = ALIAS_CATEGORIAS[(categoriaRaw || '').trim()] ? (categoriaRaw || '').trim() : '';
             const saveBtn = document.querySelector('#trx-list [data-alias-action="save"]');
             if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando…'; }
             try {
                 const resp = await fetchConTimeout('/api/transacciones-alias', 10000, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({descripcion: descKey, alias})
+                    body: JSON.stringify({descripcion: descKey, alias, categoria})
                 });
                 if (!resp.ok) throw new Error('API ' + resp.status);
                 const data = await resp.json();
                 if (!data.success) throw new Error(data.error || 'Error al guardar');
                 const nuevo = data.deleted ? '' : (data.alias || alias);
+                const nuevaCat = data.deleted ? '' : (data.categoria ?? categoria);
                 trxAllData.forEach(t => {
-                    if ((t.descripcion || '').trim() === descKey) t.alias = nuevo;
+                    if ((t.descripcion || '').trim() === descKey) { t.alias = nuevo; t.alias_categoria = nuevaCat; }
                 });
                 trxEditingDesc = null;
+                trxEditingCat = '';
                 renderizarLista();
             } catch (err) {
                 console.error('Error guardando alias:', err);
