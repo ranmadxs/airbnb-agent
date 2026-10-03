@@ -130,7 +130,16 @@
         .desempeno-anual-rango input[type="month"] { padding: 6px 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.9em; }
         .desempeno-anual-rango input[type="month"]:focus { outline: none; border-color: #1d4ed8; }
         .desempeno-anual-aplicar { width: auto; min-width: 80px; height: auto; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; font-weight: 600; }
-        .desempeno-line-chart { width: 100%; height: 280px; background: white; border-radius: 12px; padding: 16px; }
+        .desempeno-line-chart { width: 100%; height: 280px; background: white; border-radius: 12px; padding: 16px; position: relative; }
+        /* Tooltip del gráfico anual: Neto + ingreso (azul) + gasto (rojo). */
+        #anual-tooltip { position: absolute; z-index: 5; min-width: 150px; max-width: 210px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); padding: 10px 12px; font-size: 0.8em; pointer-events: none; }
+        .anual-tip-mes { font-weight: 700; color: #374151; margin-bottom: 2px; }
+        .anual-tip-neto { font-weight: 800; font-size: 1.3em; color: #111; margin-bottom: 6px; }
+        .anual-tip-neto.neg { color: #dc2626; }
+        .anual-tip-fila { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; margin-bottom: 2px; }
+        .anual-tip-fila.ing { color: #2563eb; }
+        .anual-tip-fila.gas { color: #dc2626; }
+        .anual-hit { cursor: pointer; }
         .desempeno-anual-leyenda { display: flex; flex-direction: column; flex-wrap: nowrap; width: 100%; }
         .desempeno-anual-totales { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; width: 100%; }
         .desempeno-anual-total-valor { font-weight: 700; color: #374151; font-size: 0.95em; }
@@ -372,6 +381,7 @@
                 </div>
                 <div class="desempeno-line-chart" id="anual-line-chart">
                     <svg id="anual-line-svg" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid meet"></svg>
+                    <div id="anual-tooltip" style="display:none;"></div>
                 </div>
                 <div class="desempeno-leyenda desempeno-anual-leyenda" id="anual-leyenda" style="margin-top:12px;">
                     <div class="desempeno-anual-totales">
@@ -531,7 +541,7 @@
                     <button type="button" class="desempeno-trx-vista-btn" id="trx-vista-lista" title="Vista lista"><span>📋</span></button>
                 </div>
                 <label class="desempeno-trx-filtro">
-                    <input type="checkbox" id="trx-filtro-egresos" checked>
+                    <input type="checkbox" id="trx-filtro-egresos">
                     <span>Mostrar egresos</span>
                 </label>
                 <div class="desempeno-trx-tipos" id="trx-filtros-tipo" style="display:none"></div>
@@ -1243,6 +1253,7 @@
         let totalAguaAnual = 0, totalInternetAnual = 0, totalGasolinaAnual = 0, totalAseoAnual = 0, totalOtrosAnual = 0, totalElectricidadAnual = 0;
         let totalReservasAnual = 0, totalReservasTinajaAnual = 0, totalAdultosAnual = 0, totalNinosAnual = 0, totalMascotasAnual = 0;
         let puntosAnualCompletos = [];
+        let puntosAnualGraficados = [];
         const hoy = new Date();
         const yActual = hoy.getFullYear();
         const mActual = hoy.getMonth() + 1;
@@ -1492,18 +1503,10 @@
                 return out;
             })() : [...puntosAnualCompletos];
             if (datos.length === 0) return;
+            ocultarTooltipAnual();
+            puntosAnualGraficados = datos;
             function valorPunto(p) {
-                let ing = 0;
-                if (document.getElementById('anual-cb-arriendo').checked) ing += p.arriendo || 0;
-                if (document.getElementById('anual-cb-tinaja').checked) ing += p.tinaja || 0;
-                let gas = 0;
-                if (document.getElementById('anual-cb-agua').checked) gas += p.agua || 0;
-                if (document.getElementById('anual-cb-internet').checked) gas += p.internet || 0;
-                if (document.getElementById('anual-cb-gasolina').checked) gas += p.gasolina || 0;
-                if (document.getElementById('anual-cb-aseo').checked) gas += p.aseo || 0;
-                if (document.getElementById('anual-cb-otros').checked) gas += p.otros || 0;
-                if (document.getElementById('anual-cb-electricidad').checked) gas += p.electricidad || 0;
-                return ing - gas;
+                return valoresPuntoAnual(p).neto;
             }
             const valores = datos.map(d => valorPunto(d));
             const minY = Math.min(0, ...valores);
@@ -1586,7 +1589,8 @@
                 const y = toY(valorPunto(d));
                 const v = valorPunto(d);
                 const color = v >= 0 ? '#3B82F6' : '#dc2626';
-                html += `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="2"/>`;
+                html += `<circle class="anual-hit" data-idx="${i}" cx="${x}" cy="${y}" r="13" fill="transparent"/>`;
+                html += `<circle class="anual-point" data-idx="${i}" cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="2"/>`;
             });
             yTicks.forEach(t => {
                 html += `<text x="${padL-6}" y="${t.y+4}" text-anchor="end" font-size="10" fill="#6b7280">${formatShort(t.v)}</text>`;
@@ -1597,6 +1601,74 @@
             });
             document.getElementById('anual-line-svg').innerHTML = html;
         }
+
+        // Tooltip del gráfico anual: Neto + ingreso (azul) + gasto (rojo).
+        // Respeta los checkboxes (misma lógica del punto). PC: hover muestra,
+        // salir oculta. Mobile: tap muestra, tap fuera oculta.
+        function valoresPuntoAnual(p) {
+            let ing = 0;
+            if (document.getElementById('anual-cb-arriendo').checked) ing += p.arriendo || 0;
+            if (document.getElementById('anual-cb-tinaja').checked) ing += p.tinaja || 0;
+            let gas = 0;
+            if (document.getElementById('anual-cb-agua').checked) gas += p.agua || 0;
+            if (document.getElementById('anual-cb-internet').checked) gas += p.internet || 0;
+            if (document.getElementById('anual-cb-gasolina').checked) gas += p.gasolina || 0;
+            if (document.getElementById('anual-cb-aseo').checked) gas += p.aseo || 0;
+            if (document.getElementById('anual-cb-otros').checked) gas += p.otros || 0;
+            if (document.getElementById('anual-cb-electricidad').checked) gas += p.electricidad || 0;
+            return {ing, gas, neto: ing - gas};
+        }
+
+        function mostrarTooltipAnual(idx, cxAttr, cyAttr) {
+            const d = (puntosAnualGraficados || [])[idx];
+            if (!d) return;
+            const {ing, gas, neto} = valoresPuntoAnual(d);
+            const tip = document.getElementById('anual-tooltip');
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+            tip.innerHTML = `<div class="anual-tip-mes">${escapeHtml(d.label || '')}</div>`
+                + `<div class="anual-tip-neto${neto < 0 ? ' neg' : ''}>${neto < 0 ? '-' : ''}${fmt(Math.abs(neto))}</div>`
+                + `<div class="anual-tip-fila ing"><span>Ingreso</span><span>${fmt(ing)}</span></div>`
+                + `<div class="anual-tip-fila gas"><span>Gasto</span><span>-${fmt(gas)}</span></div>`;
+            tip.style.display = 'block';
+            // Posición junto al punto (coords viewBox 400x250 -> px reales).
+            const svg = document.getElementById('anual-line-svg');
+            const chart = document.getElementById('anual-line-chart');
+            const svgR = svg.getBoundingClientRect();
+            const cR = chart.getBoundingClientRect();
+            if (svgR.width <= 0) return;
+            const px = svgR.left - cR.left + parseFloat(cxAttr) * (svgR.width / 400);
+            const py = svgR.top - cR.top + parseFloat(cyAttr) * (svgR.height / 250);
+            tip.style.left = px + 'px';
+            tip.style.top = py + 'px';
+            tip.style.transform = `translate(${parseFloat(cxAttr) > 250 ? 'calc(-100% - 14px)' : '14px'}, ${parseFloat(cyAttr) < 90 ? '14px' : 'calc(-100% - 14px)'})`;
+        }
+
+        function ocultarTooltipAnual() {
+            const tip = document.getElementById('anual-tooltip');
+            if (tip) tip.style.display = 'none';
+        }
+
+        (() => {
+            const chartEl = document.getElementById('anual-line-chart');
+            if (!chartEl || chartEl.dataset.tipBound) return;
+            chartEl.dataset.tipBound = '1';
+            const puntoDe = (t) => t && t.closest ? t.closest('.anual-point,.anual-hit') : null;
+            chartEl.addEventListener('pointerover', (e) => {
+                const t = puntoDe(e.target);
+                if (t) mostrarTooltipAnual(Number(t.dataset.idx), t.getAttribute('cx'), t.getAttribute('cy'));
+            });
+            chartEl.addEventListener('pointerout', (e) => {
+                if (puntoDe(e.target)) ocultarTooltipAnual();
+            });
+            chartEl.addEventListener('click', (e) => {
+                const t = puntoDe(e.target);
+                if (t) mostrarTooltipAnual(Number(t.dataset.idx), t.getAttribute('cx'), t.getAttribute('cy'));
+                else ocultarTooltipAnual();
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest || !e.target.closest('#anual-line-chart')) ocultarTooltipAnual();
+            });
+        })();
 
         document.getElementById('anual-leyenda').addEventListener('change', (e) => {
             if (e.target && e.target.matches('input[type="checkbox"]')) onAnualCheckboxChange();
