@@ -297,9 +297,12 @@
                                 {% if event.source == 'arriendo' and is_logged_in %}
                                 {# Pago de arriendo con alias: evento genérico de 1 día, solo admin. #}
                                 {% set cal_imagen = calendarios_imagenes.get(event.calendario_id or '') or {} %}
+                                {% set cal_logo_url = cal_imagen.get('logo_url') or '' %}
                                 {% set cal_thumb = cal_imagen.get('thumbnail') or '' %}
                                 {% set cal_color = cal_imagen.get('color') or '#d97706' %}
-                                {% if cal_thumb %}
+                                {% if cal_logo_url %}
+                                <img class="reservation-logo" src="{{ cal_logo_url }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
+                                {% elif cal_thumb %}
                                 <img class="reservation-logo" src="{{ url_for('static', filename=cal_thumb) }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
                                 {% endif %}
                                 <div class="reservation-type">
@@ -323,9 +326,12 @@
                                 {% else %}
 
                                 {% set cal_imagen = calendarios_imagenes.get(event.calendario_id or '') or {} %}
+                                {% set cal_logo_url = cal_imagen.get('logo_url') or '' %}
                                 {% set cal_thumb = cal_imagen.get('thumbnail') or '' %}
                                 {% set cal_color = cal_imagen.get('color') or '#9ca3af' %}
-                                {% if cal_thumb %}
+                                {% if cal_logo_url %}
+                                <img class="reservation-logo" src="{{ cal_logo_url }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
+                                {% elif cal_thumb %}
                                 <img class="reservation-logo" src="{{ url_for('static', filename=cal_thumb) }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
                                 {% endif %}
                                 
@@ -1280,12 +1286,13 @@
                 const res = await fetch('/api/calendarios', { credentials: 'include' });
                 const data = await res.json();
                 calendariosDisponibles = data.configured || [];
-                // Mapear calendario_id -> {logo, thumbnail, color} para los badges en celdas.
+                // Mapear calendario_id -> {logo, thumbnail, logo_url, color} para los badges en celdas.
                 calendariosImagenes = {};
                 calendariosDisponibles.forEach(c => {
                     calendariosImagenes[c.calendario_id] = {
                         logo: c.logo || '',
                         thumbnail: c.thumbnail || '',
+                        logo_url: c.logo_url || '',
                         color: c.color || '#9ca3af',
                     };
                 });
@@ -1333,6 +1340,22 @@
             }
         }
 
+        // URL de imagen de un calendario: si el logo vive en MongoDB
+        // (logo_url) se usa directo; si no, ruta static. '' si no hay nada.
+        function calThumbUrl(cal) {
+            if (!cal) return '';
+            if (cal.logo_url) return cal.logo_url;
+            if (cal.thumbnail) return `${STATIC_BASE}/${cal.thumbnail}`;
+            return '';
+        }
+        function calLogoUrl(cal) {
+            if (!cal) return '';
+            if (cal.logo_url) return cal.logo_url;
+            const p = cal.logo || cal.thumbnail;
+            if (p) return `${STATIC_BASE}/${p}`;
+            return '';
+        }
+
         function renderFilterBar() {
             const bar = document.getElementById('calendar-filter-bar');
             if (!bar) return;
@@ -1364,7 +1387,7 @@
                 calendariosDisponibles.forEach((c, i) => {
                     const active = calendariosActivos.has(c.calendario_id);
                     const sourceIcon = c.source === 'airbnb' ? '🏠' : (c.source === 'booking' ? '🏨' : '📅');
-                    const thumbUrl = c.thumbnail ? `${STATIC_BASE}/${c.thumbnail}` : '';
+                    const thumbUrl = calThumbUrl(c);
                     // Color propio del calendario si trae uno, si no paleta por índice.
                     const borderColor = c.color || CHIP_PALETTE[i % CHIP_PALETTE.length];
                     const thumbStyle = `border-color: ${borderColor};`;
@@ -1575,7 +1598,7 @@
                 if (list.querySelector(`.reservation-item[data-id="${evId}"]`)) return;
                 const cid = pago.calendario_id || '';
                 const calImg = calendariosImagenes[cid] || {};
-                const logoPath = calImg.thumbnail || '';
+                const logoPath = calLogoUrl(calImg);
                 const calColor = calImg.color || '#d97706';
                 const item = document.createElement('div');
                 item.className = 'reservation-item is-reservation is-arriendo-pago';
@@ -1588,7 +1611,7 @@
                 const monto = (pago.precio || 0).toLocaleString('es-CL');
                 const detalle = pago.alias || pago.summary || 'Pago arriendo';
                 item.innerHTML = `
-                    ${logoPath ? `<img class="reservation-logo" src="${STATIC_BASE}/${logoPath}" alt="" loading="lazy" style="border-color: ${calColor};">` : ''}
+                    ${logoPath ? `<img class="reservation-logo" src="${logoPath}" alt="" loading="lazy" style="border-color: ${calColor};">` : ''}
                     <div class="reservation-type">
                         <span class="type-badge arriendo-pago">💰 Pago arriendo</span>
                         <span class="nights-badge">1 día</span>
@@ -1954,12 +1977,12 @@
                         // así no se confunde con el dot rojo de checkout.
                         const cid = event.calendario_id || '';
                         const calImg = calendariosImagenes[cid] || {};
-                        const logoPath = calImg.thumbnail || calImg.logo || '';
+                        const logoPath = calLogoUrl(calImg);
                         const calColor = calImg.color || '#9ca3af';
                         if (logoPath && esUltimoDiaReserva && !cell.querySelector(':scope > .cal-logo-badge')) {
                             const badge = document.createElement('img');
                             badge.className = 'cal-logo-badge';
-                            badge.src = `${STATIC_BASE}/${logoPath}`;
+                            badge.src = logoPath;
                             badge.alt = '';
                             badge.loading = 'lazy';
                             badge.style.borderColor = calColor;
@@ -2104,11 +2127,11 @@
                         star.title = `Arriendo de ${String(dateStr).slice(0, 7)} pagado el ${dateStr}${nombreCal ? ' — ' + nombreCal : ''}`;
                         cell.appendChild(star);
                         const calImg = calendariosImagenes[cid] || {};
-                        const logoPath = calImg.thumbnail || calImg.logo || '';
+                        const logoPath = calLogoUrl(calImg);
                         if (logoPath && !cell.querySelector(':scope > .arriendo-logo-central')) {
                             const logo = document.createElement('img');
                             logo.className = 'arriendo-logo-central';
-                            logo.src = `${STATIC_BASE}/${logoPath}`;
+                            logo.src = logoPath;
                             logo.alt = '';
                             logo.loading = 'lazy';
                             logo.style.borderColor = calImg.color || '#d97706';
@@ -2248,8 +2271,9 @@
             // Logo grande en el header con border del color del calendario
             const cal = calendariosImagenes[calendarioId];
             const borderColor = getCalendarioColor(calendarioId);
-            if (cal && cal.logo) {
-                logo.src = `${STATIC_BASE}/${cal.logo}`;
+            const modalLogoUrl = calLogoUrl(cal);
+            if (modalLogoUrl) {
+                logo.src = modalLogoUrl;
                 logo.style.display = 'inline-block';
                 logo.style.borderColor = borderColor;
                 logo.title = cal.nombre || calendarioId;

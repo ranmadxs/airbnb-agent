@@ -76,16 +76,16 @@ def _now_local():
 MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
              'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-# Calendarios creados por admin: logos subidos por el usuario.
-# NOTA: en serverless (Vercel) el filesystem es efímero/lectura; se puede
-# apuntar a un dir escribible con CALENDARIOS_UPLOAD_DIR=/tmp (logos viven
-# mientras dure la instancia; para persistencia total usar object storage).
-CALENDARIOS_UPLOAD_DIR = os.getenv(
-    'CALENDARIOS_UPLOAD_DIR',
-    str(BASE_DIR / 'static' / 'images' / 'calendarios'))
+# Calendarios creados por admin: el logo se guarda como binario en MongoDB
+# (funciona en serverless sin disco escribible) y se sirve por
+# GET /api/calendarios/<id>/logo.
 CALENDARIO_DEFAULT_IMAGEN = 'images/default-calendario.svg'
 CALENDARIO_IMAGEN_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.svg'}
 CALENDARIO_IMAGEN_MAX_BYTES = 2 * 1024 * 1024
+CALENDARIO_IMAGEN_MIMES = {
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp', '.svg': 'image/svg+xml',
+}
 CALENDARIO_SOURCES = ('airbnb', 'booking', 'otro')
 
 # Paleta de colores para calendarios (los creados por admin pueden traer
@@ -478,6 +478,7 @@ def home():
             'nombre': _c['nombre'],
             'thumbnail': _c.get('thumbnail') or '',
             'logo': _c.get('logo') or '',
+            'logo_url': _logo_url_calendario(_c),
             'color': _color_calendario(_c, _i),
         }
 
@@ -1159,6 +1160,7 @@ def api_calendarios():
             "imagen": c.get('imagen') or c.get('thumbnail') or CALENDARIO_DEFAULT_IMAGEN,
             "thumbnail": c.get('thumbnail') or CALENDARIO_DEFAULT_IMAGEN,
             "logo": c.get('logo') or c.get('thumbnail') or CALENDARIO_DEFAULT_IMAGEN,
+            "logo_url": _logo_url_calendario(c),
             "color": _color_calendario(c, i),
             "dinamico": bool(c.get('dinamico')),
         }
@@ -1177,28 +1179,36 @@ def api_calendarios():
     })
 
 
-def _guardar_imagen_calendario(contenido: bytes, nombre_archivo: str, slug: str) -> str:
-    """Valida y guarda el logo subido. Retorna ruta relativa 'images/calendarios/<slug>.<ext>'.
+def _validar_logo_subido(archivo):
+    """Valida el archivo de logo. Retorna (bytes, mime, nombre).
 
-    Lanza ValueError con mensaje apto para el admin si el archivo no sirve.
+    Lanza ValueError con mensaje apto para el admin si no sirve.
+    Retorna (b'', '', '') si no se adjuntó archivo.
     """
-    ext = os.path.splitext(nombre_archivo or '')[1].lower()
+    if archivo is None or not getattr(archivo, 'filename', ''):
+        return b'', '', ''
+    try:
+        archivo.stream.seek(0)
+    except Exception:
+        pass
+    contenido = archivo.read() or b''
+    nombre = archivo.filename or ''
+    if not contenido:
+        return b'', '', ''
+    ext = os.path.splitext(nombre)[1].lower()
     if ext not in CALENDARIO_IMAGEN_EXTS:
         raise ValueError(f"Formato no soportado (usa {', '.join(sorted(CALENDARIO_IMAGEN_EXTS))})")
     if len(contenido) > CALENDARIO_IMAGEN_MAX_BYTES:
         raise ValueError("La imagen supera los 2 MB")
-    if not contenido:
-        raise ValueError("Archivo vacío")
-    os.makedirs(CALENDARIOS_UPLOAD_DIR, exist_ok=True)
-    # Borrar versiones previas del mismo slug con otra extensión
-    for vieja in Path(CALENDARIOS_UPLOAD_DIR).glob(f"{slug}.*"):
-        try:
-            vieja.unlink()
-        except OSError:
-            pass
-    destino = Path(CALENDARIOS_UPLOAD_DIR) / f"{slug}{ext}"
-    destino.write_bytes(contenido)
-    return f"images/calendarios/{slug}{ext}"
+    mime = CALENDARIO_IMAGEN_MIMES.get(ext, 'application/octet-stream')
+    return contenido, mime, os.path.basename(nombre)
+
+
+def _logo_url_calendario(calendario: dict) -> str:
+    """URL del logo servido desde MongoDB, o '' si no tiene logo propio."""
+    if not calendario.get('tiene_logo'):
+        return ''
+    return f"/api/calendarios/{calendario['calendario_id']}/logo"
 
 
 @app.route('/api/calendarios', methods=['POST'])
@@ -1236,43 +1246,44 @@ def api_calendarios_crear():
         if not _re.fullmatch(r'#[0-9a-fA-F]{6}', color):
             return jsonify({"success": False, "error": "Color inválido (usa formato #rrggbb)"}), 400
 
-    contenido_logo, nombre_logo = b'', ''
-    if archivo is not None and getattr(archivo, 'filename', ''):
+    contenido_logo, mime_logo, nombre_logo = b'', '', ''
+    if archivo is not None:
         try:
-            archivo.stream.seek(0)
-        except Exception:
-            pass
-        contenido_logo = archivo.read() or b''
-        nombre_logo = archivo.filename or ''
+            contenido_logo, mime_logo, nombre_logo = _validar_logo_subido(archivo)
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
 
     resultado = db_service.guardar_calendario({
         "nombre": nombre, "source": source, "url": url, "color": color,
+        "logo_bytes": contenido_logo, "logo_mime": mime_logo,
+        "logo_nombre": nombre_logo,
     })
     if not resultado.get('success'):
         return jsonify(resultado), 400
     slug = resultado['calendario_id']
 
-    if contenido_logo:
-        try:
-            rel = _guardar_imagen_calendario(contenido_logo, nombre_logo, slug)
-        except ValueError as e:
-            return jsonify({"success": False, "error": str(e),
-                            "calendario_id": slug}), 400
-        except OSError:
-            # Disco no escribible (p. ej. Vercel prod): el calendario ya quedó
-            # creado; se responde JSON (nunca HTML) para que el frontend no
-            # reviente parseando. El logo queda con la imagen por defecto.
-            return jsonify({"success": False,
-                            "error": "No se pudo guardar el logo en este servidor. "
-                                     "El calendario se creó sin logo.",
-                            "calendario_id": slug}), 500
-        resultado = db_service.guardar_calendario({
-            "nombre": nombre, "source": source, "url": url, "color": color,
-            "imagen": rel, "thumbnail": rel, "logo": rel,
-        }, calendario_id=slug)
-
     obtener_todos_calendarios()  # refresca memoria (fetch/validación/filtros)
-    return jsonify({"success": True, **resultado})
+    respuesta = {"success": True, **resultado}
+    if resultado.get('tiene_logo'):
+        respuesta["logo_url"] = f"/api/calendarios/{slug}/logo"
+    return jsonify(respuesta)
+
+
+@app.route('/api/calendarios/<calendario_id>/logo')
+def api_calendario_logo(calendario_id):
+    """Sirve el logo guardado en MongoDB (público: se muestra en chips y lista)."""
+    from flask import Response
+    slug = (calendario_id or '').strip()
+    try:
+        fn = getattr(db_service, 'obtener_logo_calendario', None)
+        hallado = fn(slug) if callable(fn) else None
+    except Exception:
+        hallado = None
+    if not hallado:
+        return jsonify({"error": "Logo no encontrado"}), 404
+    contenido, mime = hallado
+    return Response(bytes(contenido), mimetype=mime or 'application/octet-stream',
+                    headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.route('/api/calendarios/<calendario_id>', methods=['DELETE'])

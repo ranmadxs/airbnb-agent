@@ -1806,6 +1806,7 @@ class DatabaseService:
                     "imagen": doc.get("imagen", ""),
                     "thumbnail": doc.get("thumbnail", ""),
                     "logo": doc.get("logo", ""),
+                    "tiene_logo": bool(doc.get("logo_bin")),
                     "dinamico": True,
                 })
             return out
@@ -1815,7 +1816,11 @@ class DatabaseService:
 
     def guardar_calendario(self, datos: dict, calendario_id: str = None) -> dict:
         """Crea o actualiza un calendario de admin. Genera slug desde el nombre
-        (con sufijo si colisiona). Retorna {success, calendario_id, ...}."""
+        (con sufijo si colisiona). El logo viaja como bytes y se guarda en
+        MongoDB (Binary) para que funcione en serverless sin disco escribible.
+        Retorna {success, calendario_id, tiene_logo, ...}."""
+        from bson import Binary
+
         nombre = ((datos or {}).get("nombre") or "").strip()
         if not nombre:
             return {"success": False, "error": "Nombre requerido"}
@@ -1829,6 +1834,11 @@ class DatabaseService:
         thumbnail = ((datos or {}).get("thumbnail") or "").strip()
         logo = ((datos or {}).get("logo") or "").strip()
         imagen = ((datos or {}).get("imagen") or "").strip() or thumbnail
+        logo_bytes = (datos or {}).get("logo_bytes") or b''
+        logo_mime = ((datos or {}).get("logo_mime") or "").strip()
+        logo_nombre = ((datos or {}).get("logo_nombre") or "").strip()
+        if logo_bytes and len(logo_bytes) > 2 * 1024 * 1024:
+            return {"success": False, "error": "La imagen supera los 2 MB"}
         if not self.connect():
             return {"success": False, "error": "Sin conexión a DB"}
         try:
@@ -1845,20 +1855,51 @@ class DatabaseService:
                     slug = f"{base}_{suffix}"
                     suffix += 1
             from datetime import datetime as _dt
+            campos = {"calendario_id": slug, "nombre": nombre,
+                      "source": source, "url": url, "color": color,
+                      "imagen": imagen, "thumbnail": thumbnail,
+                      "logo": logo, "updated_at": _dt.now().isoformat()}
+            if logo_bytes:
+                campos["logo_bin"] = Binary(logo_bytes)
+                campos["logo_mime"] = logo_mime or "application/octet-stream"
+                campos["logo_nombre"] = logo_nombre
             coll.update_one(
                 {"calendario_id": slug},
-                {"$set": {"calendario_id": slug, "nombre": nombre,
-                          "source": source, "url": url, "color": color,
-                          "imagen": imagen, "thumbnail": thumbnail,
-                          "logo": logo, "updated_at": _dt.now().isoformat()}},
+                {"$set": campos},
                 upsert=True,
             )
+            tiene_logo = bool(logo_bytes)
+            if not logo_bytes:
+                # Update sin logo nuevo: conservar el flag del logo previo.
+                try:
+                    previo = coll.find_one({"calendario_id": slug}, {"logo_bin": 1})
+                    tiene_logo = bool((previo or {}).get("logo_bin"))
+                except Exception:
+                    pass
             return {"success": True, "calendario_id": slug, "nombre": nombre,
                     "source": source, "url": url, "color": color,
-                    "thumbnail": thumbnail, "logo": logo}
+                    "thumbnail": thumbnail, "logo": logo,
+                    "tiene_logo": tiene_logo}
         except Exception as e:
             print(f"❌ Error guardando calendario: {e}")
             return {"success": False, "error": str(e)}
+
+    def obtener_logo_calendario(self, calendario_id: str):
+        """Retorna (bytes, mime) del logo guardado en MongoDB, o None."""
+        if not self.connect():
+            return None
+        try:
+            coll = getattr(self, "calendarios", None)
+            if coll is None:
+                coll = self.db["calendarios"]
+                self.calendarios = coll
+            doc = coll.find_one({"calendario_id": (calendario_id or "").strip()})
+            if not doc or not doc.get("logo_bin"):
+                return None
+            return bytes(doc["logo_bin"]), doc.get("logo_mime") or "application/octet-stream"
+        except Exception as e:
+            print(f"❌ Error obteniendo logo: {e}")
+            return None
 
     def eliminar_calendario(self, calendario_id: str) -> bool:
         """Elimina un calendario de admin. Retorna True si existía."""

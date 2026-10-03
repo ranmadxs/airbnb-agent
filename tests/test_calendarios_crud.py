@@ -97,12 +97,72 @@ def test_fetch_ignora_calendario_sin_url():
     assert svc.fetch_events() == []
 
 
-def test_post_calendario_con_logo_y_color(logged_in_flask_client, app_module, tmp_path, monkeypatch):
+def test_guardar_calendario_con_logo_binario(monkeypatch):
+    svc = make_svc(monkeypatch)
+    svc.calendarios.find_one.return_value = None
+    svc.calendarios.update_one.return_value = MagicMock(upserted_id=None)
+    r = svc.guardar_calendario({
+        "nombre": "Casa Lago", "source": "airbnb",
+        "logo_bytes": b"\x89PNG...",
+        "logo_mime": "image/png",
+        "logo_nombre": "logo.png",
+    })
+    assert r["success"] is True
+    assert r["tiene_logo"] is True
+    args, _ = svc.calendarios.update_one.call_args
+    guardado = args[1]["$set"]
+    assert bytes(guardado["logo_bin"]) == b"\x89PNG..."
+    assert guardado["logo_mime"] == "image/png"
+
+
+def test_listar_calendarios_con_tiene_logo(monkeypatch):
+    from bson import Binary
+    svc = make_svc(monkeypatch)
+    cursor = MagicMock()
+    cursor.sort.return_value = [
+        {"_id": "x", "calendario_id": "con_logo", "nombre": "Con Logo",
+         "source": "airbnb", "url": "", "color": "",
+         "logo_bin": Binary(b"\x89PNG"), "logo_mime": "image/png"},
+        {"_id": "y", "calendario_id": "sin_logo", "nombre": "Sin Logo",
+         "source": "airbnb", "url": "", "color": ""},
+    ]
+    svc.calendarios.find.return_value = cursor
+    cals = {c["calendario_id"]: c for c in svc.listar_calendarios()}
+    assert cals["con_logo"]["tiene_logo"] is True
+    assert cals["sin_logo"]["tiene_logo"] is False
+
+
+def test_obtener_logo_calendario(monkeypatch):
+    from bson import Binary
+    svc = make_svc(monkeypatch)
+    svc.calendarios.find_one.return_value = {
+        "calendario_id": "casa_lago",
+        "logo_bin": Binary(b"\x89PNG..."), "logo_mime": "image/png",
+    }
+    contenido, mime = svc.obtener_logo_calendario("casa_lago")
+    assert bytes(contenido) == b"\x89PNG..."
+    assert mime == "image/png"
+    svc.calendarios.find_one.return_value = {"calendario_id": "otro"}
+    assert svc.obtener_logo_calendario("otro") is None
+
+
+def test_get_logo_endpoint(logged_in_flask_client, app_module):
+    app_module.db_service.obtener_logo_calendario.return_value = (b"\x89PNG...", "image/png")
+    r = logged_in_flask_client.get("/api/calendarios/casa_lago/logo")
+    assert r.status_code == 200
+    assert r.content_type == "image/png"
+    assert r.get_data() == b"\x89PNG..."
+    app_module.db_service.obtener_logo_calendario.return_value = None
+    r2 = logged_in_flask_client.get("/api/calendarios/sin_logo/logo")
+    assert r2.status_code == 404
+
+
+def test_post_calendario_con_logo_y_color(logged_in_flask_client, app_module):
     app_module.db_service.listar_calendarios.return_value = []
     app_module.db_service.guardar_calendario.return_value = {
         "success": True, "calendario_id": "casa_lago", "nombre": "Casa Lago",
+        "tiene_logo": True,
     }
-    monkeypatch.setattr(app_module, "CALENDARIOS_UPLOAD_DIR", str(tmp_path))
     png = (
         b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
         b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00"
@@ -119,35 +179,34 @@ def test_post_calendario_con_logo_y_color(logged_in_flask_client, app_module, tm
     data = r.get_json()
     assert data["success"] is True
     assert data["calendario_id"] == "casa_lago"
-    saved = list(tmp_path.iterdir())
-    assert len(saved) == 1 and saved[0].suffix == ".png"
+    assert data["logo_url"] == "/api/calendarios/casa_lago/logo"
     args, _ = app_module.db_service.guardar_calendario.call_args
     assert args[0]["color"] == "#ff0000"
-    assert args[0]["thumbnail"].startswith("images/calendarios/")
+    assert args[0]["logo_bytes"] == png
+    assert args[0]["logo_mime"] == "image/png"
 
 
-def test_post_calendario_fallo_disco_devuelve_json(logged_in_flask_client, app_module, tmp_path, monkeypatch):
-    """Si el disco no es escribible, el endpoint debe responder JSON (nunca HTML)."""
-    from pathlib import Path as _Path
-
+def test_post_calendario_logo_invalido_devuelve_json(logged_in_flask_client, app_module, monkeypatch):
+    """Extensión no soportada o tamaño excedido => 400 JSON (nunca HTML)."""
     app_module.db_service.listar_calendarios.return_value = []
-    app_module.db_service.guardar_calendario.return_value = {
-        "success": True, "calendario_id": "casa_lago",
-    }
-    monkeypatch.setattr(app_module, "CALENDARIOS_UPLOAD_DIR", str(tmp_path))
-    monkeypatch.setattr(_Path, "write_bytes",
-                        MagicMock(side_effect=OSError("Read-only file system")))
-    png = b"\x89PNG" + b"0" * 100
     r = logged_in_flask_client.post(
         "/api/calendarios",
-        data={"nombre": "Casa Lago", "imagen": (io.BytesIO(png), "logo.png")},
+        data={"nombre": "Casa Lago", "imagen": (io.BytesIO(b"exe..."), "logo.exe")},
         content_type="multipart/form-data",
     )
-    assert r.status_code == 500
+    assert r.status_code == 400
     assert r.content_type.startswith("application/json")
-    data = r.get_json()
-    assert data["success"] is False
-    assert data["calendario_id"] == "casa_lago"
+    assert r.get_json()["success"] is False
+
+    monkeypatch.setattr(app_module, "CALENDARIO_IMAGEN_MAX_BYTES", 10)
+    r2 = logged_in_flask_client.post(
+        "/api/calendarios",
+        data={"nombre": "Casa Lago",
+              "imagen": (io.BytesIO(b"0" * 100), "logo.png")},
+        content_type="multipart/form-data",
+    )
+    assert r2.status_code == 400
+    assert r2.get_json()["success"] is False
 
 
 def test_post_calendario_requiere_login(flask_client, app_module):
