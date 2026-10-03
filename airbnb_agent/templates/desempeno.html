@@ -631,10 +631,10 @@
 
         function poblarSelectorAnio() { /* selector removido */ }
 
-        function fetchConTimeout(url, ms = 25000) {
+        function fetchConTimeout(url, ms = 25000, options = {}) {
             const ctrl = new AbortController();
             const id = setTimeout(() => ctrl.abort(), ms);
-            return fetch(url, { signal: ctrl.signal, credentials: 'include' }).finally(() => clearTimeout(id));
+            return fetch(url, {...options, signal: ctrl.signal, credentials: 'include'}).finally(() => clearTimeout(id));
         }
 
         function mensajeError(err) {
@@ -1849,6 +1849,7 @@
             const tipos = document.querySelector('.desempeno-trx-tipos');
             if (tipos) tipos.style.display = vista === 'lista' ? 'flex' : 'none';
             trxDiaSeleccionado = null;
+            trxEditingDesc = null;
             document.getElementById('trx-dia-detalle').innerHTML = '';
             renderizarTrx();
         }
@@ -1927,6 +1928,7 @@
             if (mesEl) mesEl.textContent = `${MESES_FULL[trxMonth]} ${trxYear}`;
 
             trxDiaSeleccionado = null;
+            trxEditingDesc = null;
             const detalleEl = document.getElementById('trx-dia-detalle');
             if (detalleEl) detalleEl.innerHTML = '';
 
@@ -2131,6 +2133,34 @@
                 : '<div style="padding:24px;text-align:center;color:#6b7280">No hay transacciones en este mes</div>';
             const input = listEl.querySelector('[data-alias-input]');
             if (input) { input.focus(); input.select(); }
+        }
+
+        async function guardarAlias(descripcion, aliasRaw) {
+            const descKey = (descripcion || '').trim();
+            if (!descKey) return;
+            const alias = (aliasRaw || '').trim().slice(0, 60);
+            const saveBtn = document.querySelector('#trx-list [data-alias-action="save"]');
+            if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando…'; }
+            try {
+                const resp = await fetchConTimeout('/api/transacciones-alias', 10000, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({descripcion: descKey, alias})
+                });
+                if (!resp.ok) throw new Error('API ' + resp.status);
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error || 'Error al guardar');
+                const nuevo = data.deleted ? '' : (data.alias || alias);
+                trxAllData.forEach(t => {
+                    if ((t.descripcion || '').trim() === descKey) t.alias = nuevo;
+                });
+                trxEditingDesc = null;
+                renderizarLista();
+            } catch (err) {
+                console.error('Error guardando alias:', err);
+                alert('No se pudo guardar el alias. Intenta de nuevo.');
+                if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Guardar'; }
+            }
         }
 
         function mostrarDetalleTrxDia(diaNum) {
