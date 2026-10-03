@@ -1153,15 +1153,28 @@ header {
 }
 .income-subtotal-row {
     display: flex;
+    align-items: center;
+    gap: 8px;
     justify-content: space-between;
     padding: 4px 0;
     border-top: 1px solid #f3f4f6;
+}
+.income-subtotal-logo {
+    width: 22px;
+    height: 22px;
+    border-radius: 15%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #fff;
+    border: 1.5px solid #9ca3af;
 }
 .income-subtotal-row:first-of-type {
     border-top: none;
 }
 .income-subtotal-label {
     color: var(--airbnb-dark, #222);
+    flex: 1;
+    min-width: 0;
     max-width: 60%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1259,13 +1272,15 @@ header {
     border: 2px solid var(--chip-border-color, rgba(0,0,0,0.08));
 }
 
-/* Logo badge del arriendo en la celda de checkout (esquina inferior-izquierda).
-   Solo aparece en el último día de la reserva (marcado con dot rojo de checkout),
-   posición elegida para no tapar price-bubble / extra-bubble que están arriba. */
+/* Logo badge de la propiedad ANCLADO a la franja (solape ~25%, sin tapar el número):
+   - inicio (azul): borde inferior-izquierdo del azul, sobrepuesto al azul.
+   - checkout (rojo): sobre el rojo, inferior-derecha.
+   - continuación (negra): esquina inferior-izquierda de la celda.
+   Las franjas miden 28px centradas: su borde inferior está en 50% + 14px;
+   con badge de 18px y top en 50% + 9px el solape vertical es ~5px. */
   .day-cell > .cal-logo-badge {
       position: absolute;
-      bottom: 2px;
-      left: 2px;
+      top: calc(50% + 9px);
       width: 18px;
       height: 18px;
       border-radius: 50%;
@@ -1276,11 +1291,174 @@ header {
       background: #fff;
       border: 1.5px solid #9ca3af;   /* fallback; el JS aplica el color del calendario */
   }
-  /* El badge no debe tapar el guest-bubble si coincide en la misma celda
-  . (caso raro: checkout con nombre_huesped → guest-bubble se apila arriba). */
-  .day-cell > .cal-logo-badge ~ .guest-bubble {
-      bottom: 22px;
+  .day-cell > .cal-logo-badge.pos-inicio {
+      left: calc(15% - 9px);
   }
+  .day-cell > .cal-logo-badge.pos-checkout {
+      right: calc(15% - 9px);
+  }
+  .day-cell > .cal-logo-badge.pos-medio {
+      left: 2px;
+  }
+  .day-cell > .cal-logo-badge.clickable {
+      pointer-events: auto;
+      cursor: pointer;
+  }
+  .day-cell > .cal-logo-badge.clickable:hover {
+      box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2563eb;
+  }
+
+/* Botón +/− para expandir días multievento inline. */
+.day-expander {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid #9ca3af;
+    background: rgba(255,255,255,0.94);
+    color: #374151;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 4;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.day-expander:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+.day-expander.open {
+    background: #374151;
+    border-color: #374151;
+    color: #fff;
+}
+
+/* Globito verde con la SUMA de arriendos del día (varios inicios el mismo día). */
+.price-bubble.total-dia {
+    background: #047857;
+    box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0,0,0,0.35);
+}
+
+/* Botón admin para crear calendarios + modal nuevo calendario. */
+.calendar-admin-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 2px 8px;
+}
+.btn-nuevo-calendario {
+    border: 1.5px dashed #9ca3af;
+    background: #f9fafb;
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 0.85em;
+    cursor: pointer;
+    color: #374151;
+}
+.btn-nuevo-calendario:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+    background: #eff6ff;
+}
+.chip-delete {
+    margin-left: 4px;
+    font-size: 11px;
+    color: #9ca3af;
+    border-radius: 50%;
+    padding: 0 4px;
+    line-height: 1.4;
+}
+.chip-delete:hover {
+    color: #fff;
+    background: #dc2626;
+}
+.chip-edit {
+    margin-left: 4px;
+    font-size: 11px;
+    color: #9ca3af;
+    border-radius: 50%;
+    padding: 0 4px;
+    line-height: 1.4;
+}
+.chip-edit:hover {
+    color: #fff;
+    background: #2563eb;
+}
+.cal-color-input {
+    width: 100%;
+    height: 38px;
+    padding: 2px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #fff;
+}
+.cal-logo-preview-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+}
+.cal-logo-preview {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #2563eb;
+    background: #fff;
+}
+.form-error {
+    color: #b91c1c;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-top: 8px;
+    font-size: 0.85em;
+}
+
+/* Pago de arriendo con alias (solo admin): filas inline estilo mini-lista
+   (logo redondo + estrella + monto), igual que los días con varios eventos.
+   Convive con bandas/globitos de reservas del mismo día. */
+.day-cell .day-event-row.is-arriendo-pago {
+    background: rgba(254, 243, 199, 0.95);
+    border: 1px solid #f59e0b;
+}
+.day-cell .day-event-row.is-arriendo-pago:hover {
+    background: #fef3c7;
+}
+.day-cell .day-event-logo {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #fff;
+    border: 1px solid #d97706;
+}
+.day-cell .day-event-star {
+    color: #d97706;
+    font-size: 1em;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.day-cell .day-event-row.is-arriendo-pago .day-event-price {
+    color: #92400e;
+}
+/* Fila genérica de pago de arriendo en la lista (solo admin). */
+.reservation-item.is-arriendo-pago {
+    border-left: 4px solid #d97706;
+}
+.reservation-item.is-arriendo-pago .type-badge.arriendo-pago {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
 
 /* Responsive: scroll horizontal en mobile */
 @media (max-width: 768px) {

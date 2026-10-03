@@ -130,7 +130,16 @@
         .desempeno-anual-rango input[type="month"] { padding: 6px 10px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.9em; }
         .desempeno-anual-rango input[type="month"]:focus { outline: none; border-color: #1d4ed8; }
         .desempeno-anual-aplicar { width: auto; min-width: 80px; height: auto; padding: 8px 16px; border-radius: 20px; font-size: 0.9em; font-weight: 600; }
-        .desempeno-line-chart { width: 100%; height: 280px; background: white; border-radius: 12px; padding: 16px; }
+        .desempeno-line-chart { width: 100%; height: 280px; background: white; border-radius: 12px; padding: 16px; position: relative; }
+        /* Tooltip del gráfico anual: Neto + ingreso (azul) + gasto (rojo). */
+        #anual-tooltip { position: absolute; z-index: 5; min-width: 150px; max-width: 210px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); padding: 10px 12px; font-size: 0.8em; pointer-events: none; }
+        .anual-tip-mes { font-weight: 700; color: #374151; margin-bottom: 2px; }
+        .anual-tip-neto { font-weight: 800; font-size: 1.3em; color: #111; margin-bottom: 6px; }
+        .anual-tip-neto.neg { color: #dc2626; }
+        .anual-tip-fila { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; margin-bottom: 2px; }
+        .anual-tip-fila.ing { color: #2563eb; }
+        .anual-tip-fila.gas { color: #dc2626; }
+        .anual-hit { cursor: pointer; }
         .desempeno-anual-leyenda { display: flex; flex-direction: column; flex-wrap: nowrap; width: 100%; }
         .desempeno-anual-totales { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; width: 100%; }
         .desempeno-anual-total-valor { font-weight: 700; color: #374151; font-size: 0.95em; }
@@ -143,6 +152,10 @@
         .desempeno-anual-neto-valor.negativo { color: #dc2626; }
         .desempeno-anual-desglose-item { display: flex; align-items: center; gap: 6px 10px; font-size: 0.85em; color: #6b7280; cursor: pointer; margin-bottom: 4px; width: 100%; }
         .desempeno-anual-desglose-item input { width: 14px; height: 14px; cursor: pointer; }
+        .desempeno-anual-desglose-cal { margin-left: 2em; margin-bottom: 4px; display: flex; flex-direction: column; }
+        .desempeno-anual-cal-item { display: flex; align-items: center; gap: 8px; font-size: 0.8em; color: #6b7280; margin-bottom: 3px; }
+        .desempeno-anual-cal-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .desempeno-anual-cal-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .desempeno-anual-plus { color: #9ca3af; font-weight: 600; min-width: 12px; }
         .desempeno-anual-desglose-valor { font-weight: 600; color: #374151; margin-left: auto; }
         .desempeno-anual-gasto-valor { color: #dc2626; }
@@ -368,6 +381,7 @@
                 </div>
                 <div class="desempeno-line-chart" id="anual-line-chart">
                     <svg id="anual-line-svg" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid meet"></svg>
+                    <div id="anual-tooltip" style="display:none;"></div>
                 </div>
                 <div class="desempeno-leyenda desempeno-anual-leyenda" id="anual-leyenda" style="margin-top:12px;">
                     <div class="desempeno-anual-totales">
@@ -381,6 +395,7 @@
                             <span>Arriendo</span>
                             <span class="desempeno-anual-desglose-valor" id="anual-valor-arriendo">—</span>
                         </label>
+                        <div class="desempeno-anual-desglose-cal" id="anual-desglose-arriendo"></div>
                         <label class="desempeno-anual-desglose-item">
                             <span class="desempeno-anual-plus">+</span>
                             <input type="checkbox" id="anual-cb-tinaja" checked>
@@ -526,7 +541,7 @@
                     <button type="button" class="desempeno-trx-vista-btn" id="trx-vista-lista" title="Vista lista"><span>📋</span></button>
                 </div>
                 <label class="desempeno-trx-filtro">
-                    <input type="checkbox" id="trx-filtro-egresos" checked>
+                    <input type="checkbox" id="trx-filtro-egresos">
                     <span>Mostrar egresos</span>
                 </label>
                 <div class="desempeno-trx-tipos" id="trx-filtros-tipo" style="display:none"></div>
@@ -1234,9 +1249,11 @@
         // Tabs Mensual / Anual
         let mesesDataAnual = [];
         let totalArriendoAnual = 0, totalTinajaAnual = 0;
+        let arriendoPorCalAnual = {};
         let totalAguaAnual = 0, totalInternetAnual = 0, totalGasolinaAnual = 0, totalAseoAnual = 0, totalOtrosAnual = 0, totalElectricidadAnual = 0;
         let totalReservasAnual = 0, totalReservasTinajaAnual = 0, totalAdultosAnual = 0, totalNinosAnual = 0, totalMascotasAnual = 0;
         let puntosAnualCompletos = [];
+        let puntosAnualGraficados = [];
         const hoy = new Date();
         const yActual = hoy.getFullYear();
         const mActual = hoy.getMonth() + 1;
@@ -1268,6 +1285,7 @@
             const yearsToFetch = [];
             for (let y = y1; y <= y2; y++) yearsToFetch.push(y);
             try {
+                await cargarCalendariosPropiedad(); // nombres/colores del desglose
                 const allRes = await Promise.all(yearsToFetch.map(y => fetchConTimeout(`/api/desempeno?year=${y}`)));
                 for (const r of allRes) { if (!r.ok) throw new Error('API ' + r.status); }
                 const allData = await Promise.all(allRes.map(r => r.json()));
@@ -1288,6 +1306,7 @@
             if (desde > hasta) return;
             const puntos = [];
             totalArriendoAnual = 0;
+            arriendoPorCalAnual = {};
             totalTinajaAnual = 0;
             totalAguaAnual = 0;
             totalInternetAnual = 0;
@@ -1317,6 +1336,10 @@
                 const ninosVal = d ? (d.ninos || 0) : 0;
                 const mascotasVal = d ? (d.mascotas || 0) : 0;
                 totalArriendoAnual += arriendo;
+                const apc = d ? (d.arriendo_por_calendario || {}) : {};
+                for (const [cid, vals] of Object.entries(apc)) {
+                    arriendoPorCalAnual[cid] = (arriendoPorCalAnual[cid] || 0) + (vals.arriendo || 0);
+                }
                 totalTinajaAnual += tinaja;
                 totalAguaAnual += agua;
                 totalInternetAnual += internet;
@@ -1350,6 +1373,7 @@
             if (datos.length === 0) {
                 document.getElementById('anual-line-svg').innerHTML = '<text x="200" y="125" text-anchor="middle" fill="#6b7280" font-size="14">Sin datos para el rango</text>';
                 totalArriendoAnual = 0;
+                arriendoPorCalAnual = {};
                 totalTinajaAnual = 0;
                 totalAguaAnual = 0;
                 totalInternetAnual = 0;
@@ -1371,6 +1395,7 @@
                 document.getElementById('anual-valor-otros').textContent = '-$0';
                 document.getElementById('anual-valor-electricidad').textContent = '-$0';
                 document.getElementById('anual-gastos-valor').textContent = '-$0';
+                renderizarDesgloseArriendoAnual();
                 actualizarStatsAnual(0);
                 actualizarTotalAnual();
                 return;
@@ -1380,6 +1405,7 @@
             const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
             const fmtNeg = (v) => '-$' + Math.round(v).toLocaleString('es-CL');
             document.getElementById('anual-valor-arriendo').textContent = fmt(totalArriendoAnual);
+            renderizarDesgloseArriendoAnual();
             document.getElementById('anual-valor-tinaja').textContent = fmt(totalTinajaAnual);
             document.getElementById('anual-valor-agua').textContent = fmtNeg(totalAguaAnual);
             document.getElementById('anual-valor-internet').textContent = fmtNeg(totalInternetAnual);
@@ -1389,6 +1415,32 @@
             document.getElementById('anual-valor-electricidad').textContent = fmtNeg(totalElectricidadAnual);
             actualizarTotalAnual();
             actualizarStatsAnual(puntos.length);
+        }
+
+        // Desglose del Arriendo anual por calendario (suma al total mostrado).
+        function renderizarDesgloseArriendoAnual() {
+            const cont = document.getElementById('anual-desglose-arriendo');
+            if (!cont) return;
+            const entradas = Object.entries(arriendoPorCalAnual || {})
+                .filter(([, v]) => (v || 0) > 0)
+                .sort((a, b) => b[1] - a[1]);
+            if (!entradas.length) {
+                cont.innerHTML = '';
+                cont.style.display = 'none';
+                return;
+            }
+            cont.style.display = 'flex';
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+            cont.innerHTML = entradas.map(([cid, total]) => {
+                const cal = (calendariosPropiedad || []).find(c => c.calendario_id === cid);
+                const nombre = cid === '__legacy__' ? 'Sin asignar' : (cal?.nombre || cid);
+                const color = cal?.color || '#9ca3af';
+                return `<div class="desempeno-anual-cal-item" title="${escapeHtml(nombre)}">`
+                    + `<span class="desempeno-anual-cal-dot" style="background:${escapeHtml(color)};"></span>`
+                    + `<span class="desempeno-anual-cal-nombre">${escapeHtml(nombre)}</span>`
+                    + `<span class="desempeno-anual-desglose-valor">${fmt(total)}</span>`
+                    + `</div>`;
+            }).join('');
         }
 
         function actualizarStatsAnual(numMeses) {
@@ -1451,18 +1503,10 @@
                 return out;
             })() : [...puntosAnualCompletos];
             if (datos.length === 0) return;
+            ocultarTooltipAnual();
+            puntosAnualGraficados = datos;
             function valorPunto(p) {
-                let ing = 0;
-                if (document.getElementById('anual-cb-arriendo').checked) ing += p.arriendo || 0;
-                if (document.getElementById('anual-cb-tinaja').checked) ing += p.tinaja || 0;
-                let gas = 0;
-                if (document.getElementById('anual-cb-agua').checked) gas += p.agua || 0;
-                if (document.getElementById('anual-cb-internet').checked) gas += p.internet || 0;
-                if (document.getElementById('anual-cb-gasolina').checked) gas += p.gasolina || 0;
-                if (document.getElementById('anual-cb-aseo').checked) gas += p.aseo || 0;
-                if (document.getElementById('anual-cb-otros').checked) gas += p.otros || 0;
-                if (document.getElementById('anual-cb-electricidad').checked) gas += p.electricidad || 0;
-                return ing - gas;
+                return valoresPuntoAnual(p).neto;
             }
             const valores = datos.map(d => valorPunto(d));
             const minY = Math.min(0, ...valores);
@@ -1545,7 +1589,8 @@
                 const y = toY(valorPunto(d));
                 const v = valorPunto(d);
                 const color = v >= 0 ? '#3B82F6' : '#dc2626';
-                html += `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="2"/>`;
+                html += `<circle class="anual-hit" data-idx="${i}" cx="${x}" cy="${y}" r="13" fill="transparent"/>`;
+                html += `<circle class="anual-point" data-idx="${i}" cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="2"/>`;
             });
             yTicks.forEach(t => {
                 html += `<text x="${padL-6}" y="${t.y+4}" text-anchor="end" font-size="10" fill="#6b7280">${formatShort(t.v)}</text>`;
@@ -1556,6 +1601,74 @@
             });
             document.getElementById('anual-line-svg').innerHTML = html;
         }
+
+        // Tooltip del gráfico anual: Neto + ingreso (azul) + gasto (rojo).
+        // Respeta los checkboxes (misma lógica del punto). PC: hover muestra,
+        // salir oculta. Mobile: tap muestra, tap fuera oculta.
+        function valoresPuntoAnual(p) {
+            let ing = 0;
+            if (document.getElementById('anual-cb-arriendo').checked) ing += p.arriendo || 0;
+            if (document.getElementById('anual-cb-tinaja').checked) ing += p.tinaja || 0;
+            let gas = 0;
+            if (document.getElementById('anual-cb-agua').checked) gas += p.agua || 0;
+            if (document.getElementById('anual-cb-internet').checked) gas += p.internet || 0;
+            if (document.getElementById('anual-cb-gasolina').checked) gas += p.gasolina || 0;
+            if (document.getElementById('anual-cb-aseo').checked) gas += p.aseo || 0;
+            if (document.getElementById('anual-cb-otros').checked) gas += p.otros || 0;
+            if (document.getElementById('anual-cb-electricidad').checked) gas += p.electricidad || 0;
+            return {ing, gas, neto: ing - gas};
+        }
+
+        function mostrarTooltipAnual(idx, cxAttr, cyAttr) {
+            const d = (puntosAnualGraficados || [])[idx];
+            if (!d) return;
+            const {ing, gas, neto} = valoresPuntoAnual(d);
+            const tip = document.getElementById('anual-tooltip');
+            const fmt = (v) => '$' + Math.round(v).toLocaleString('es-CL');
+            tip.innerHTML = `<div class="anual-tip-mes">${escapeHtml(d.label || '')}</div>`
+                + `<div class="anual-tip-neto${neto < 0 ? ' neg' : ''}>${neto < 0 ? '-' : ''}${fmt(Math.abs(neto))}</div>`
+                + `<div class="anual-tip-fila ing"><span>Ingreso</span><span>${fmt(ing)}</span></div>`
+                + `<div class="anual-tip-fila gas"><span>Gasto</span><span>-${fmt(gas)}</span></div>`;
+            tip.style.display = 'block';
+            // Posición junto al punto (coords viewBox 400x250 -> px reales).
+            const svg = document.getElementById('anual-line-svg');
+            const chart = document.getElementById('anual-line-chart');
+            const svgR = svg.getBoundingClientRect();
+            const cR = chart.getBoundingClientRect();
+            if (svgR.width <= 0) return;
+            const px = svgR.left - cR.left + parseFloat(cxAttr) * (svgR.width / 400);
+            const py = svgR.top - cR.top + parseFloat(cyAttr) * (svgR.height / 250);
+            tip.style.left = px + 'px';
+            tip.style.top = py + 'px';
+            tip.style.transform = `translate(${parseFloat(cxAttr) > 250 ? 'calc(-100% - 14px)' : '14px'}, ${parseFloat(cyAttr) < 90 ? '14px' : 'calc(-100% - 14px)'})`;
+        }
+
+        function ocultarTooltipAnual() {
+            const tip = document.getElementById('anual-tooltip');
+            if (tip) tip.style.display = 'none';
+        }
+
+        (() => {
+            const chartEl = document.getElementById('anual-line-chart');
+            if (!chartEl || chartEl.dataset.tipBound) return;
+            chartEl.dataset.tipBound = '1';
+            const puntoDe = (t) => t && t.closest ? t.closest('.anual-point,.anual-hit') : null;
+            chartEl.addEventListener('pointerover', (e) => {
+                const t = puntoDe(e.target);
+                if (t) mostrarTooltipAnual(Number(t.dataset.idx), t.getAttribute('cx'), t.getAttribute('cy'));
+            });
+            chartEl.addEventListener('pointerout', (e) => {
+                if (puntoDe(e.target)) ocultarTooltipAnual();
+            });
+            chartEl.addEventListener('click', (e) => {
+                const t = puntoDe(e.target);
+                if (t) mostrarTooltipAnual(Number(t.dataset.idx), t.getAttribute('cx'), t.getAttribute('cy'));
+                else ocultarTooltipAnual();
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest || !e.target.closest('#anual-line-chart')) ocultarTooltipAnual();
+            });
+        })();
 
         document.getElementById('anual-leyenda').addEventListener('change', (e) => {
             if (e.target && e.target.matches('input[type="checkbox"]')) onAnualCheckboxChange();
@@ -1833,10 +1946,13 @@
                 trxEditingDesc = (trxAllData[idx].descripcion || '').trim();
                 trxEditingCat = (trxAllData[idx].alias_categoria || '').trim();
                 if (!ALIAS_CATEGORIAS[trxEditingCat]) trxEditingCat = '';
+                trxEditingCal = (trxAllData[idx].alias_calendario_id || '').trim();
+                cargarCalendariosPropiedad().then(() => renderizarLista());
                 renderizarLista();
             } else if (action === 'cancel') {
                 trxEditingDesc = null;
                 trxEditingCat = '';
+                trxEditingCal = '';
                 renderizarLista();
             } else if (action === 'cat' || action === 'nocat') {
                 trxEditingCat = action === 'cat' ? (btn.dataset.cat || '') : '';
@@ -1846,7 +1962,8 @@
                 });
             } else if (action === 'save' && idx !== null && trxAllData[idx]) {
                 const input = document.querySelector('#trx-list [data-alias-input]');
-                guardarAlias(trxAllData[idx].descripcion, input ? input.value : '', trxEditingCat);
+                const calSel = document.querySelector('#trx-list [data-alias-cal]');
+                guardarAlias(trxAllData[idx].descripcion, input ? input.value : '', trxEditingCat, calSel ? calSel.value : trxEditingCal);
             }
         });
         document.getElementById('trx-list').addEventListener('keydown', (e) => {
@@ -1857,6 +1974,7 @@
             } else if (e.key === 'Escape') {
                 trxEditingDesc = null;
                 trxEditingCat = '';
+                trxEditingCal = '';
                 renderizarLista();
             }
         });
@@ -1872,6 +1990,7 @@
             trxDiaSeleccionado = null;
             trxEditingDesc = null;
             trxEditingCat = '';
+            trxEditingCal = '';
             document.getElementById('trx-dia-detalle').innerHTML = '';
             renderizarTrx();
         }
@@ -1952,6 +2071,8 @@
             trxDiaSeleccionado = null;
             trxEditingDesc = null;
             trxEditingCat = '';
+            trxEditingCal = '';
+            await cargarCalendariosPropiedad();
             const detalleEl = document.getElementById('trx-dia-detalle');
             if (detalleEl) detalleEl.innerHTML = '';
 
@@ -2089,6 +2210,21 @@
 
         let trxEditingDesc = null;
         let trxEditingCat = '';
+        let trxEditingCal = '';
+        let calendariosPropiedad = [];
+
+        async function cargarCalendariosPropiedad() {
+            if (calendariosPropiedad.length) return calendariosPropiedad;
+            try {
+                const resp = await fetchConTimeout('/api/calendarios', 10000);
+                const data = await resp.json();
+                calendariosPropiedad = data.configured || [];
+            } catch (err) {
+                console.error('Error cargando calendarios:', err);
+                calendariosPropiedad = [];
+            }
+            return calendariosPropiedad;
+        }
 
         const ALIAS_CATEGORIAS = {
             arriendo: {emoji: '🏠', label: 'Arriendo'},
@@ -2134,6 +2270,9 @@
                     const catsHtml = Object.entries(ALIAS_CATEGORIAS).map(([id, c]) =>
                         `<button type="button" class="desempeno-trx-alias-cat${trxEditingCat === id ? ' selected' : ''}" data-alias-action="cat" data-cat="${id}">${c.emoji} ${c.label}</button>`
                     ).join('');
+                    const calsHtml = calendariosPropiedad.map(c =>
+                        `<option value="${escapeHtml(c.calendario_id)}"${trxEditingCal === c.calendario_id ? ' selected' : ''}>${escapeHtml(c.nombre)}</option>`
+                    ).join('');
                     aliasHtml = `<div class="desempeno-trx-alias-form">
                         <input class="desempeno-trx-alias-input" data-alias-input value="${escapeHtml(aliasVal)}" maxlength="60" placeholder="Ej: Arriendo Juan" />
                         <button type="button" class="desempeno-trx-alias-save" data-alias-action="save" data-idx="${idx}">Guardar</button>
@@ -2142,11 +2281,21 @@
                     <div class="desempeno-trx-alias-cats">
                         <button type="button" class="desempeno-trx-alias-cat${trxEditingCat === '' ? ' selected' : ''}" data-alias-action="nocat">Sin icono</button>
                         ${catsHtml}
+                    </div>
+                    <div class="desempeno-trx-alias-cals">
+                        <label>Propiedad (solo Arriendo → calendario):</label>
+                        <select data-alias-cal>
+                            <option value="">— Sin propiedad —</option>
+                            ${calsHtml}
+                        </select>
                     </div>`;
                 } else if (descKey && aliasVal) {
                     const chipClass = catDef ? `desempeno-trx-alias-chip alias-cat-${catVal}` : 'desempeno-trx-alias-chip';
                     const chipEmoji = catDef ? catDef.emoji : '🏷️';
-                    aliasHtml = `<div class="desempeno-trx-alias-row"><span class="${chipClass}" title="${escapeHtml(t.descripcion || '')}">${chipEmoji} <span>${escapeHtml(aliasVal)}</span><button type="button" class="desempeno-trx-alias-edit" data-alias-action="edit" data-idx="${idx}" title="Editar alias (aplica a todas con esta descripción)">✏️</button></span></div>`;
+                    const calIdVal = (t.alias_calendario_id || '').trim();
+                    const calNombre = calendariosPropiedad.find(c => c.calendario_id === calIdVal)?.nombre || '';
+                    const calSuffix = (catVal === 'arriendo' && calNombre) ? ` · ${escapeHtml(calNombre)}` : '';
+                    aliasHtml = `<div class="desempeno-trx-alias-row"><span class="${chipClass}" title="${escapeHtml(t.descripcion || '')}${calSuffix}">${chipEmoji} <span>${escapeHtml(aliasVal)}${calSuffix}</span><button type="button" class="desempeno-trx-alias-edit" data-alias-action="edit" data-idx="${idx}" title="Editar alias (aplica a todas con esta descripción)">✏️</button></span></div>`;
                 } else if (descKey) {
                     aliasHtml = `<div class="desempeno-trx-alias-row"><button type="button" class="desempeno-trx-alias-btn" data-alias-action="edit" data-idx="${idx}" title="Asignar alias a todas las transacciones con esta descripción">ALIAS</button></div>`;
                 }
@@ -2177,29 +2326,32 @@
             if (input) { input.focus(); input.select(); }
         }
 
-        async function guardarAlias(descripcion, aliasRaw, categoriaRaw) {
+        async function guardarAlias(descripcion, aliasRaw, categoriaRaw, calendarioIdRaw) {
             const descKey = (descripcion || '').trim();
             if (!descKey) return;
             const alias = (aliasRaw || '').trim().slice(0, 60);
             const categoria = ALIAS_CATEGORIAS[(categoriaRaw || '').trim()] ? (categoriaRaw || '').trim() : '';
+            const calendario_id = (calendarioIdRaw || '').trim();
             const saveBtn = document.querySelector('#trx-list [data-alias-action="save"]');
             if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando…'; }
             try {
                 const resp = await fetchConTimeout('/api/transacciones-alias', 10000, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({descripcion: descKey, alias, categoria})
+                    body: JSON.stringify({descripcion: descKey, alias, categoria, calendario_id})
                 });
                 if (!resp.ok) throw new Error('API ' + resp.status);
                 const data = await resp.json();
                 if (!data.success) throw new Error(data.error || 'Error al guardar');
                 const nuevo = data.deleted ? '' : (data.alias || alias);
                 const nuevaCat = data.deleted ? '' : (data.categoria ?? categoria);
+                const nuevoCal = data.deleted ? '' : (data.calendario_id ?? calendario_id);
                 trxAllData.forEach(t => {
-                    if ((t.descripcion || '').trim() === descKey) { t.alias = nuevo; t.alias_categoria = nuevaCat; }
+                    if ((t.descripcion || '').trim() === descKey) { t.alias = nuevo; t.alias_categoria = nuevaCat; t.alias_calendario_id = nuevoCal; }
                 });
                 trxEditingDesc = null;
                 trxEditingCat = '';
+                trxEditingCal = '';
                 renderizarLista();
             } catch (err) {
                 console.error('Error guardando alias:', err);

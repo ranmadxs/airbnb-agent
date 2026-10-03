@@ -1,3 +1,14 @@
+## [3.5.0] - 2026-10-03
+### Added
+- Crear calendarios desde el home (solo admin): modal con nombre, plataforma, URL iCal opcional, color a elección y subida de logo (PNG/JPG/WEBP/SVG ≤ 2 MB; imagen por defecto si no se sube). El logo se guarda en MongoDB y se sirve por endpoint, así funciona en serverless sin disco escribible. Los calendarios de `.env` no se pueden eliminar; los creados sí (✕ en el chip). Lápiz ✏️ para editar nombre, plataforma, URL, color y reemplazar el logo (sin subir nada se conserva).
+
+## [3.4.0] - 2026-10-03
+### Added
+- Pagos de arriendo con alias en el calendario (solo admin): transacciones BCI con alias categoria `arriendo` mapeadas a una propiedad aparecen como fila estilo mini-lista (logo redondo + ⭐ + monto) en el día de pago y como fila genérica en la lista; suman a ingresos del mes de pago. Otras categorías quedan excluidas. Derivado en vivo, sin migración.
+- Logo de la propiedad anclado a la franja (inicio abajo-izquierda sobre el azul, checkout abajo-derecha sobre el rojo, solape ~25% sin tapar el número), botón +/− para expandir días multievento inline (filas con logo de cada propiedad, click en el logo también expande) y globito verde con la suma si varios arriendos inician el mismo día (azules de tinaja intactos).
+- Resumen Anual: el Arriendo se desglosa por calendario (cada uno suma al total).
+- Gráfico anual: popup en cada punto con Neto + ingreso (azul) + gasto (rojo) según checkboxes (hover en PC, tap en mobile); "Mostrar egresos" desmarcado por defecto en Transacciones.
+
 ## [3.3.0] - 2026-10-03
 ### Added
 - Alias por descripción en vista lista de Transacciones BCI (`/desempeno`): botón ALIAS por fila, chip editable, propagación global por descripción exacta entre meses (`GET/POST /api/transacciones-alias`, colección `bci.alias_descripcion`)

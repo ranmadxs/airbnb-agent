@@ -2,9 +2,12 @@
 Servicio para operaciones de base de datos MongoDB
 """
 import os
+import re
 import threading
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+
+from .airbnb_calendar import _slugify
 
 load_dotenv()
 
@@ -58,6 +61,13 @@ class DatabaseService:
                 self.alias_descripcion = self.db_bci["alias_descripcion"]
                 try:
                     self.alias_descripcion.create_index("descripcion", unique=True)
+                except Exception:
+                    pass
+
+                # Calendarios creados por admin (logo + color propios).
+                self.calendarios = self.db["calendarios"]
+                try:
+                    self.calendarios.create_index("calendario_id", unique=True)
                 except Exception:
                     pass
                 
@@ -1687,13 +1697,14 @@ class DatabaseService:
                 desc_raw = doc.get('descripcion', '') or ''
                 entry = alias_map.get(desc_raw.strip()) or {}
                 if isinstance(entry, str):
-                    entry = {"alias": entry, "categoria": ""}
+                    entry = {"alias": entry, "categoria": "", "calendario_id": ""}
                 transacciones.append({
                     'id': str(doc.get('_id')),
                     'fecha': doc.get('fecha', ''),
                     'descripcion': desc_raw,
                     'alias': entry.get("alias", ""),
                     'alias_categoria': entry.get("categoria", ""),
+                    'alias_calendario_id': entry.get("calendario_id", ""),
                     'abono': doc.get('abono', 0.0) or 0.0,
                     'cargo': doc.get('cargo', 0.0) or 0.0,
                     'saldo': doc.get('saldo', 0.0) or 0.0,
@@ -1710,7 +1721,7 @@ class DatabaseService:
     ALIAS_CATEGORIAS = ('arriendo', 'sueldo', 'transferencia', 'airbnb')
 
     def obtener_alias_map(self) -> dict:
-        """Retorna {descripcion: {"alias": str, "categoria": str}} solo con alias no vacíos."""
+        """Retorna {descripcion: {"alias": str, "categoria": str, "calendario_id": str}} solo con alias no vacíos."""
         if not self.connect():
             return {}
         try:
@@ -1719,26 +1730,28 @@ class DatabaseService:
                 coll = self.db_bci["alias_descripcion"]
                 self.alias_descripcion = coll
             out = {}
-            for doc in coll.find({}, {"descripcion": 1, "alias": 1, "categoria": 1}):
+            for doc in coll.find({}, {"descripcion": 1, "alias": 1, "categoria": 1, "calendario_id": 1}):
                 desc = (doc.get("descripcion") or "").strip()
                 alias = (doc.get("alias") or "").strip()
                 cat = (doc.get("categoria") or "").strip()
                 if cat not in self.ALIAS_CATEGORIAS:
                     cat = ""
+                cid = (doc.get("calendario_id") or "").strip()
                 if desc and alias:
-                    out[desc] = {"alias": alias, "categoria": cat}
+                    out[desc] = {"alias": alias, "categoria": cat, "calendario_id": cid}
             return out
         except Exception as e:
             print(f"❌ Error obteniendo alias: {e}")
             return {}
 
-    def guardar_alias(self, descripcion: str, alias: str, categoria: str = "") -> dict:
+    def guardar_alias(self, descripcion: str, alias: str, categoria: str = "", calendario_id: str = "") -> dict:
         """Upsert de alias por descripción exacta. Alias vacío => borra el doc."""
         desc = (descripcion or "").strip()
         val = (alias or "").strip()[:60]
         cat = (categoria or "").strip()
         if cat not in self.ALIAS_CATEGORIAS:
             cat = ""
+        cid = (calendario_id or "").strip()
         if not desc:
             return {"success": False, "error": "Descripción vacía"}
         if not self.connect():
@@ -1751,16 +1764,230 @@ class DatabaseService:
             from datetime import datetime as _dt
             if not val:
                 coll.delete_one({"descripcion": desc})
-                return {"success": True, "descripcion": desc, "alias": "", "categoria": "", "deleted": True}
+                return {"success": True, "descripcion": desc, "alias": "", "categoria": "", "calendario_id": "", "deleted": True}
             coll.update_one(
                 {"descripcion": desc},
-                {"$set": {"descripcion": desc, "alias": val, "categoria": cat, "updated_at": _dt.now().isoformat()}},
+                {"$set": {"descripcion": desc, "alias": val, "categoria": cat, "calendario_id": cid, "updated_at": _dt.now().isoformat()}},
                 upsert=True,
             )
-            return {"success": True, "descripcion": desc, "alias": val, "categoria": cat}
+            return {"success": True, "descripcion": desc, "alias": val, "categoria": cat, "calendario_id": cid}
         except Exception as e:
             print(f"❌ Error guardando alias: {e}")
             return {"success": False, "error": str(e)}
+
+    CALENDARIO_SOURCES = ('airbnb', 'booking', 'otro')
+
+    @staticmethod
+    def _validar_color_calendario(color: str) -> str:
+        """Acepta '#rrggbb' (hex). Cualquier otra cosa => '' (usa paleta)."""
+        c = (color or '').strip().lower()
+        if re.fullmatch(r'#[0-9a-f]{6}', c):
+            return c
+        return ''
+
+    def listar_calendarios(self) -> list:
+        """Retorna calendarios creados por admin desde MongoDB."""
+        if not self.connect():
+            return []
+        try:
+            coll = getattr(self, "calendarios", None)
+            if coll is None:
+                coll = self.db["calendarios"]
+                self.calendarios = coll
+            out = []
+            for doc in coll.find({}).sort("nombre", 1):
+                out.append({
+                    "id": str(doc.get("_id")),
+                    "calendario_id": doc.get("calendario_id", ""),
+                    "nombre": doc.get("nombre", ""),
+                    "source": doc.get("source", "airbnb"),
+                    "url": doc.get("url", ""),
+                    "color": doc.get("color", ""),
+                    "imagen": doc.get("imagen", ""),
+                    "thumbnail": doc.get("thumbnail", ""),
+                    "logo": doc.get("logo", ""),
+                    "tiene_logo": bool(doc.get("logo_bin")),
+                    "dinamico": True,
+                })
+            return out
+        except Exception as e:
+            print(f"❌ Error listando calendarios: {e}")
+            return []
+
+    def guardar_calendario(self, datos: dict, calendario_id: str = None) -> dict:
+        """Crea o actualiza un calendario de admin. Genera slug desde el nombre
+        (con sufijo si colisiona). El logo viaja como bytes y se guarda en
+        MongoDB (Binary) para que funcione en serverless sin disco escribible.
+        Retorna {success, calendario_id, tiene_logo, ...}."""
+        from bson import Binary
+
+        nombre = ((datos or {}).get("nombre") or "").strip()
+        if not nombre:
+            return {"success": False, "error": "Nombre requerido"}
+        source = ((datos or {}).get("source") or "airbnb").strip().lower()
+        if source not in self.CALENDARIO_SOURCES:
+            source = "airbnb"
+        url = ((datos or {}).get("url") or "").strip()
+        if url and not url.lower().startswith("http"):
+            return {"success": False, "error": "URL iCal inválida"}
+        color = self._validar_color_calendario((datos or {}).get("color", ""))
+        thumbnail = ((datos or {}).get("thumbnail") or "").strip()
+        logo = ((datos or {}).get("logo") or "").strip()
+        imagen = ((datos or {}).get("imagen") or "").strip() or thumbnail
+        logo_bytes = (datos or {}).get("logo_bytes") or b''
+        logo_mime = ((datos or {}).get("logo_mime") or "").strip()
+        logo_nombre = ((datos or {}).get("logo_nombre") or "").strip()
+        if logo_bytes and len(logo_bytes) > 2 * 1024 * 1024:
+            return {"success": False, "error": "La imagen supera los 2 MB"}
+        if not self.connect():
+            return {"success": False, "error": "Sin conexión a DB"}
+        try:
+            coll = getattr(self, "calendarios", None)
+            if coll is None:
+                coll = self.db["calendarios"]
+                self.calendarios = coll
+            slug = (calendario_id or "").strip()
+            if not slug:
+                base = _slugify(nombre)
+                slug = base
+                suffix = 2
+                while coll.find_one({"calendario_id": slug}):
+                    slug = f"{base}_{suffix}"
+                    suffix += 1
+            from datetime import datetime as _dt
+            campos = {"calendario_id": slug, "nombre": nombre,
+                      "source": source, "url": url, "color": color,
+                      "imagen": imagen, "thumbnail": thumbnail,
+                      "logo": logo, "updated_at": _dt.now().isoformat()}
+            if logo_bytes:
+                campos["logo_bin"] = Binary(logo_bytes)
+                campos["logo_mime"] = logo_mime or "application/octet-stream"
+                campos["logo_nombre"] = logo_nombre
+            coll.update_one(
+                {"calendario_id": slug},
+                {"$set": campos},
+                upsert=True,
+            )
+            tiene_logo = bool(logo_bytes)
+            if not logo_bytes:
+                # Update sin logo nuevo: conservar el flag del logo previo.
+                try:
+                    previo = coll.find_one({"calendario_id": slug}, {"logo_bin": 1})
+                    tiene_logo = bool((previo or {}).get("logo_bin"))
+                except Exception:
+                    pass
+            return {"success": True, "calendario_id": slug, "nombre": nombre,
+                    "source": source, "url": url, "color": color,
+                    "thumbnail": thumbnail, "logo": logo,
+                    "tiene_logo": tiene_logo}
+        except Exception as e:
+            print(f"❌ Error guardando calendario: {e}")
+            return {"success": False, "error": str(e)}
+
+    def obtener_logo_calendario(self, calendario_id: str):
+        """Retorna (bytes, mime) del logo guardado en MongoDB, o None."""
+        if not self.connect():
+            return None
+        try:
+            coll = getattr(self, "calendarios", None)
+            if coll is None:
+                coll = self.db["calendarios"]
+                self.calendarios = coll
+            doc = coll.find_one({"calendario_id": (calendario_id or "").strip()})
+            if not doc or not doc.get("logo_bin"):
+                return None
+            return bytes(doc["logo_bin"]), doc.get("logo_mime") or "application/octet-stream"
+        except Exception as e:
+            print(f"❌ Error obteniendo logo: {e}")
+            return None
+
+    def eliminar_calendario(self, calendario_id: str) -> bool:
+        """Elimina un calendario de admin. Retorna True si existía."""
+        if not self.connect():
+            return False
+        try:
+            coll = getattr(self, "calendarios", None)
+            if coll is None:
+                coll = self.db["calendarios"]
+                self.calendarios = coll
+            res = coll.delete_one({"calendario_id": (calendario_id or "").strip()})
+            return bool(res.deleted_count)
+        except Exception as e:
+            print(f"❌ Error eliminando calendario: {e}")
+            return False
+
+    def obtener_pagos_arriendo_mes(self, year: int, month: int) -> list:
+        """Deriva eventos de calendario desde transacciones BCI con alias categoria==arriendo.
+
+        Solo entran transacciones con alias no vacío, categoria arriendo,
+        calendario_id mapeado y abono > 0. Otras categorías (sueldo,
+        transferencia, airbnb) y sin alias se excluyen. No persiste nada:
+        se calcula en vivo para que antiguas y nuevas aparezcan igual.
+        Retorna eventos de 1 día {start==end==fecha pago ISO}.
+        """
+        if not self.connect():
+            return []
+        if self.transacciones_bci is None:
+            return []
+        try:
+            mes_str = str(month).zfill(2)
+            regex = f"^(.{{2}})-{mes_str}-{year}$"
+            cursor = self.transacciones_bci.find({
+                'fecha': {'$regex': regex}
+            }).sort('fecha', 1)
+            try:
+                alias_map = self.obtener_alias_map()
+            except Exception:
+                alias_map = {}
+            pagos = []
+            for doc in cursor:
+                desc_raw = (doc.get('descripcion', '') or '').strip()
+                entry = alias_map.get(desc_raw) or {}
+                if isinstance(entry, str):
+                    entry = {"alias": entry, "categoria": "", "calendario_id": ""}
+                if not entry.get("alias"):
+                    continue
+                if (entry.get("categoria") or "") != "arriendo":
+                    continue
+                cid = (entry.get("calendario_id") or "").strip()
+                if not cid:
+                    continue
+                try:
+                    abono = float(doc.get('abono', 0.0) or 0.0)
+                except Exception:
+                    abono = 0.0
+                if abono <= 0:
+                    continue
+                fecha_raw = (doc.get('fecha', '') or '').strip()
+                try:
+                    dd, mm, yyyy = fecha_raw.split('-')
+                    fecha_iso = f"{int(yyyy):04d}-{int(mm):02d}-{int(dd):02d}"
+                except Exception:
+                    continue
+                alias = entry.get("alias", "")
+                pagos.append({
+                    "id": f"arriendo-{doc.get('trx_key') or doc.get('_id')}",
+                    "start": fecha_iso,
+                    "end": fecha_iso,
+                    "days": 1,
+                    "summary": f"Pago arriendo {alias}",
+                    "source": "arriendo",
+                    "calendario_id": cid,
+                    "estado": "reservado",
+                    "readonly": True,
+                    "tipo": "pago_arriendo",
+                    "precio": round(abono),
+                    "extra_valor": 0,
+                    "alias": alias,
+                    "descripcion": desc_raw,
+                    "abono": abono,
+                    "fecha_pago": fecha_iso,
+                    "trx_key": doc.get('trx_key', ''),
+                })
+            return pagos
+        except Exception as e:
+            print(f"❌ Error obteniendo pagos arriendo: {e}")
+            return []
 
 
 # Instancia singleton

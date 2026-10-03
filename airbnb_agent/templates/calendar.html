@@ -181,6 +181,11 @@
                 </div>
                 <!-- v3.0.0: barra de filtros por calendario (se llena por JS) -->
                 <div class="calendar-filter-bar" id="calendar-filter-bar"></div>
+                {% if is_logged_in %}
+                <div class="calendar-admin-actions">
+                    <button type="button" class="btn-nuevo-calendario" onclick="abrirModalCalendario()">＋ Nuevo calendario</button>
+                </div>
+                {% endif %}
                 <div class="calendar-grid" id="calendar-grid">
                     <div class="day-header">Lu</div>
                     <div class="day-header">Ma</div>
@@ -286,14 +291,47 @@
                             {% set is_upcoming = event.start > today and is_reservation and not is_deleted and not is_canceled %}
                             {% set is_next = is_upcoming and not ns.found_next %}
                             {% if is_next %}{% set ns.found_next = true %}{% endif %}
-                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}"
-                                 data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}"
+                            <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-arriendo-pago' if event.source == 'arriendo' else '' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}"
+                                 data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}" data-source="{{ event.source or '' }}"
                                  data-calendario-id="{{ event.calendario_id or '__legacy__' }}">
+                                {% if event.source == 'arriendo' and is_logged_in %}
+                                {# Pago de arriendo con alias: evento genérico de 1 día, solo admin. #}
+                                {% set cal_imagen = calendarios_imagenes.get(event.calendario_id or '') or {} %}
+                                {% set cal_logo_url = cal_imagen.get('logo_url') or '' %}
+                                {% set cal_thumb = cal_imagen.get('thumbnail') or '' %}
+                                {% set cal_color = cal_imagen.get('color') or '#d97706' %}
+                                {% if cal_logo_url %}
+                                <img class="reservation-logo" src="{{ cal_logo_url }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
+                                {% elif cal_thumb %}
+                                <img class="reservation-logo" src="{{ url_for('static', filename=cal_thumb) }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
+                                {% endif %}
+                                <div class="reservation-type">
+                                    <span class="type-badge arriendo-pago">💰 Pago arriendo</span>
+                                    <span class="nights-badge">1 día</span>
+                                </div>
+                                <div class="dates-row">
+                                    <div class="date-block">
+                                        <span class="date-label">Fecha de pago</span>
+                                        <span class="date-value">{{ event.start }}</span>
+                                    </div>
+                                </div>
+                                <div class="reservation-info">
+                                    <span>⭐ Arriendo de {{ event.start[:7] }} pagado el {{ event.start }} — {{ event.alias or event.summary }}</span>
+                                </div>
+                                {% if event.precio %}
+                                <div class="price-row">
+                                    <span class="price-value price-main">💰 ${{ "{:,.0f}".format(event.precio).replace(",", ".") }}</span>
+                                </div>
+                                {% endif %}
+                                {% else %}
 
                                 {% set cal_imagen = calendarios_imagenes.get(event.calendario_id or '') or {} %}
+                                {% set cal_logo_url = cal_imagen.get('logo_url') or '' %}
                                 {% set cal_thumb = cal_imagen.get('thumbnail') or '' %}
                                 {% set cal_color = cal_imagen.get('color') or '#9ca3af' %}
-                                {% if cal_thumb %}
+                                {% if cal_logo_url %}
+                                <img class="reservation-logo" src="{{ cal_logo_url }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
+                                {% elif cal_thumb %}
                                 <img class="reservation-logo" src="{{ url_for('static', filename=cal_thumb) }}" alt="" loading="lazy" style="border-color: {{ cal_color }};">
                                 {% endif %}
                                 
@@ -455,6 +493,7 @@
                                     {% endif %}
                                 </div>
                                 {% endif %}
+                                {% endif %}{# cierra if pago-arriendo / else reservas normales #}
                             </div>
                         {% endfor %}
                     {% else %}
@@ -465,6 +504,55 @@
                 </div>
             </div>
         </main>
+
+        {% if is_logged_in %}
+        <!-- Modal nuevo/editar calendario (solo admin): nombre + logo + color -->
+        <div id="calendario-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="calendario-modal-title">＋ Nuevo calendario</h3>
+                    <button class="modal-close" onclick="cerrarModalCalendario()">&times;</button>
+                </div>
+                <form id="calendario-form" onsubmit="guardarCalendario(event)">
+                    <div class="form-group">
+                        <label>🏠 Nombre de la propiedad *</label>
+                        <input type="text" id="cal-nombre" name="nombre" required maxlength="80" placeholder="Ej: Casa Lago">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label>Plataforma</label>
+                            <select id="cal-source" name="source">
+                                <option value="airbnb">Airbnb</option>
+                                <option value="booking">Booking</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group half">
+                            <label>🎨 Color</label>
+                            <input type="color" id="cal-color" name="color" value="#2563eb" class="cal-color-input">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>🔗 URL iCal <small>(opcional: sin URL es calendario manual)</small></label>
+                        <input type="url" id="cal-url" name="url" placeholder="https://www.airbnb.com/calendar/ical/....ics">
+                    </div>
+                    <div class="form-group">
+                        <label>🖼️ Logo <small>(opcional: si no subes, se usa imagen por defecto)</small></label>
+                        <input type="file" id="cal-imagen" name="imagen" accept=".png,.jpg,.jpeg,.webp,.svg" onchange="previsualizarLogoCalendario(this)">
+                        <div class="cal-logo-preview-row">
+                            <img id="cal-imagen-preview" class="cal-logo-preview" src="" alt="" style="display:none;">
+                            <small id="cal-imagen-hint" class="form-hint">PNG, JPG, WEBP o SVG hasta 2 MB.</small>
+                        </div>
+                    </div>
+                    <div id="cal-form-error" class="form-error" style="display:none;"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="cerrarModalCalendario()">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="cal-btn-guardar">Crear calendario</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
 
         <footer>
             <div class="status-badges">
@@ -1198,12 +1286,13 @@
                 const res = await fetch('/api/calendarios', { credentials: 'include' });
                 const data = await res.json();
                 calendariosDisponibles = data.configured || [];
-                // Mapear calendario_id -> {logo, thumbnail, color} para los badges en celdas.
+                // Mapear calendario_id -> {logo, thumbnail, logo_url, color} para los badges en celdas.
                 calendariosImagenes = {};
                 calendariosDisponibles.forEach(c => {
                     calendariosImagenes[c.calendario_id] = {
                         logo: c.logo || '',
                         thumbnail: c.thumbnail || '',
+                        logo_url: c.logo_url || '',
                         color: c.color || '#9ca3af',
                     };
                 });
@@ -1251,6 +1340,22 @@
             }
         }
 
+        // URL de imagen de un calendario: si el logo vive en MongoDB
+        // (logo_url) se usa directo; si no, ruta static. '' si no hay nada.
+        function calThumbUrl(cal) {
+            if (!cal) return '';
+            if (cal.logo_url) return cal.logo_url;
+            if (cal.thumbnail) return `${STATIC_BASE}/${cal.thumbnail}`;
+            return '';
+        }
+        function calLogoUrl(cal) {
+            if (!cal) return '';
+            if (cal.logo_url) return cal.logo_url;
+            const p = cal.logo || cal.thumbnail;
+            if (p) return `${STATIC_BASE}/${p}`;
+            return '';
+        }
+
         function renderFilterBar() {
             const bar = document.getElementById('calendar-filter-bar');
             if (!bar) return;
@@ -1282,24 +1387,46 @@
                 calendariosDisponibles.forEach((c, i) => {
                     const active = calendariosActivos.has(c.calendario_id);
                     const sourceIcon = c.source === 'airbnb' ? '🏠' : (c.source === 'booking' ? '🏨' : '📅');
-                    const thumbUrl = c.thumbnail ? `${STATIC_BASE}/${c.thumbnail}` : '';
-                    const borderColor = CHIP_PALETTE[i % CHIP_PALETTE.length];
+                    const thumbUrl = calThumbUrl(c);
+                    // Color propio del calendario si trae uno, si no paleta por índice.
+                    const borderColor = c.color || CHIP_PALETTE[i % CHIP_PALETTE.length];
                     const thumbStyle = `border-color: ${borderColor};`;
                     const thumbTag = thumbUrl
                         ? `<img class="chip-thumb" src="${thumbUrl}" alt="" loading="lazy" style="${thumbStyle}" onerror="this.style.display='none'">`
                         : `<span class="chip-icon" style="color: ${borderColor};">${sourceIcon}</span>`;
+                    // Solo admin puede editar/eliminar calendarios creados por admin.
+                    const delTag = (isAdmin && c.dinamico)
+                        ? `<span class="chip-delete" data-cal-delete="${c.calendario_id}" title="Eliminar calendario">✕</span>`
+                        : '';
+                    const editTag = (isAdmin && c.dinamico)
+                        ? `<span class="chip-edit" data-cal-edit="${c.calendario_id}" title="Editar calendario">✏️</span>`
+                        : '';
                     html += `<button class="calendar-filter-chip ${active ? 'active' : 'disabled'}"
                                       data-cal-action="toggle"
                                       data-calendario-id="${c.calendario_id}"
                                       title="${c.nombre} (${c.source})">
                         ${thumbTag}
-                    <span class="chip-name">${c.nombre}</span>
+                    <span class="chip-name">${c.nombre}</span>${editTag}${delTag}
                 </button>`;
             });
             bar.innerHTML = html;
             // Bind clicks
             bar.querySelectorAll('.calendar-filter-chip').forEach(btn => {
-                btn.addEventListener('click', () => onFilterChipClick(btn));
+                btn.addEventListener('click', (e) => {
+                    const edit = e.target.closest('[data-cal-edit]');
+                    if (edit) {
+                        e.stopPropagation();
+                        abrirModalCalendario(edit.dataset.calEdit);
+                        return;
+                    }
+                    const del = e.target.closest('[data-cal-delete]');
+                    if (del) {
+                        e.stopPropagation();
+                        eliminarCalendario(del.dataset.calDelete);
+                        return;
+                    }
+                    onFilterChipClick(btn);
+                });
             });
         }
 
@@ -1386,6 +1513,11 @@
                 if (Array.isArray(data.events)) {
                     events = data.events;
                 }
+                // Pagos de arriendo de meses navegados no están en el DOM inicial
+                // (solo trae el mes actual): inyectarlos como filas genéricas.
+                if (isAdmin) {
+                    asegurarPagosEnLista();
+                }
                 renderizarMes(data);
                 marcarDias();
                 filtrarReservasPorMes(year, month);
@@ -1448,13 +1580,72 @@
             const sorted = keys.sort((a, b) => porCal[b].total - porCal[a].total);
             let html = '<div class="income-subtotals-title">Por calendario</div>';
             for (const cid of sorted) {
-                const label = cid === '__legacy__' ? 'Sin asignar' : cid;
-                html += `<div class="income-subtotal-row" data-calendario-id="${cid}">
+                const cal = calendariosDisponibles.find(c => c.calendario_id === cid) || calendariosImagenes[cid] || {};
+                const label = cid === '__legacy__' ? 'Sin asignar' : (cal.nombre || cid);
+                const imgUrl = calThumbUrl(cal);
+                const color = cal.color || '#9ca3af';
+                html += `<div class="income-subtotal-row" data-calendario-id="${cid}" title="${cid}">
+                    ${imgUrl ? `<img class="income-subtotal-logo" src="${imgUrl}" alt="" loading="lazy" style="border-color: ${color};" onerror="this.remove()">` : ''}
                     <span class="income-subtotal-label">${label}</span>
                     <span class="income-subtotal-value">$${porCal[cid].total.toLocaleString('es-CL')}</span>
                 </div>`;
             }
             cont.innerHTML = html;
+        }
+
+        // Pagos de arriendo con alias (solo admin): los meses navegados vía
+        // /api/month traen pagos que no existen en el DOM inicial (render del
+        // mes actual). Se inyectan como filas genéricas de 1 día para que la
+        // lista los muestre; los filtros por mes/calendario los procesan igual
+        // que al resto (se llaman después en cargarMes).
+        function asegurarPagosEnLista() {
+            if (!isAdmin) return;
+            const list = document.getElementById('reservations-list');
+            if (!list) return;
+            const pagos = events.filter(e => e.source === 'arriendo' && e.start);
+            if (!pagos.length) return;
+            const emptyMsg = list.querySelector('.no-reservations');
+            if (emptyMsg) emptyMsg.remove();
+            pagos.forEach(pago => {
+                const evId = pago.id || ('arriendo_' + pago.start);
+                if (list.querySelector(`.reservation-item[data-id="${evId}"]`)) return;
+                const cid = pago.calendario_id || '';
+                const calImg = calendariosImagenes[cid] || {};
+                const logoPath = calLogoUrl(calImg);
+                const calColor = calImg.color || '#d97706';
+                const item = document.createElement('div');
+                item.className = 'reservation-item is-reservation is-arriendo-pago';
+                item.dataset.start = pago.start;
+                item.dataset.end = pago.end || pago.start;
+                item.dataset.id = evId;
+                item.dataset.estado = 'reservado';
+                item.dataset.source = 'arriendo';
+                item.dataset.calendarioId = cid || '__legacy__';
+                const monto = (pago.precio || 0).toLocaleString('es-CL');
+                const detalle = pago.alias || pago.summary || 'Pago arriendo';
+                item.innerHTML = `
+                    ${logoPath ? `<img class="reservation-logo" src="${logoPath}" alt="" loading="lazy" style="border-color: ${calColor};">` : ''}
+                    <div class="reservation-type">
+                        <span class="type-badge arriendo-pago">💰 Pago arriendo</span>
+                        <span class="nights-badge">1 día</span>
+                    </div>
+                    <div class="dates-row">
+                        <div class="date-block">
+                            <span class="date-label">Fecha de pago</span>
+                            <span class="date-value">${pago.start}</span>
+                        </div>
+                    </div>
+                    <div class="reservation-info">
+                        <span>⭐ Arriendo de ${String(pago.start).slice(0, 7)} pagado el ${pago.start} — ${detalle}</span>
+                    </div>
+                    <div class="price-row">
+                        <span class="price-value price-main">💰 $${monto}</span>
+                    </div>`;
+                const siblings = [...list.querySelectorAll('.reservation-item')];
+                const next = siblings.find(sib => (sib.dataset.start || '') > pago.start);
+                if (next) list.insertBefore(item, next);
+                else list.appendChild(item);
+            });
         }
 
         function filtrarReservasPorMes(year, month) {
@@ -1542,8 +1733,9 @@
                 ingresoTinaja = ingresosApi.tinaja || 0;
             }
 
-            // Solo considerar reservas (no bloqueos)
-            const reservas = events.filter(e => e.estado === 'reservado');
+            // Solo considerar reservas (no bloqueos ni pagos de arriendo:
+            // los pagos no ocupan noches, solo suman a ingresos vía API)
+            const reservas = events.filter(e => e.estado === 'reservado' && e.source !== 'arriendo');
 
             reservas.forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
@@ -1645,6 +1837,82 @@
             const d = String(date.getDate()).padStart(2, '0');
             return `${y}-${m}-${d}`;
         }
+
+        function eventIdDe(ev) {
+            return ev.id || (ev.start + '_' + ev.end + '_' + (ev.calendario_id || ev.source));
+        }
+
+        // Fila inline de un evento dentro de la celda (modo expandido / botón +).
+        // Incluye el logo redondo de la propiedad (o dot de color si no hay logo).
+        function construirFilaEventoDia(ev) {
+            const row = document.createElement('div');
+            row.className = 'day-event-row';
+            row.dataset.source = ev.source || 'unknown';
+            row.dataset.calendarioId = ev.calendario_id || '';
+            row.dataset.eventId = eventIdDe(ev);
+            const nombre = (ev.nombre_huesped || '?').substring(0, 12);
+            const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+            const totalPersonas = (ev.adultos || 0) + (ev.ninos || 0);
+            const precio = isAdmin && ev.precio ? `$${(ev.precio || 0).toLocaleString('es-CL')}` : '';
+            const evLogo = calLogoUrl(calendariosImagenes[ev.calendario_id || ''] || {});
+            row.innerHTML = `
+                ${evLogo ? `<img class="day-event-logo" src="${evLogo}" alt="" loading="lazy" onerror="this.remove()">` : '<span class="day-event-dot"></span>'}
+                <span class="day-event-name">${ini}${totalPersonas > 1 ? ` +${totalPersonas - 1}` : ''}</span>
+                ${precio ? `<span class="day-event-price">${precio}</span>` : ''}
+            `;
+            row.title = `${ev.nombre_huesped || ''} — ${ev.calendario_id || ev.source || ''}`;
+            return row;
+        }
+
+        // Expande/contrae un día multievento inline (misma mini-lista del modo expandido).
+        function toggleExpandDia(cell) {
+            const evs = cell._eventosDia || [];
+            if (!evs.length) return;
+            const exp = cell.querySelector(':scope > .day-expander');
+            if (cell.classList.contains('expanded-day')) {
+                cell.querySelector(':scope > .day-event-list')?.remove();
+                cell.classList.remove('expanded-day');
+                evs.forEach(ev => {
+                    // Al contraer se restauran bandas, salvo de eventos que
+                    // terminan ese día (el checkout se marca con colita, no banda).
+                    if (formatDate(new Date(ev.end + 'T00:00:00')) === cell.dataset.date) return;
+                    const evId = eventIdDe(ev);
+                    if (!cell.querySelector(`.band[data-event-id="${evId}"]`)) {
+                        const band = document.createElement('div');
+                        band.className = 'band';
+                        band.dataset.source = ev.source || 'unknown';
+                        band.dataset.calendarioId = ev.calendario_id || '';
+                        band.dataset.eventId = evId;
+                        cell.appendChild(band);
+                    }
+                });
+                if (exp) { exp.textContent = `+${evs.length}`; exp.classList.remove('open'); exp.title = 'Ver eventos del día'; }
+            } else {
+                cell.classList.add('multi-band', 'expanded-day');
+                cell.querySelectorAll(':scope > .band').forEach(b => b.remove());
+                const list = document.createElement('div');
+                list.className = 'day-event-list';
+                evs.forEach(ev => list.appendChild(construirFilaEventoDia(ev)));
+                cell.appendChild(list);
+                if (exp) { exp.textContent = '−'; exp.classList.add('open'); exp.title = 'Contraer'; }
+            }
+        }
+
+        // Agrega el botón +/− a una celda multievento (una sola vez).
+        // cell._eventosDia debe estar seteado antes de llamar.
+        function agregarExpanderDia(cell) {
+            if (cell.querySelector(':scope > .day-expander')) return;
+            const evs = cell._eventosDia || [];
+            if (evs.length < 2) return;
+            const exp = document.createElement('button');
+            exp.type = 'button';
+            const abierto = cell.classList.contains('expanded-day');
+            exp.className = 'day-expander' + (abierto ? ' open' : '');
+            exp.textContent = abierto ? '−' : `+${evs.length}`;
+            exp.title = abierto ? 'Contraer' : 'Ver eventos del día';
+            exp.addEventListener('click', (e) => { e.stopPropagation(); toggleExpandDia(cell); });
+            cell.appendChild(exp);
+        }
         
         // Marcar días reservados
         function marcarDias() {
@@ -1658,7 +1926,9 @@
                 while (current <= end) {
                     const d = formatDate(current);
                     diasOcupados.add(d);
-                    if (event.estado === 'reservado') {
+                    // Los pagos de arriendo se pintan como filas propias (PASO 2b),
+                    // no cuentan para el stack multi/expanded de las reservas.
+                    if (event.estado === 'reservado' && event.source !== 'arriendo') {
                         if (!eventosPorFecha.has(d)) eventosPorFecha.set(d, []);
                         eventosPorFecha.get(d).push(event);
                     }
@@ -1670,9 +1940,48 @@
             const esReserva = (event) => {
                 return event.estado === 'reservado';
             };
+            // Pago de arriendo con alias: evento sintético de 1 día, se pinta
+            // como fila inline (PASO 2b), nunca como franja de estadía.
+            const esPagoArriendo = (event) => {
+                return event.source === 'arriendo';
+            };
+
+            // Suma de arriendos por día (globito verde): si varios arriendos
+            // pintan burbuja de precio el mismo día, se muestra UNA con el total.
+            // Los azules (tinaja) no se tocan: siguen uno por reserva.
+            // Todo sale de `events` (ya filtrado por calendario) así que respeta filtros.
+            const sumaVerdePorDia = new Map(); // dia -> {total, nombres:[], proporcional}
+            const gruposVerdePintados = new Set();
+            {
+                const _ini = new Date(currentYear, currentMonth - 1, 1);
+                const _fin = new Date(currentYear, currentMonth, 0);
+                events.filter(e => esReserva(e) && !esPagoArriendo(e)).forEach(event => {
+                    const start = new Date(event.start + 'T00:00:00');
+                    const end = new Date(event.end + 'T00:00:00');
+                    if (end < _ini || start > _fin) return;
+                    const empieza = start >= _ini && start <= _fin;
+                    const diaBurbuja = empieza ? formatDate(start) : formatDate(_ini);
+                    const diasTotales = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+                    const endInclusive = new Date(end.getTime() + 86400000);
+                    const overlapStart = new Date(Math.max(start.getTime(), _ini.getTime()));
+                    const overlapEnd = new Date(Math.min(endInclusive.getTime(), _fin.getTime() + 86400000));
+                    const diasEnMes = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
+                    const prop = diasEnMes / diasTotales;
+                    const esProp = diasEnMes < diasTotales;
+                    const muestra = esProp ? Math.round((event.precio || 0) * prop) : (event.precio || 0);
+                    if (!isAdmin || muestra <= 0) return;
+                    if (!sumaVerdePorDia.has(diaBurbuja)) {
+                        sumaVerdePorDia.set(diaBurbuja, {total: 0, nombres: [], proporcional: false});
+                    }
+                    const g = sumaVerdePorDia.get(diaBurbuja);
+                    g.total += muestra;
+                    g.proporcional = g.proporcional || esProp;
+                    g.nombres.push(`${event.nombre_huesped || event.summary || '?'} $${muestra.toLocaleString('es-CL')}`);
+                });
+            }
 
             // PASO 1: Primero marcar TODOS los bloqueos (gris)
-            events.filter(e => !esReserva(e)).forEach(event => {
+            events.filter(e => !esReserva(e) && !esPagoArriendo(e)).forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 const esCache = event.source === 'cache_airbnb';
@@ -1690,7 +1999,8 @@
             });
 
             // PASO 2: Después marcar TODAS las reservas (franja negra, tiene prioridad)
-            events.filter(e => esReserva(e)).forEach(event => {
+            // (los pagos de arriendo van en el PASO 2b con estrella, no como estadía)
+            events.filter(e => esReserva(e) && !esPagoArriendo(e)).forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
                 const reservationUrl = event.reservation_url;
@@ -1738,25 +2048,7 @@
                                 cell.classList.add('multi-band', 'expanded-day');
                                 const list = document.createElement('div');
                                 list.className = 'day-event-list';
-                                eventosEseDia.forEach(ev => {
-                                    const row = document.createElement('div');
-                                    row.className = 'day-event-row';
-                                    row.dataset.source = ev.source || 'unknown';
-                                    row.dataset.calendarioId = ev.calendario_id || '';
-                                    const evId = ev.id || (ev.start + '_' + ev.end + '_' + (ev.calendario_id || ev.source));
-                                    row.dataset.eventId = evId;
-                                    const nombre = (ev.nombre_huesped || '?').substring(0, 12);
-                                    const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
-                                    const totalPersonas = (ev.adultos || 0) + (ev.ninos || 0);
-                                    const precio = isAdmin && ev.precio ? `$${(ev.precio || 0).toLocaleString('es-CL')}` : '';
-                                    row.innerHTML = `
-                                        <span class="day-event-dot"></span>
-                                        <span class="day-event-name">${ini}${totalPersonas > 1 ? ` +${totalPersonas - 1}` : ''}</span>
-                                        ${precio ? `<span class="day-event-price">${precio}</span>` : ''}
-                                    `;
-                                    row.title = `${ev.nombre_huesped || ''} — ${ev.calendario_id || ev.source || ''}`;
-                                    list.appendChild(row);
-                                });
+                                eventosEseDia.forEach(ev => list.appendChild(construirFilaEventoDia(ev)));
                                 cell.appendChild(list);
                             }
                             // No aplicar .reserved (la celda se ve con la lista)
@@ -1781,34 +2073,63 @@
                             }
                         }
 
+                        // Guardar eventos del día para el botón +/− y el click en el logo.
+                        cell._eventosDia = eventosEseDia;
+                        if (eventosEseDia.length > 1) {
+                            agregarExpanderDia(cell);
+                        }
+
                         if (esCache) cell.classList.add('from-cache');
                         const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
 
-                        // Logo badge del arriendo en la celda de checkout (último día de la reserva).
-                        // Solo se muestra en el día rojo/checkout para:
-                        //   - no tapar el price-bubble / extra-bubble que están arriba
-                        //   - identificar el arriendo de un vistazo en el día de salida
-                        // El border toma el color de la paleta del calendario (no rojo fijo),
-                        // así no se confunde con el dot rojo de checkout.
+                        // Logo badge de la propiedad ANCLADO a la franja (UN SOLO badge
+                        // por evento y mes): inicio (azul) abajo-izquierda sobre el azul,
+                        // checkout (rojo) abajo-derecha sobre el rojo si el azul no se ve,
+                        // travesía completa del mes → día 1. Solape ~25% sin tapar el número.
                         const cid = event.calendario_id || '';
                         const calImg = calendariosImagenes[cid] || {};
-                        const logoPath = calImg.thumbnail || calImg.logo || '';
+                        const logoPath = calLogoUrl(calImg);
                         const calColor = calImg.color || '#9ca3af';
-                        if (logoPath && esUltimoDiaReserva && !cell.querySelector(':scope > .cal-logo-badge')) {
-                            const badge = document.createElement('img');
-                            badge.className = 'cal-logo-badge';
-                            badge.src = `${STATIC_BASE}/${logoPath}`;
-                            badge.alt = '';
-                            badge.loading = 'lazy';
-                            badge.style.borderColor = calColor;
-                            badge.title = `Checkout - ${calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || ''}`;
-                            badge.onerror = () => badge.remove();
-                            cell.appendChild(badge);
-                        }
 
                         // Mostrar globitos en: primer día de reserva O primer día del mes si viene de antes
                         // NO mostrar en día de checkout (las franjas se manejan con CSS)
                         const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
+
+                        // Logo: UN SOLO badge por evento y mes.
+                        // - Empieza aquí (azul visible) → solo al inicio.
+                        // - Viene de otro mes y termina aquí → solo en checkout (rojo).
+                        // - Atraviesa el mes completo → día 1.
+                        const terminaAqui = end >= inicioMesVisible && end <= finMesVisible;
+                        let ponerBadge = false, posClase = '';
+                        if (empiezaEnEsteMes) {
+                            ponerBadge = esPrimerDiaReserva;
+                            posClase = (esPrimerDiaReserva && esUltimoDiaReserva) ? 'pos-checkout' : 'pos-inicio';
+                        } else if (terminaAqui) {
+                            ponerBadge = esUltimoDiaReserva;
+                            posClase = 'pos-checkout';
+                        } else {
+                            ponerBadge = (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
+                            posClase = 'pos-medio';
+                        }
+                        if (logoPath && ponerBadge && !cell.querySelector(':scope > .cal-logo-badge')) {
+                            const badge = document.createElement('img');
+                            badge.className = 'cal-logo-badge ' + posClase;
+                            badge.src = logoPath;
+                            badge.alt = '';
+                            badge.loading = 'lazy';
+                            badge.style.borderColor = calColor;
+                            const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || cid;
+                            const diaMulti = (eventosPorFecha.get(dateStr) || []).length > 1;
+                            if (diaMulti) {
+                                badge.classList.add('clickable');
+                                badge.title = `${nombreCal} — ver eventos del día`;
+                                badge.addEventListener('click', (e) => { e.stopPropagation(); toggleExpandDia(cell); });
+                            } else {
+                                badge.title = posClase === 'pos-checkout' ? `${nombreCal} (checkout)` : nombreCal;
+                            }
+                            badge.onerror = () => badge.remove();
+                            cell.appendChild(badge);
+                        }
 
                         if (mostrarGlobitos) {
                             // Marcar checkin solo si es el primer día real de la reserva
@@ -1859,10 +2180,23 @@
                             }
 
                             // Globito de precio (solo admin) - verde con valor proporcional
-                            // Siempre usar proporción si la reserva cruza meses
+                            // Siempre usar proporción si la reserva cruza meses.
+                            // Si varios arriendos comparten día de burbuja, UNA burbuja con la suma.
                             const esProporcional = diasEnEsteMes < diasTotales;
                             const precioMostrar = esProporcional ? precioProporcion : (event.precio || 0);
-                            if (isAdmin && precioMostrar > 0) {
+                            const grupoVerde = sumaVerdePorDia.get(dateStr);
+                            const esGrupoVerde = isAdmin && grupoVerde && grupoVerde.nombres.length > 1;
+                            if (esGrupoVerde && !gruposVerdePintados.has(dateStr)) {
+                                const totalBubble = document.createElement('div');
+                                totalBubble.className = 'price-bubble total-dia';
+                                if (grupoVerde.proporcional) {
+                                    totalBubble.classList.add('proporcional');
+                                }
+                                totalBubble.innerHTML = `$${grupoVerde.total.toLocaleString('es-CL')}`;
+                                totalBubble.title = grupoVerde.nombres.join(' + ') + ` = $${grupoVerde.total.toLocaleString('es-CL')}`;
+                                cell.appendChild(totalBubble);
+                                gruposVerdePintados.add(dateStr);
+                            } else if (isAdmin && precioMostrar > 0 && !esGrupoVerde) {
                                 const priceBubble = document.createElement('div');
                                 priceBubble.className = 'price-bubble';
                                 if (esProporcional) {
@@ -1916,6 +2250,45 @@
                     checkoutCell.classList.add('checkout-day');
                 }
             });
+
+            // PASO 2b: Pagos de arriendo con alias (solo admin). Se pintan como
+            // filas inline estilo mini-lista (logo redondo + ★ + alias + monto),
+            // igual que los días con varios eventos. Reutiliza .day-event-list
+            // si la celda ya la tiene (modo expandido); si no, crea una propia.
+            // Convive con bandas/globitos de reservas del mismo día.
+            if (isAdmin) {
+                events.filter(e => esPagoArriendo(e) && e.start).forEach(pago => {
+                    const dateStr = pago.start; // start == end (día de pago)
+                    const cell = document.querySelector(`[data-date="${dateStr}"]`);
+                    if (!cell) return;
+                    const evId = pago.id || ('arriendo_' + pago.start);
+                    if (cell.querySelector(`.day-event-row[data-event-id="${evId}"]`)) return;
+                    let list = cell.querySelector(':scope > .day-event-list');
+                    if (!list) {
+                        list = document.createElement('div');
+                        list.className = 'day-event-list arriendo-list';
+                        cell.appendChild(list);
+                    }
+                    const cid = pago.calendario_id || '';
+                    const calImg = calendariosImagenes[cid] || {};
+                    const logoPath = calLogoUrl(calImg);
+                    const alias = (pago.alias || pago.summary || 'Arriendo').substring(0, 14);
+                    const monto = (pago.precio || 0).toLocaleString('es-CL');
+                    const row = document.createElement('div');
+                    row.className = 'day-event-row is-arriendo-pago';
+                    row.dataset.source = 'arriendo';
+                    row.dataset.calendarioId = cid;
+                    row.dataset.eventId = evId;
+                    row.title = `Arriendo de ${String(dateStr).slice(0, 7)} pagado el ${dateStr} — ${pago.alias || ''} ($${monto})`;
+                    row.innerHTML = `
+                        ${logoPath ? `<img class="day-event-logo" src="${logoPath}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+                        <span class="day-event-star">★</span>
+                        <span class="day-event-name">${alias}</span>
+                        <span class="day-event-price">$${monto}</span>
+                    `;
+                    list.appendChild(row);
+                });
+            }
 
             // PASO 3: Reservas canceladas - añadir cruz roja al lado de cada día
             events.filter(e => e.estado === 'cancelado').forEach(event => {
@@ -2040,8 +2413,9 @@
             // Logo grande en el header con border del color del calendario
             const cal = calendariosImagenes[calendarioId];
             const borderColor = getCalendarioColor(calendarioId);
-            if (cal && cal.logo) {
-                logo.src = `${STATIC_BASE}/${cal.logo}`;
+            const modalLogoUrl = calLogoUrl(cal);
+            if (modalLogoUrl) {
+                logo.src = modalLogoUrl;
                 logo.style.display = 'inline-block';
                 logo.style.borderColor = borderColor;
                 logo.title = cal.nombre || calendarioId;
@@ -2237,6 +2611,162 @@
         function cerrarModal() {
             document.getElementById('reserva-modal').style.display = 'none';
         }
+
+        // ============================================================
+        // Modal NUEVO CALENDARIO (solo admin)
+        // ============================================================
+        function abrirModalCalendario(calendarioId) {
+            if (!isAdmin) return;
+            const modal = document.getElementById('calendario-modal');
+            if (!modal) return;
+            const form = document.getElementById('calendario-form');
+            form.reset();
+            form.dataset.editId = '';
+            const title = document.getElementById('calendario-modal-title');
+            const btn = document.getElementById('cal-btn-guardar');
+            const preview = document.getElementById('cal-imagen-preview');
+            const hint = document.getElementById('cal-imagen-hint');
+            const err = document.getElementById('cal-form-error');
+            err.style.display = 'none';
+            err.textContent = '';
+            if (calendarioId) {
+                // Modo edición: precargar datos del calendario dinámico.
+                const cal = calendariosDisponibles.find(c => c.calendario_id === calendarioId);
+                if (!cal) return;
+                form.dataset.editId = calendarioId;
+                title.textContent = `✏️ Editar ${cal.nombre}`;
+                btn.textContent = 'Guardar cambios';
+                document.getElementById('cal-nombre').value = cal.nombre || '';
+                document.getElementById('cal-source').value = cal.source || 'airbnb';
+                document.getElementById('cal-url').value = cal.url || '';
+                document.getElementById('cal-color').value = /^#[0-9a-fA-F]{6}$/.test(cal.color || '') ? cal.color : '#2563eb';
+                const actual = cal.logo_url || (cal.thumbnail ? `${STATIC_BASE}/${cal.thumbnail}` : '');
+                if (actual) {
+                    preview.src = actual;
+                    preview.style.display = 'inline-block';
+                    hint.textContent = 'Logo actual (sube otro para reemplazarlo).';
+                } else {
+                    preview.style.display = 'none';
+                    preview.removeAttribute('src');
+                    hint.textContent = 'PNG, JPG, WEBP o SVG hasta 2 MB.';
+                }
+            } else {
+                title.textContent = '＋ Nuevo calendario';
+                btn.textContent = 'Crear calendario';
+                document.getElementById('cal-color').value = '#2563eb';
+                preview.style.display = 'none';
+                preview.removeAttribute('src');
+                hint.textContent = 'PNG, JPG, WEBP o SVG hasta 2 MB.';
+            }
+            modal.style.display = 'flex';
+        }
+
+        function cerrarModalCalendario() {
+            const modal = document.getElementById('calendario-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function previsualizarLogoCalendario(input) {
+            const preview = document.getElementById('cal-imagen-preview');
+            const hint = document.getElementById('cal-imagen-hint');
+            const file = input.files && input.files[0];
+            if (!file) {
+                preview.style.display = 'none';
+                preview.removeAttribute('src');
+                hint.textContent = 'PNG, JPG, WEBP o SVG hasta 2 MB.';
+                return;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+                hint.textContent = '⚠️ Supera los 2 MB, elige otra imagen.';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'inline-block';
+                hint.textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function guardarCalendario(e) {
+            e.preventDefault();
+            if (!isAdmin) return;
+            const err = document.getElementById('cal-form-error');
+            const btn = document.getElementById('cal-btn-guardar');
+            const editId = document.getElementById('calendario-form').dataset.editId || '';
+            const esEdicion = !!editId;
+            err.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = esEdicion ? 'Guardando…' : 'Creando…';
+            try {
+                const fd = new FormData();
+                fd.append('nombre', document.getElementById('cal-nombre').value.trim());
+                fd.append('source', document.getElementById('cal-source').value);
+                fd.append('url', document.getElementById('cal-url').value.trim());
+                fd.append('color', document.getElementById('cal-color').value);
+                const fileInput = document.getElementById('cal-imagen');
+                if (fileInput.files && fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    if (file.size > 2 * 1024 * 1024) {
+                        throw new Error('La imagen supera los 2 MB. Elige otra.');
+                    }
+                    if (!/\.(png|jpe?g|webp|svg)$/i.test(file.name)) {
+                        throw new Error('Formato no soportado (usa PNG, JPG, WEBP o SVG).');
+                    }
+                    fd.append('imagen', file);
+                }
+                const res = await fetch(esEdicion ? `/api/calendarios/${encodeURIComponent(editId)}` : '/api/calendarios', {
+                    method: esEdicion ? 'PUT' : 'POST', body: fd, credentials: 'include',
+                });
+                // Parseo defensivo: ante un error inesperado del servidor (p. ej.
+                // página HTML), mostrar mensaje legible en vez de reventar.
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    throw new Error(`El servidor devolvió un error inesperado (HTTP ${res.status}). Intenta de nuevo.`);
+                }
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || (esEdicion ? 'No se pudo guardar los cambios' : 'No se pudo crear el calendario'));
+                }
+                cerrarModalCalendario();
+                // Activar el calendario y refrescar todo
+                calendariosActivos.add(data.calendario_id);
+                await loadCalendarFilters();
+                calendariosActivos.add(data.calendario_id);
+                renderFilterBar();
+                await cargarMes(currentYear, currentMonth);
+            } catch (ex) {
+                err.textContent = ex.message;
+                err.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = esEdicion ? 'Guardar cambios' : 'Crear calendario';
+            }
+        }
+
+        async function eliminarCalendario(calendarioId) {
+            if (!isAdmin || !calendarioId) return;
+            const cal = calendariosDisponibles.find(c => c.calendario_id === calendarioId);
+            const nombre = cal ? cal.nombre : calendarioId;
+            if (!confirm(`¿Eliminar el calendario "${nombre}"? Las reservas que lo usan quedarán sin asignar.`)) return;
+            try {
+                const res = await fetch(`/api/calendarios/${encodeURIComponent(calendarioId)}`, {
+                    method: 'DELETE', credentials: 'include',
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'No se pudo eliminar');
+                }
+                calendariosActivos.delete(calendarioId);
+                await loadCalendarFilters();
+                await cargarMes(currentYear, currentMonth);
+            } catch (ex) {
+                alert(ex.message);
+            }
+        }
         
         async function guardarReserva(e) {
             e.preventDefault();
@@ -2328,6 +2858,13 @@
         document.getElementById('reserva-modal').addEventListener('click', (e) => {
             if (e.target.id === 'reserva-modal') cerrarModal();
         });
+
+        const calModal = document.getElementById('calendario-modal');
+        if (calModal) {
+            calModal.addEventListener('click', (e) => {
+                if (e.target.id === 'calendario-modal') cerrarModalCalendario();
+            });
+        }
         
         // ============================================================
         // MODAL DE GASTOS DE AGUA

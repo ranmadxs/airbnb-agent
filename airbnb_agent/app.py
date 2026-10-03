@@ -76,6 +76,70 @@ def _now_local():
 MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
              'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
+# Calendarios creados por admin: el logo se guarda como binario en MongoDB
+# (funciona en serverless sin disco escribible) y se sirve por
+# GET /api/calendarios/<id>/logo.
+CALENDARIO_DEFAULT_IMAGEN = 'images/default-calendario.svg'
+CALENDARIO_IMAGEN_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.svg'}
+CALENDARIO_IMAGEN_MAX_BYTES = 2 * 1024 * 1024
+CALENDARIO_IMAGEN_MIMES = {
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp', '.svg': 'image/svg+xml',
+}
+CALENDARIO_SOURCES = ('airbnb', 'booking', 'otro')
+
+# Paleta de colores para calendarios (los creados por admin pueden traer
+# color propio; si no, se les asigna por índice como a los de .env).
+CAL_PALETTE = [
+    "#dc2626", "#2563eb", "#059669", "#d97706",
+    "#7c3aed", "#0891b2", "#db2777", "#65a30d",
+]
+
+
+def obtener_todos_calendarios() -> list:
+    """Fusiona calendarios de .env + los creados por admin en MongoDB.
+
+    Sincroniza los dinámicos dentro de `airbnb_service.calendars` (reemplazo
+    idempotente marcado con `dinamico=True`) para que fetch, validación,
+    filtros e ingresos los vean igual que a los de .env. Si un slug dinámico
+    colisiona con uno de .env, se le agrega sufijo.
+    """
+    base = [c for c in airbnb_service.calendars if not c.get('dinamico')]
+    dinamicos = []
+    try:
+        fn = getattr(db_service, 'listar_calendarios', None)
+        if callable(fn):
+            res = fn()
+            if isinstance(res, list):
+                dinamicos = res
+    except Exception:
+        dinamicos = []
+    usados = {c['calendario_id'] for c in base}
+    for d in dinamicos:
+        slug = (d.get('calendario_id') or '').strip()
+        if not slug:
+            continue
+        if slug in usados:
+            base_slug, suffix = slug, 2
+            while f"{base_slug}_{suffix}" in usados:
+                suffix += 1
+            slug = f"{base_slug}_{suffix}"
+            d = {**d, 'calendario_id': slug}
+        usados.add(slug)
+        d.setdefault('dinamico', True)
+        d['dinamico'] = True
+    airbnb_service.calendars = base + dinamicos
+    return airbnb_service.calendars
+
+
+def _color_calendario(calendario: dict, indice: int) -> str:
+    """Color propio del calendario si trae uno válido, si no paleta por índice."""
+    c = (calendario.get('color') or '').strip().lower()
+    import re as _re
+    if _re.fullmatch(r'#[0-9a-f]{6}', c):
+        return c
+    return CAL_PALETTE[indice % len(CAL_PALETTE)]
+
 
 def _calcular_ingresos_mes_reservas(
     all_events: list,
@@ -178,12 +242,15 @@ def get_audit_info() -> dict:
 
 
 def get_month_calendar(year: int, month: int, include_events: bool = False,
-                       calendario_ids: list = None) -> dict:
+                       calendario_ids: list = None, eventos_extra: list = None) -> dict:
     """Genera datos del calendario para un mes.
 
     Args:
         calendario_ids: Lista de calendario_id a incluir (None = todos).
                        '__legacy__' incluye docs sin calendario_id.
+        eventos_extra: Eventos sintéticos (pagos arriendo) ya filtrados por
+                       el llamante o sin filtrar (aquí se aplica calendario_ids).
+                       Solo se fusionan cuando include_events=True.
     """
     cal = calendar.Calendar(firstweekday=0)
     result = {
@@ -202,6 +269,16 @@ def get_month_calendar(year: int, month: int, include_events: bool = False,
             fin_mes = date(year, month + 1, 1)
 
         all_events = db_service.obtener_eventos_formato_ical(calendario_ids=calendario_ids)
+        if eventos_extra:
+            extras = list(eventos_extra)
+            if calendario_ids is not None:
+                filtrados = []
+                for ev in extras:
+                    cid = ev.get('calendario_id') or '__legacy__'
+                    if cid in calendario_ids:
+                        filtrados.append(ev)
+                extras = filtrados
+            all_events = list(all_events) + extras
         events_mes = []
         for ev in all_events:
             try:
@@ -333,8 +410,8 @@ def home():
     include_legacy_inicial = False
     if cal_param:
         raw_ids = [c.strip() for c in cal_param.split(',') if c.strip()]
-        # Filtrar solo ids válidos contra los calendarios configurados
-        valid_ids = {c['calendario_id'] for c in airbnb_service.calendars}
+        # Filtrar solo ids válidos contra los calendarios configurados (.env + admin)
+        valid_ids = {c['calendario_id'] for c in obtener_todos_calendarios()}
         valid_raw = [cid for cid in raw_ids if cid != '__legacy__' and cid in valid_ids]
         include_legacy_inicial = '__legacy__' in raw_ids
         # Mantener `__legacy__` dentro de la lista para que
@@ -345,6 +422,25 @@ def home():
     #    Si se leyera DESPUÉS de disparar el sync, el thread podría estar escribiendo
     #    simultáneamente y el render mostraría datos inconsistentes.
     events = db_service.obtener_eventos_formato_ical(calendario_ids=calendario_ids_inicial)
+
+    is_logged_in = session.get('logged_in', False)
+
+    # Pagos de arriendo con alias (solo admin, derivados en vivo; antiguas y
+    # nuevas aparecen igual sin migración). Respetan ?cal=... como las reservas.
+    pagos_inicial = []
+    try:
+        fn = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
+        now_tmp = _now_local()
+        if is_logged_in and callable(fn):
+            res_tmp = fn(now_tmp.year, now_tmp.month)
+            pagos_inicial = res_tmp if isinstance(res_tmp, list) else []
+    except Exception:
+        pagos_inicial = []
+    if pagos_inicial:
+        if calendario_ids_inicial is not None:
+            pagos_inicial = [p for p in pagos_inicial
+                             if (p.get('calendario_id') or '__legacy__') in calendario_ids_inicial]
+        events = list(events) + pagos_inicial
 
     # 2. Sincronizar desde iCal en background (actualiza MongoDB para la PRÓXIMA carga)
     ical_events = airbnb_service.fetch_events()
@@ -373,31 +469,17 @@ def home():
     arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(events, now.year, now.month)
     ingresos_mes_actual = {'arriendo': arriendo, 'tinaja': tinaja, 'total': arriendo + tinaja}
 
-    is_logged_in = session.get('logged_in', False)
-
-    # Paleta de borders para los thumbnails/logos de calendarios (no configurable).
-    # El primer calendario toma el primer color, el segundo el segundo, etc.
-    # Así cada propiedad se distingue visualmente sin mapear nombres a colores.
-    _CAL_PALETTE = [
-        "#dc2626",   # rojo
-        "#2563eb",   # azul
-        "#059669",   # verde
-        "#d97706",   # ámbar
-        "#7c3aed",   # violeta
-        "#0891b2",   # cyan
-        "#db2777",   # rosa
-        "#65a30d",   # lima
-    ]
-
     # Mapa calendario_id -> {nombre, thumbnail, logo, color} para mostrar el logo
     # del arriendo en la lista de reservas y en el modal de edición/creación.
+    # Color propio del calendario si trae uno válido, si no paleta por índice.
     calendarios_imagenes = {}
-    for _i, _c in enumerate(airbnb_service.calendars):
+    for _i, _c in enumerate(obtener_todos_calendarios()):
         calendarios_imagenes[_c['calendario_id']] = {
             'nombre': _c['nombre'],
             'thumbnail': _c.get('thumbnail') or '',
             'logo': _c.get('logo') or '',
-            'color': _CAL_PALETTE[_i % len(_CAL_PALETTE)],
+            'logo_url': _logo_url_calendario(_c),
+            'color': _color_calendario(_c, _i),
         }
 
     return render_template('calendar.html',
@@ -525,12 +607,12 @@ def reservatinaja(codigo_reserva):
 
 
 def _validate_calendario_id(valor):
-    """Devuelve el calendario_id si está en airbnb_service.calendars;
+    """Devuelve el calendario_id si está en los calendarios (.env + admin);
     si no, devuelve None. Server-side validation contra config."""
     s = (valor or '').strip()
     if not s:
         return None
-    valid = {c['calendario_id'] for c in airbnb_service.calendars}
+    valid = {c['calendario_id'] for c in obtener_todos_calendarios()}
     return s if s in valid else None
 
 
@@ -733,6 +815,20 @@ def api_desempeno():
         db_service.sync_en_background(ical_events, get_audit_info())
 
     all_events = db_service.obtener_eventos_formato_ical()
+    # Pagos arriendo con alias (solo arriendo, derivados en vivo) para que
+    # desempeño cuadre con calendario. login_required ya garantiza admin.
+    try:
+        fn_pagos = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
+        if callable(fn_pagos):
+            pagos_anio = []
+            for _m in range(1, 13):
+                _r = fn_pagos(year, _m)
+                if isinstance(_r, list) and _r:
+                    pagos_anio.extend(_r)
+            if pagos_anio:
+                all_events = list(all_events) + pagos_anio
+    except Exception:
+        pass
     gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
 
     meses_data = []
@@ -777,6 +873,8 @@ def api_desempeno():
             'anio': year,
             'arriendo': ingreso_arriendo,
             'tinaja': ingreso_tinaja,
+            # Desglose para el Resumen Anual: cada calendario suma al total.
+            'arriendo_por_calendario': _calcular_ingresos_por_calendario(all_events, year, mes),
             'agua': gasto_agua,
             'internet': gasto_internet,
             'gasolina': gasto_gasolina,
@@ -860,14 +958,15 @@ def api_transacciones_alias_get():
 @app.route('/api/transacciones-alias', methods=['POST'])
 @login_required
 def api_transacciones_alias_post():
-    """API: Crea/actualiza/borra alias. Body {descripcion, alias, categoria}. Alias vacío => borra."""
+    """API: Crea/actualiza/borra alias. Body {descripcion, alias, categoria, calendario_id}. Alias vacío => borra."""
     data = request.get_json(silent=True) or {}
     descripcion = (data.get('descripcion') or '').strip()
     alias = (data.get('alias') or '').strip()[:60]
     categoria = (data.get('categoria') or '').strip()
     if not descripcion:
         return jsonify({'success': False, 'error': 'Descripción vacía'}), 400
-    return jsonify(db_service.guardar_alias(descripcion, alias, categoria))
+    calendario_id = _validate_calendario_id(data.get('calendario_id')) or ''
+    return jsonify(db_service.guardar_alias(descripcion, alias, categoria, calendario_id))
 
 
 def _parse_calendario_ids() -> list | None:
@@ -878,6 +977,23 @@ def _parse_calendario_ids() -> list | None:
     return [c.strip() for c in raw.split(',') if c.strip()]
 
 
+def _pagos_arriendo_si_admin(year: int, month: int) -> list:
+    """Retorna pagos de arriendo del mes solo si hay sesión admin.
+
+    Defensivo: si db_service está mockeado sin lista real, retorna [].
+    """
+    try:
+        if not session.get('logged_in'):
+            return []
+        fn = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
+        if not callable(fn):
+            return []
+        res = fn(year, month)
+        return res if isinstance(res, list) else []
+    except Exception:
+        return []
+
+
 @app.route('/api/month')
 def api_month():
     """API: Datos de un mes específico con eventos.
@@ -886,12 +1002,16 @@ def api_month():
         year, month: año/mes a consultar (default: mes actual)
         calendario_ids: lista separada por comas de calendario_id a incluir
                         (None = todos). '__legacy__' incluye docs sin calendario_id.
+    Pagos de arriendo (alias categoria==arriendo) solo se fusionan con
+    sesión admin; anónimo recibe solo reservas iCal/manual.
     """
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
     calendario_ids = _parse_calendario_ids()
+    pagos = _pagos_arriendo_si_admin(year, month)
     return jsonify(get_month_calendar(year, month, include_events=True,
-                                      calendario_ids=calendario_ids))
+                                      calendario_ids=calendario_ids,
+                                      eventos_extra=pagos or None))
 
 
 @app.route('/api/month/tinaja')
@@ -1024,31 +1144,30 @@ def api_status():
 
 @app.route('/api/calendarios')
 def api_calendarios():
-    """API: Lista de calendarios configurados en .env + los legacy sin calendario_id.
+    """API: Lista de calendarios (.env + creados por admin) + flag legacy.
 
     El frontend usa esto para pintar la barra de filtros del header.
     Refresca el estado de conexión antes de responder (para que `connected` esté actualizado).
     """
+    todos = obtener_todos_calendarios()
     # Refrescar estado leyendo de los calendarios configurados
     per_cal_status = airbnb_service.get_status().get('per_calendar', {})
-    # Paleta de borders consistente con la usada en el render del calendario.
-    _CAL_PALETTE = [
-        "#dc2626", "#2563eb", "#059669", "#d97706",
-        "#7c3aed", "#0891b2", "#db2777", "#65a30d",
-    ]
     configured = [
         {
             "calendario_id": c['calendario_id'],
             "nombre": c['nombre'],
             "source": c['source'],
+            "url": c.get('url') or '',
             # Por defecto unknown si nunca se hizo fetch; si hubo, refleja el último estado.
             "connected": per_cal_status.get(c['calendario_id'], {}).get('connected', None),
-            "imagen": c.get('imagen') or '',
-            "thumbnail": c.get('thumbnail') or '',
-            "logo": c.get('logo') or '',
-            "color": _CAL_PALETTE[i % len(_CAL_PALETTE)],
+            "imagen": c.get('imagen') or c.get('thumbnail') or CALENDARIO_DEFAULT_IMAGEN,
+            "thumbnail": c.get('thumbnail') or CALENDARIO_DEFAULT_IMAGEN,
+            "logo": c.get('logo') or c.get('thumbnail') or CALENDARIO_DEFAULT_IMAGEN,
+            "logo_url": _logo_url_calendario(c),
+            "color": _color_calendario(c, i),
+            "dinamico": bool(c.get('dinamico')),
         }
-        for i, c in enumerate(airbnb_service.calendars)
+        for i, c in enumerate(todos)
     ]
     # Detectar si hay docs legacy (sin calendario_id) en reservas airbnb
     has_legacy = False
@@ -1061,6 +1180,190 @@ def api_calendarios():
         "configured": configured,
         "has_legacy": has_legacy,
     })
+
+
+def _validar_logo_subido(archivo):
+    """Valida el archivo de logo. Retorna (bytes, mime, nombre).
+
+    Lanza ValueError con mensaje apto para el admin si no sirve.
+    Retorna (b'', '', '') si no se adjuntó archivo.
+    """
+    if archivo is None or not getattr(archivo, 'filename', ''):
+        return b'', '', ''
+    try:
+        archivo.stream.seek(0)
+    except Exception:
+        pass
+    contenido = archivo.read() or b''
+    nombre = archivo.filename or ''
+    if not contenido:
+        return b'', '', ''
+    ext = os.path.splitext(nombre)[1].lower()
+    if ext not in CALENDARIO_IMAGEN_EXTS:
+        raise ValueError(f"Formato no soportado (usa {', '.join(sorted(CALENDARIO_IMAGEN_EXTS))})")
+    if len(contenido) > CALENDARIO_IMAGEN_MAX_BYTES:
+        raise ValueError("La imagen supera los 2 MB")
+    mime = CALENDARIO_IMAGEN_MIMES.get(ext, 'application/octet-stream')
+    return contenido, mime, os.path.basename(nombre)
+
+
+def _logo_url_calendario(calendario: dict) -> str:
+    """URL del logo servido desde MongoDB, o '' si no tiene logo propio."""
+    if not calendario.get('tiene_logo'):
+        return ''
+    return f"/api/calendarios/{calendario['calendario_id']}/logo"
+
+
+def _leer_campos_calendario():
+    """Lee y valida nombre/source/url/color (+archivo opcional) del request.
+
+    Retorna (campos, archivo, error). Si error no es None, es tupla (body, status).
+    """
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        form = request.form
+        nombre = (form.get('nombre') or '').strip()
+        source = (form.get('source') or 'airbnb').strip().lower()
+        url = (form.get('url') or '').strip()
+        color = (form.get('color') or '').strip()
+        archivo = request.files.get('imagen')
+    else:
+        data = request.get_json(silent=True) or {}
+        nombre = (data.get('nombre') or '').strip()
+        source = (data.get('source') or 'airbnb').strip().lower()
+        url = (data.get('url') or '').strip()
+        color = (data.get('color') or '').strip()
+        archivo = None
+
+    if not nombre:
+        return None, None, ({"success": False, "error": "Nombre requerido"}, 400)
+    if source not in CALENDARIO_SOURCES:
+        return None, None, ({"success": False, "error": "Plataforma inválida"}, 400)
+    if url and not url.lower().startswith('http'):
+        return None, None, ({"success": False, "error": "URL iCal inválida"}, 400)
+    if color:
+        import re as _re
+        if not _re.fullmatch(r'#[0-9a-fA-F]{6}', color):
+            return None, None, ({"success": False, "error": "Color inválido (usa formato #rrggbb)"}, 400)
+    return {"nombre": nombre, "source": source, "url": url, "color": color}, archivo, None
+
+
+@app.route('/api/calendarios', methods=['POST'])
+@login_required
+def api_calendarios_crear():
+    """API: Crea un calendario (solo admin). Acepta multipart con logo o JSON.
+
+    Campos: nombre* (requerido), source (airbnb/booking/otro), url iCal
+    (opcional), color hex (opcional), imagen (opcional; si no se sube,
+    se usa la imagen por defecto).
+    """
+    campos, archivo, error = _leer_campos_calendario()
+    if error:
+        body, status = error
+        return jsonify(body), status
+
+    contenido_logo, mime_logo, nombre_logo = b'', '', ''
+    if archivo is not None:
+        try:
+            contenido_logo, mime_logo, nombre_logo = _validar_logo_subido(archivo)
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
+
+    resultado = db_service.guardar_calendario({
+        **campos,
+        "logo_bytes": contenido_logo, "logo_mime": mime_logo,
+        "logo_nombre": nombre_logo,
+    })
+    if not resultado.get('success'):
+        return jsonify(resultado), 400
+    slug = resultado['calendario_id']
+
+    obtener_todos_calendarios()  # refresca memoria (fetch/validación/filtros)
+    respuesta = {"success": True, **resultado}
+    if resultado.get('tiene_logo'):
+        respuesta["logo_url"] = f"/api/calendarios/{slug}/logo"
+    return jsonify(respuesta)
+
+
+@app.route('/api/calendarios/<calendario_id>', methods=['PUT'])
+@login_required
+def api_calendarios_editar(calendario_id):
+    """API: Edita un calendario creado por admin (solo admin).
+
+    Acepta los mismos campos que POST. Sin imagen nueva se conserva el logo
+    guardado. Los calendarios de .env no se pueden editar aquí.
+    """
+    slug = (calendario_id or '').strip()
+    env_ids = {c['calendario_id'] for c in airbnb_service.calendars
+               if not c.get('dinamico')}
+    if slug in env_ids:
+        return jsonify({"success": False,
+                        "error": "Ese calendario viene de configuración (.env) y no se puede editar aquí"}), 400
+    try:
+        existentes = db_service.listar_calendarios() or []
+    except Exception:
+        existentes = []
+    if not any((c.get('calendario_id') or '') == slug for c in existentes):
+        return jsonify({"success": False, "error": "Calendario no encontrado"}), 404
+
+    campos, archivo, error = _leer_campos_calendario()
+    if error:
+        body, status = error
+        return jsonify(body), status
+
+    contenido_logo, mime_logo, nombre_logo = b'', '', ''
+    if archivo is not None:
+        try:
+            contenido_logo, mime_logo, nombre_logo = _validar_logo_subido(archivo)
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
+
+    resultado = db_service.guardar_calendario({
+        **campos,
+        "logo_bytes": contenido_logo, "logo_mime": mime_logo,
+        "logo_nombre": nombre_logo,
+    }, calendario_id=slug)
+    if not resultado.get('success'):
+        return jsonify(resultado), 400
+
+    obtener_todos_calendarios()
+    respuesta = {"success": True, **resultado}
+    if resultado.get('tiene_logo'):
+        respuesta["logo_url"] = f"/api/calendarios/{slug}/logo"
+    return jsonify(respuesta)
+
+
+@app.route('/api/calendarios/<calendario_id>/logo')
+def api_calendario_logo(calendario_id):
+    """Sirve el logo guardado en MongoDB (público: se muestra en chips y lista)."""
+    from flask import Response
+    slug = (calendario_id or '').strip()
+    try:
+        fn = getattr(db_service, 'obtener_logo_calendario', None)
+        hallado = fn(slug) if callable(fn) else None
+    except Exception:
+        hallado = None
+    if not hallado:
+        return jsonify({"error": "Logo no encontrado"}), 404
+    contenido, mime = hallado
+    return Response(bytes(contenido), mimetype=mime or 'application/octet-stream',
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.route('/api/calendarios/<calendario_id>', methods=['DELETE'])
+@login_required
+def api_calendarios_eliminar(calendario_id):
+    """API: Elimina un calendario creado por admin (los de .env no se tocan)."""
+    slug = (calendario_id or '').strip()
+    env_ids = {c['calendario_id'] for c in airbnb_service.calendars
+               if not c.get('dinamico')}
+    if slug in env_ids:
+        return jsonify({"success": False,
+                        "error": "Ese calendario viene de configuración (.env) y no se puede eliminar aquí"}), 400
+    ok = db_service.eliminar_calendario(slug)
+    if not ok:
+        return jsonify({"success": False, "error": "Calendario no encontrado"}), 404
+    obtener_todos_calendarios()
+    return jsonify({"success": True, "calendario_id": slug})
 
 
 @app.route('/api/dias')
