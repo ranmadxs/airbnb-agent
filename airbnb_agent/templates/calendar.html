@@ -2506,12 +2506,27 @@
                 fd.append('color', document.getElementById('cal-color').value);
                 const fileInput = document.getElementById('cal-imagen');
                 if (fileInput.files && fileInput.files[0]) {
-                    fd.append('imagen', fileInput.files[0]);
+                    const file = fileInput.files[0];
+                    if (file.size > 2 * 1024 * 1024) {
+                        throw new Error('La imagen supera los 2 MB. Elige otra.');
+                    }
+                    if (!/\.(png|jpe?g|webp|svg)$/i.test(file.name)) {
+                        throw new Error('Formato no soportado (usa PNG, JPG, WEBP o SVG).');
+                    }
+                    fd.append('imagen', file);
                 }
                 const res = await fetch('/api/calendarios', {
                     method: 'POST', body: fd, credentials: 'include',
                 });
-                const data = await res.json();
+                // Parseo defensivo: ante un error inesperado del servidor (p. ej.
+                // página HTML), mostrar mensaje legible en vez de reventar.
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    throw new Error(`El servidor devolvió un error inesperado (HTTP ${res.status}). Intenta de nuevo.`);
+                }
                 if (!res.ok || !data.success) {
                     throw new Error(data.error || 'No se pudo crear el calendario');
                 }

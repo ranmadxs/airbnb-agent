@@ -77,9 +77,12 @@ MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
              'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 # Calendarios creados por admin: logos subidos por el usuario.
-# NOTA: en serverless (Vercel) el filesystem es efímero; los uploads viven
-# mientras dure la instancia. Para persistencia total usar object storage.
-CALENDARIOS_UPLOAD_DIR = str(BASE_DIR / 'static' / 'images' / 'calendarios')
+# NOTA: en serverless (Vercel) el filesystem es efímero/lectura; se puede
+# apuntar a un dir escribible con CALENDARIOS_UPLOAD_DIR=/tmp (logos viven
+# mientras dure la instancia; para persistencia total usar object storage).
+CALENDARIOS_UPLOAD_DIR = os.getenv(
+    'CALENDARIOS_UPLOAD_DIR',
+    str(BASE_DIR / 'static' / 'images' / 'calendarios'))
 CALENDARIO_DEFAULT_IMAGEN = 'images/default-calendario.svg'
 CALENDARIO_IMAGEN_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.svg'}
 CALENDARIO_IMAGEN_MAX_BYTES = 2 * 1024 * 1024
@@ -1255,6 +1258,14 @@ def api_calendarios_crear():
         except ValueError as e:
             return jsonify({"success": False, "error": str(e),
                             "calendario_id": slug}), 400
+        except OSError:
+            # Disco no escribible (p. ej. Vercel prod): el calendario ya quedó
+            # creado; se responde JSON (nunca HTML) para que el frontend no
+            # reviente parseando. El logo queda con la imagen por defecto.
+            return jsonify({"success": False,
+                            "error": "No se pudo guardar el logo en este servidor. "
+                                     "El calendario se creó sin logo.",
+                            "calendario_id": slug}), 500
         resultado = db_service.guardar_calendario({
             "nombre": nombre, "source": source, "url": url, "color": color,
             "imagen": rel, "thumbnail": rel, "logo": rel,

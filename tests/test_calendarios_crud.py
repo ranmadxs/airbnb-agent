@@ -126,6 +126,30 @@ def test_post_calendario_con_logo_y_color(logged_in_flask_client, app_module, tm
     assert args[0]["thumbnail"].startswith("images/calendarios/")
 
 
+def test_post_calendario_fallo_disco_devuelve_json(logged_in_flask_client, app_module, tmp_path, monkeypatch):
+    """Si el disco no es escribible, el endpoint debe responder JSON (nunca HTML)."""
+    from pathlib import Path as _Path
+
+    app_module.db_service.listar_calendarios.return_value = []
+    app_module.db_service.guardar_calendario.return_value = {
+        "success": True, "calendario_id": "casa_lago",
+    }
+    monkeypatch.setattr(app_module, "CALENDARIOS_UPLOAD_DIR", str(tmp_path))
+    monkeypatch.setattr(_Path, "write_bytes",
+                        MagicMock(side_effect=OSError("Read-only file system")))
+    png = b"\x89PNG" + b"0" * 100
+    r = logged_in_flask_client.post(
+        "/api/calendarios",
+        data={"nombre": "Casa Lago", "imagen": (io.BytesIO(png), "logo.png")},
+        content_type="multipart/form-data",
+    )
+    assert r.status_code == 500
+    assert r.content_type.startswith("application/json")
+    data = r.get_json()
+    assert data["success"] is False
+    assert data["calendario_id"] == "casa_lago"
+
+
 def test_post_calendario_requiere_login(flask_client, app_module):
     r = flask_client.post("/api/calendarios", data={"nombre": "X"})
     assert r.status_code == 401
