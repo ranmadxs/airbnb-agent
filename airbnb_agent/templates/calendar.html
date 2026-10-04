@@ -1889,6 +1889,7 @@
             const logo = calLogoUrl(cal);
             const dot = '<span class="pill-dot"></span>';
             let etiqueta = f.etiqueta || 'logo';
+            if (etiqueta !== 'full' && etiqueta !== 'logo') etiqueta = 'nada';
             let dentro = '';
             if (etiqueta === 'full') {
                 const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, 12);
@@ -1897,11 +1898,10 @@
                     ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : dot}
                     <span class="pill-name">${ini}</span>
                 `;
-            } else {
-                // Toda píldora lleva al menos logo (o punto): nunca una
-                // barra vacía que se vea "achicada".
+            } else if (etiqueta === 'logo') {
                 dentro = `${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : dot}`;
             }
+            // 'nada': tira limpia (solo, días intermedios).
             pill.innerHTML = dentro;
             pill.title = `${ev.nombre_huesped || ev.summary || ''} — ${nombreCal || cid || (ev.source || '')} — ${ev.start} → ${ev.end}`;
             if (isAdmin) {
@@ -1932,10 +1932,9 @@
                 const esInicio = ev.start === dia;
                 const esCheckout = dia === ev.end;
                 const primeraVez = esInicio || dNum === 1;
-                // Solos siempre con etiqueta completa; en multi: nombre una
-                // vez, logo al bajar de semana y al terminar (chiquito).
-                // El checkout también lleva tira con logo (es el final).
-                const etiqueta = (solo || primeraVez) ? 'full' : 'logo';
+                // Solo: etiqueta una sola vez al inicio, resto tira limpia.
+                // Multi: nombre una vez, logo siempre (nunca barra vacía).
+                const etiqueta = primeraVez ? 'full' : (solo ? 'nada' : 'logo');
                 cell.appendChild(construirPildora(ev, i, vis.length, {
                     izq: ev.start < dia,
                     der: diaMas1 <= ev.end,
