@@ -7,6 +7,7 @@
 - PRÓXIMA ESTADÍA ahora es una por calendario: dos check-in el mismo día en distintas propiedades se marcan ambas (antes solo la primera global).
 - Tiras unificadas: solas o apiladas usan logo + nombre + color de la propiedad (fin de franjas azul/negra/roja); tiras continuas entre días, logo de nuevo al bajar de semana, chiquita la que termina; leyenda actualizada.
 - Día de checkout con tira (final redondeado + logo); un solo calendario al día con tira grande original.
+- Toda píldora con logo (nunca barra vacía); azul de tinaja suma aunque arriendo sea 0; Michelle Tapia 19→20 asignada a paraíso (estaba sin calendario).
 
 ## [3.5.0] - 2026-10-03
 ### Added
