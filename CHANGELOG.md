@@ -1,5 +1,6 @@
 ## [3.6.0] - 2026-10-04
 ### Fixed
+- Sync multi-calendario ya no pierde reservas paralelas el mismo día (ej. `santiago_magno 10→14 HMK33ZWYJ9` se omitía por solapar con protegida `paraiso 10→12`): `guardar_eventos` scopea protegidas, overlap, `event_key`, `find_one`/`UpdateOne` y borrado stale por `(source, calendario_id, start, end)`; índice único Mongo ahora incluye `calendario_id`. Paraiso `readonly` intacto; santiago se inserta en el próximo sync.
 - Logo de la propiedad centrado en la mitad de la franja azul/roja (antes colgaba por debajo).
 - Día con 2+ reservas: píldoras apiladas con el color y logo de cada calendario (reemplaza bandas con rayas/puntos); globitos y badge flotante se omiten esos días para no descuadrar. Botón +N y modo expandido intactos.
 - Drawer multi-reserva: thumbnail cuadrado con bordes redondeados y borde del color del calendario sobre cada card.
