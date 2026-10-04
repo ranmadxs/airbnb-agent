@@ -1931,12 +1931,12 @@
                 const largo = f.der ? 30 : 12;
                 const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, largo);
                 const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
-                // Conteos: +adultos, +niños, +mascotas🐾 (círculo blanco).
+                // Conteos: personas (adultos+niños) sumadas +👤, mascotas +N🐾.
                 const ad = ev.adultos || 0, ni = ev.ninos || 0, ma = ev.mascotas || 0;
+                const per = ad + ni;
                 let counts = '';
-                if (ad > 1 || ni > 0 || ma > 0) {
-                    if (ad > 0) counts += `<span class="p-count">+${ad}</span>`;
-                    if (ni > 0) counts += `<span class="p-count">+${ni}</span>`;
+                if (per > 1 || ma > 0) {
+                    if (per > 0) counts += `<span class="p-count">+${per}👤</span>`;
                     if (ma > 0) counts += `<span class="p-count">+${ma}🐾</span>`;
                 }
                 dentro = `
@@ -2183,6 +2183,12 @@
                                     azulesPintados.add(dateStr);
                                 }
                                 cell.appendChild(wrap);
+                                // Anclar sobre la primera tira (no en la esquina).
+                                const primera = [...cell.querySelectorAll(':scope > .pill')]
+                                    .sort((a, b) => a.offsetTop - b.offsetTop)[0];
+                                if (primera) {
+                                    wrap.style.top = Math.max(2, primera.offsetTop - wrap.offsetHeight - 3) + 'px';
+                                }
                             }
                         }
                     }

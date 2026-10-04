@@ -5,6 +5,8 @@
 - Mobile: celdas con eventos crecen en altura (ya no derraman contenido a otras filas).
 - Rectángulos uniformes en todos los días (nunca unos más chicos); conteos +N en tiras; verde a la izquierda del azul.
 - Grilla con minmax(0,1fr) y transiciones solo visuales: sin cortes ni parpadeos de ancho.
+- Fila ★ desborda a la celda vecina si el monto no cabe (siempre visible).
+- Montos sobre la primera tira; personas sumadas +N👤 y mascotas +N🐾 en tiras.
 
 ## [3.6.0] - 2026-10-04
 ### Fixed
