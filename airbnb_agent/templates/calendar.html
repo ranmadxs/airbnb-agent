@@ -1916,7 +1916,7 @@
             // Altura por carril (estable entre días); sin translate para que
             // los bordes superiores queden alineados.
             const movil = window.innerWidth < 768;
-            const base = movil ? 30 : 44, pitch = movil ? 13 : 17;
+            const base = movil ? 30 : 60, pitch = movil ? 13 : 17;
             pill.style.top = `${base + carril * pitch}px`;
             pill.style.transform = 'none';
             const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || '';
@@ -1931,9 +1931,17 @@
                 const largo = f.der ? 30 : 12;
                 const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, largo);
                 const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+                // Conteos: +adultos, +niños, +mascotas🐾 (círculo blanco).
+                const ad = ev.adultos || 0, ni = ev.ninos || 0, ma = ev.mascotas || 0;
+                let counts = '';
+                if (ad > 1 || ni > 0 || ma > 0) {
+                    if (ad > 0) counts += `<span class="p-count">+${ad}</span>`;
+                    if (ni > 0) counts += `<span class="p-count">+${ni}</span>`;
+                    if (ma > 0) counts += `<span class="p-count">+${ma}🐾</span>`;
+                }
                 dentro = `
                     ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : dot}
-                    <span class="pill-name">${ini}</span>
+                    <span class="pill-name">${ini}</span>${counts}
                 `;
             } else if (etiqueta === 'logo') {
                 dentro = `${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : dot}`;
@@ -1997,53 +2005,6 @@
             }
         }
 
-        // Expande/contrae un día multievento inline (misma mini-lista del modo expandido).
-        function toggleExpandDia(cell) {
-            const evs = cell._eventosDia || [];
-            if (!evs.length) return;
-            const exp = cell.querySelector(':scope > .day-expander');
-            if (cell.classList.contains('expanded-day')) {
-                cell.querySelector(':scope > .day-event-list')?.remove();
-                cell.classList.remove('expanded-day');
-                restaurarPildoras(cell);
-                if (exp) { exp.textContent = `+${evs.length}`; exp.classList.remove('open'); exp.title = 'Ver eventos del día'; }
-            } else {
-                cell.classList.add('multi-band', 'expanded-day');
-                cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
-                const list = document.createElement('div');
-                list.className = 'day-event-list';
-                evs.forEach(ev => list.appendChild(construirFilaEventoDia(ev)));
-                cell.appendChild(list);
-                if (exp) { exp.textContent = '−'; exp.classList.add('open'); exp.title = 'Contraer'; }
-            }
-        }
-
-        // Expansor +N solo el primer día del tramo multi: si el día
-        // anterior tiene el mismo set de eventos, ya se mostró ahí.
-        function esInicioMulti(dateStr, evs) {
-            const key = evs.map(e => eventIdDe(e)).sort().join('|');
-            const prev = document.querySelector(`[data-date="${sumarDias(dateStr, -1)}"]`);
-            if (!prev || !prev._eventosDia) return true;
-            const prevKey = prev._eventosDia.map(e => eventIdDe(e)).sort().join('|');
-            return prevKey !== key;
-        }
-
-        // Agrega el botón +/− a una celda multievento (una sola vez).
-        // cell._eventosDia debe estar seteado antes de llamar.
-        function agregarExpanderDia(cell) {
-            if (cell.querySelector(':scope > .day-expander')) return;
-            const evs = cell._eventosDia || [];
-            if (evs.length < 2) return;
-            const exp = document.createElement('button');
-            exp.type = 'button';
-            const abierto = cell.classList.contains('expanded-day');
-            exp.className = 'day-expander' + (abierto ? ' open' : '');
-            exp.textContent = abierto ? '−' : `+${evs.length}`;
-            exp.title = abierto ? 'Contraer' : 'Ver eventos del día';
-            exp.addEventListener('click', (e) => { e.stopPropagation(); toggleExpandDia(cell); });
-            cell.appendChild(exp);
-        }
-        
         // Marcar días reservados
         function marcarDias() {
             // Crear set de todas las fechas ocupadas (incluyendo día de checkout)
@@ -2182,44 +2143,46 @@
                             }
                         }
 
-                        // Guardar eventos del día para el botón +/− y el click en el logo.
+                        // Guardar eventos del día para referencia.
                         cell._eventosDia = eventosEseDia;
-                        if (eventosEseDia.length > 1 && esInicioMulti(dateStr, eventosEseDia)) {
-                            agregarExpanderDia(cell);
-                        }
 
                         if (esCache) cell.classList.add('from-cache');
 
-                        // Burbujas de precio (solo admin): UNA verde con la suma del
-                        // día (arriendo) y UNA azul con la suma de tinaja. Las
-                        // tiras ya identifican cada evento con logo + nombre.
-                        if (isAdmin) {
+                        // Burbujas de precio (solo admin): verde (arriendo) a la
+                        // izquierda de la azul (tinaja). Apiladas solo si el
+                        // día es de un evento de 1 día. Las tiras identifican.
+                        if (isAdmin && !cell.querySelector(':scope > .day-prices')) {
                             const gv = sumaVerdePorDia.get(dateStr);
-                            if (gv && gv.total > 0 && !gruposVerdePintados.has(dateStr) && !cell.querySelector(':scope > .price-bubble')) {
-                                const totalBubble = document.createElement('div');
-                                totalBubble.className = 'price-bubble total-dia';
-                                if (gv.proporcional) {
-                                    totalBubble.classList.add('proporcional');
-                                }
-                                totalBubble.innerHTML = `$${gv.total.toLocaleString('es-CL')}`;
-                                totalBubble.title = gv.nombres.join(' + ') + ` = $${gv.total.toLocaleString('es-CL')}`;
-                                cell.appendChild(totalBubble);
-                                gruposVerdePintados.add(dateStr);
-                            }
                             const ga = sumaAzulPorDia.get(dateStr);
-                            if (ga && ga.total > 0 && !azulesPintados.has(dateStr) && !cell.querySelector(':scope > .extra-bubble')) {
-                                const azulBubble = document.createElement('div');
-                                azulBubble.className = 'extra-bubble';
-                                if (ga.proporcional) {
-                                    azulBubble.classList.add('proporcional');
+                            const tieneVerde = gv && gv.total > 0 && !gruposVerdePintados.has(dateStr);
+                            const tieneAzul = ga && ga.total > 0 && !azulesPintados.has(dateStr);
+                            if (tieneVerde || tieneAzul) {
+                                const vertical = eventosEseDia.every(ev => ev.start === ev.end);
+                                const wrap = document.createElement('div');
+                                wrap.className = 'day-prices' + (vertical ? ' vertical' : '');
+                                if (tieneVerde) {
+                                    const totalBubble = document.createElement('div');
+                                    totalBubble.className = 'price-bubble total-dia';
+                                    if (gv.proporcional) {
+                                        totalBubble.classList.add('proporcional');
+                                    }
+                                    totalBubble.innerHTML = `$${gv.total.toLocaleString('es-CL')}`;
+                                    totalBubble.title = gv.nombres.join(' + ') + ` = $${gv.total.toLocaleString('es-CL')}`;
+                                    wrap.appendChild(totalBubble);
+                                    gruposVerdePintados.add(dateStr);
                                 }
-                                azulBubble.style.left = 'auto';
-                                azulBubble.style.right = '2px';
-                                azulBubble.style.top = '20px';
-                                azulBubble.innerHTML = `$${ga.total.toLocaleString('es-CL')}`;
-                                azulBubble.title = `${ga.concepto}: ` + ga.nombres.join(' + ') + ` = $${ga.total.toLocaleString('es-CL')}`;
-                                cell.appendChild(azulBubble);
-                                azulesPintados.add(dateStr);
+                                if (tieneAzul) {
+                                    const azulBubble = document.createElement('div');
+                                    azulBubble.className = 'extra-bubble';
+                                    if (ga.proporcional) {
+                                        azulBubble.classList.add('proporcional');
+                                    }
+                                    azulBubble.innerHTML = `$${ga.total.toLocaleString('es-CL')}`;
+                                    azulBubble.title = `${ga.concepto}: ` + ga.nombres.join(' + ') + ` = $${ga.total.toLocaleString('es-CL')}`;
+                                    wrap.appendChild(azulBubble);
+                                    azulesPintados.add(dateStr);
+                                }
+                                cell.appendChild(wrap);
                             }
                         }
                     }
