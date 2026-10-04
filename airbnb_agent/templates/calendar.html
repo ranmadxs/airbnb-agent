@@ -1986,10 +1986,12 @@
 
             // Suma de arriendos por día (globito verde): si varios arriendos
             // pintan burbuja de precio el mismo día, se muestra UNA con el total.
-            // Los azules (tinaja) no se tocan: siguen uno por reserva.
+            // Suma de tinajas por día (globito azul): mismo criterio con extra_valor.
             // Todo sale de `events` (ya filtrado por calendario) así que respeta filtros.
             const sumaVerdePorDia = new Map(); // dia -> {total, nombres:[], proporcional}
             const gruposVerdePintados = new Set();
+            const sumaAzulPorDia = new Map(); // dia -> {total, nombres:[], proporcional}
+            const azulesPintados = new Set();
             {
                 const _ini = new Date(currentYear, currentMonth - 1, 1);
                 const _fin = new Date(currentYear, currentMonth, 0);
@@ -2015,6 +2017,17 @@
                     g.total += muestra;
                     g.proporcional = g.proporcional || esProp;
                     g.nombres.push(`${event.nombre_huesped || event.summary || '?'} $${muestra.toLocaleString('es-CL')}`);
+                    // Azul (tinaja/extra): se suma igual que el verde.
+                    const extraMuestra = esProp ? Math.round((event.extra_valor || 0) * prop) : (event.extra_valor || 0);
+                    if (isAdmin && extraMuestra > 0) {
+                        if (!sumaAzulPorDia.has(diaBurbuja)) {
+                            sumaAzulPorDia.set(diaBurbuja, {total: 0, nombres: [], proporcional: false, concepto: event.extra_concepto || 'Tinaja'});
+                        }
+                        const a = sumaAzulPorDia.get(diaBurbuja);
+                        a.total += extraMuestra;
+                        a.proporcional = a.proporcional || esProp;
+                        a.nombres.push(`${event.nombre_huesped || event.summary || '?'} $${extraMuestra.toLocaleString('es-CL')}`);
+                    }
                 });
             }
 
@@ -2275,6 +2288,40 @@
                             }
 
                             globitoPuesto = true;
+                        }
+
+                        // Días multi (2+ eventos): los globitos individuales se
+                        // omiten (las píldoras ya identifican cada evento), pero
+                        // SÍ se muestra UNA burbuja verde con la suma del día y
+                        // UNA azul con la suma de tinaja (si hay montos).
+                        if (eventosEseDia.length > 1 && isAdmin) {
+                            const gv = sumaVerdePorDia.get(dateStr);
+                            if (gv && gv.total > 0 && !gruposVerdePintados.has(dateStr) && !cell.querySelector(':scope > .price-bubble')) {
+                                const totalBubble = document.createElement('div');
+                                totalBubble.className = 'price-bubble total-dia';
+                                if (gv.proporcional) {
+                                    totalBubble.classList.add('proporcional');
+                                }
+                                totalBubble.innerHTML = `$${gv.total.toLocaleString('es-CL')}`;
+                                totalBubble.title = gv.nombres.join(' + ') + ` = $${gv.total.toLocaleString('es-CL')}`;
+                                cell.appendChild(totalBubble);
+                                gruposVerdePintados.add(dateStr);
+                            }
+                            const ga = sumaAzulPorDia.get(dateStr);
+                            if (ga && ga.total > 0 && !azulesPintados.has(dateStr) && !cell.querySelector(':scope > .extra-bubble')) {
+                                const azulBubble = document.createElement('div');
+                                azulBubble.className = 'extra-bubble';
+                                if (ga.proporcional) {
+                                    azulBubble.classList.add('proporcional');
+                                }
+                                azulBubble.style.left = 'auto';
+                                azulBubble.style.right = '2px';
+                                azulBubble.style.top = '20px';
+                                azulBubble.innerHTML = `$${ga.total.toLocaleString('es-CL')}`;
+                                azulBubble.title = `${ga.concepto}: ` + ga.nombres.join(' + ') + ` = $${ga.total.toLocaleString('es-CL')}`;
+                                cell.appendChild(azulBubble);
+                                azulesPintados.add(dateStr);
+                            }
                         }
                     }
                     current.setDate(current.getDate() + 1);

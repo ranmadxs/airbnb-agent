@@ -1214,6 +1214,7 @@ header {
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
+    min-height: 40px;
     background: white;
     border: 2px solid transparent;
     border-radius: 18px;
@@ -1230,18 +1231,22 @@ header {
     border-color: rgba(0,0,0,0.1);
 }
 .calendar-filter-chip.active {
-    border-color: var(--airbnb-red, #FF5A5F);
+    border-color: #9ca3af;
     background: #fff;
-    box-shadow: 0 0 0 3px rgba(255, 90, 95, 0.08);
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
 }
 .calendar-filter-chip.disabled {
     opacity: 0.4;
     background: #f3f4f6;
 }
 .calendar-filter-chip .chip-icon {
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
 }
 .calendar-filter-chip .chip-count {
     background: var(--airbnb-red, #FF5A5F);
