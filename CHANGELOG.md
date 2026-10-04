@@ -1,3 +1,7 @@
+## [3.5.1] - 2026-10-04
+### Fixed
+- Sync multi-calendario ya no pierde reservas paralelas el mismo día (ej. `santiago_magno 10→14 HMK33ZWYJ9` se omitía por solapar con protegida `paraiso 10→12`): `guardar_eventos` scopea protegidas, overlap, `event_key`, `find_one`/`UpdateOne` y borrado stale por `(source, calendario_id, start, end)`; índice único Mongo ahora incluye `calendario_id`. Paraiso `readonly` intacto; santiago se inserta en el próximo sync.
+
 ## [3.5.0] - 2026-10-03
 ### Added
 - Crear calendarios desde el home (solo admin): modal con nombre, plataforma, URL iCal opcional, color a elección y subida de logo (PNG/JPG/WEBP/SVG ≤ 2 MB; imagen por defecto si no se sube). El logo se guarda en MongoDB y se sirve por endpoint, así funciona en serverless sin disco escribible. Los calendarios de `.env` no se pueden eliminar; los creados sí (✕ en el chip). Lápiz ✏️ para editar nombre, plataforma, URL, color y reemplazar el logo (sin subir nada se conserva).
