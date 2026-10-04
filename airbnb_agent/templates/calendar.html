@@ -1868,13 +1868,14 @@
         // Las píldoras del mismo evento en días seguidos forman UNA tira
         // continua (más fina que la franja): logo+nombre solo al inicio
         // (o al bajar de semana), el resto barra sola, chiquita al terminar.
-        function construirPildora(ev, idx, total, abajo, flags) {
+        function construirPildora(ev, idx, total, flags) {
             const f = flags || {};
             const pill = document.createElement('div');
             pill.className = 'pill'
                 + (f.izq ? ' con-izq' : '')
                 + (f.der ? ' con-der' : '')
-                + (f.mini ? ' mini' : '');
+                + (f.mini ? ' mini' : '')
+                + (f.grande ? ' grande' : '');
             const cid = ev.calendario_id || '';
             const cal = calendariosImagenes[cid] || {};
             const color = cal.color || getCalendarioColor(cid);
@@ -1883,11 +1884,7 @@
             pill.dataset.calendarioId = cid;
             pill.dataset.eventId = eventIdDe(ev);
             const n = Math.max(1, total || 1);
-            if (abajo) {
-                pill.style.top = `calc(50% + ${25 + idx * 17}px)`;
-            } else {
-                pill.style.top = `calc(50% + ${(idx - (n - 1) / 2) * 17}px)`;
-            }
+            pill.style.top = `calc(50% + ${(idx - (n - 1) / 2) * 17}px)`;
             const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || '';
             const logo = calLogoUrl(cal);
             let etiqueta = f.etiqueta || 'nada';
@@ -1911,22 +1908,21 @@
             return pill;
         }
 
-        // Píldoras visibles de una celda (excluye eventos que terminan ese día:
-        // el checkout se marca con colita, no con píldora). Con checkout hay
-        // menos espacio (debajo de la franja): máx. 2; sin checkout: máx. 3.
-        // Orden estable por (start, id) para que la misma tira quede alineada.
+        // Píldoras visibles de una celda: el día de checkout SÍ lleva tira
+        // (final redondeado + logo). Máx. 3. Orden estable por (start, id)
+        // para que la misma tira quede alineada entre días.
         function pildorasVisibles(cell) {
-            const dia = cell.dataset.date;
-            const hayCheckout = (cell._eventosDia || []).some(ev => formatDate(new Date(ev.end + 'T00:00:00')) === dia);
             const evs = (cell._eventosDia || [])
-                .filter(ev => formatDate(new Date(ev.end + 'T00:00:00')) !== dia)
+                .slice()
                 .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : (a.id < b.id ? -1 : 1)));
-            return { vis: evs.slice(0, hayCheckout ? 2 : 3), abajo: hayCheckout };
+            return { vis: evs.slice(0, 3) };
         }
 
         function restaurarPildoras(cell) {
             cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
-            const { vis, abajo } = pildorasVisibles(cell);
+            const { vis } = pildorasVisibles(cell);
+            // Un solo calendario ese día → tira GRANDE (tamaño original).
+            const solo = (cell._eventosDia || []).length <= 1;
             const dia = cell.dataset.date;
             const diaMas1 = formatDate(new Date(new Date(dia + 'T00:00:00').getTime() + 86400000));
             const dNum = parseInt(dia.slice(8, 10), 10);
@@ -1935,12 +1931,15 @@
                 const esInicio = ev.start === dia;
                 const esFin = diaMas1 === ev.end;
                 const primeraVez = esInicio || dNum === 1;
-                const etiqueta = primeraVez ? 'full' : (esLunes ? 'logo' : 'nada');
-                cell.appendChild(construirPildora(ev, i, vis.length, abajo, {
+                // Solos siempre con etiqueta completa; en multi: nombre una
+                // vez, logo al bajar de semana y al terminar (chiquito).
+                const etiqueta = (solo || primeraVez) ? 'full' : (esLunes || esFin ? 'logo' : 'nada');
+                cell.appendChild(construirPildora(ev, i, vis.length, {
                     izq: ev.start < dia,
                     der: diaMas1 < ev.end,
                     etiqueta,
-                    mini: esFin && etiqueta !== 'full',
+                    mini: !solo && esFin && etiqueta !== 'full',
+                    grande: solo,
                 }));
             });
         }

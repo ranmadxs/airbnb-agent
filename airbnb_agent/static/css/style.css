@@ -2159,6 +2159,15 @@ header {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
 }
+/* Un solo calendario ese día → tira GRANDE (tamaño original). */
+.day-cell.multi-band .pill.grande {
+    height: 28px;
+    font-size: 12px;
+}
+.day-cell.multi-band .pill.grande img {
+    width: 20px;
+    height: 20px;
+}
 /* La que termina va en chiquito; la que sigue queda grande. */
 .day-cell.multi-band .pill.mini {
     height: 11px;
