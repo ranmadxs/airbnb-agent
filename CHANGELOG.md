@@ -1,3 +1,18 @@
+## [3.6.0] - 2026-10-04
+### Fixed
+- Sync multi-calendario ya no pierde reservas paralelas el mismo día (ej. `santiago_magno 10→14 HMK33ZWYJ9` se omitía por solapar con protegida `paraiso 10→12`): `guardar_eventos` scopea protegidas, overlap, `event_key`, `find_one`/`UpdateOne` y borrado stale por `(source, calendario_id, start, end)`; índice único Mongo ahora incluye `calendario_id`. Paraiso `readonly` intacto; santiago se inserta en el próximo sync.
+- Logo de la propiedad centrado en la mitad de la franja azul/roja (antes colgaba por debajo).
+- Día con 2+ reservas: píldoras apiladas con el color y logo de cada calendario (reemplaza bandas con rayas/puntos); globitos y badge flotante se omiten esos días para no descuadrar. Botón +N y modo expandido intactos.
+- Drawer multi-reserva: thumbnail cuadrado con bordes redondeados y borde del color del calendario sobre cada card.
+- PRÓXIMA ESTADÍA ahora es una por calendario: dos check-in el mismo día en distintas propiedades se marcan ambas (antes solo la primera global).
+- Tiras unificadas: solas o apiladas usan logo + nombre + color de la propiedad (fin de franjas azul/negra/roja); tiras continuas entre días, logo de nuevo al bajar de semana, chiquita la que termina; leyenda actualizada.
+- Día de checkout con tira (final redondeado + logo); un solo calendario al día con tira grande original.
+- Toda píldora con logo (nunca barra vacía); azul de tinaja suma aunque arriendo sea 0; Michelle Tapia 19→20 asignada a paraíso (estaba sin calendario).
+- Fila de pago de arriendo (★) anclada abajo para no solapar burbujas ni tiras.
+- Celdas siempre cuadradas (meses llenos como febrero ya no colapsan) y tiras reequilibradas.
+- Cierre redondeado en checkout aunque caiga en cambio de hora (helper sumarDias DST-safe).
+- Reserva sin calendario: se puede asignar por primera vez al editar (modal editable + backend lo acepta si estaba vacío).
+
 ## [3.5.0] - 2026-10-03
 ### Added
 - Crear calendarios desde el home (solo admin): modal con nombre, plataforma, URL iCal opcional, color a elección y subida de logo (PNG/JPG/WEBP/SVG ≤ 2 MB; imagen por defecto si no se sube). El logo se guarda en MongoDB y se sirve por endpoint, así funciona en serverless sin disco escribible. Los calendarios de `.env` no se pueden eliminar; los creados sí (✕ en el chip). Lápiz ✏️ para editar nombre, plataforma, URL, color y reemplazar el logo (sin subir nada se conserva).

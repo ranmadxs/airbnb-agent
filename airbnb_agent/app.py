@@ -191,6 +191,32 @@ def _calcular_ingresos_mes_reservas(
     return ingreso_arriendo, ingreso_tinaja, ingreso_pagado, ingreso_proximos
 
 
+def _ids_proximas_por_calendario(events: list, today_str: str) -> set:
+    """IDs de la próxima estadía de CADA calendario (una por propiedad).
+
+    El template marca PRÓXIMA ESTADÍA con este set. Con un solo flag global,
+    dos check-in el mismo día en distintas propiedades mostraban solo uno
+    (ej. santiago_magno sí, paraiso_los_quinquelles_1 no).
+    Misma condición que is_upcoming del template: start > hoy, reservado,
+    no eliminado/cancelado. Ordenados por start: la primera futura de cada
+    calendario_id (o '__legacy__') gana.
+    """
+    vistos = set()
+    ids = set()
+    for ev in sorted(events, key=lambda e: e.get('start', '') or ''):
+        if ev.get('estado') != 'reservado':
+            continue
+        if (ev.get('start', '') or '') <= today_str:
+            continue
+        cid = ev.get('calendario_id') or '__legacy__'
+        if cid in vistos:
+            continue
+        vistos.add(cid)
+        if ev.get('id'):
+            ids.add(ev.get('id'))
+    return ids
+
+
 def _calcular_ingresos_por_calendario(all_events: list, year: int, month: int) -> dict:
     """Subtotales de ingresos por calendario_id (para widget de Ingresos).
 
@@ -482,6 +508,11 @@ def home():
             'color': _color_calendario(_c, _i),
         }
 
+    # PRÓXIMA ESTADÍA por calendario (una por propiedad): dos check-in el
+    # mismo día en distintas propiedades deben marcarse ambas como próximas.
+    today_str = now.strftime('%Y-%m-%d')
+    next_ids = _ids_proximas_por_calendario(events, today_str)
+
     return render_template('calendar.html',
                          events=events,
                          stats=stats,
@@ -490,7 +521,8 @@ def home():
                          version=APP_VERSION,
                          property_name=PROPERTY_NAME,
                          is_logged_in=is_logged_in,
-                         today=now.strftime('%Y-%m-%d'),
+                         today=today_str,
+                         next_ids=next_ids,
                          now_time=now.strftime('%H:%M'),
                          calendarios_imagenes=calendarios_imagenes)
 

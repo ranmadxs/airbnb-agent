@@ -72,16 +72,22 @@ class DatabaseService:
                     pass
                 
                 # Crear índices
-                # 3.0.0: índice único cambió de (event_start, event_end) a
-                # (source, event_start, event_end) para soportar múltiples calendarios.
-                # Drop del índice viejo (idempotente: si no existe, ignora el error).
+                # 3.5.1: índice único incluye calendario_id para permitir la misma
+                # fecha en 2 propiedades (ej. paraiso 10→12 y santiago 10→14).
+                # Sin esto, 2 airbnb misma fecha colisionan y una se pierde.
+                # Drop de índices viejos (idempotente).
                 try:
                     self.reservas.drop_index("event_start_1_event_end_1")
                     print("🗑️  Índice viejo (event_start, event_end) eliminado")
                 except Exception:
                     pass  # El índice viejo no existía (instalación nueva)
+                try:
+                    self.reservas.drop_index("source_1_event_start_1_event_end_1")
+                    print("🗑️  Índice viejo (source, start, end) eliminado")
+                except Exception:
+                    pass
                 self.reservas.create_index(
-                    [("source", 1), ("event_start", 1), ("event_end", 1)],
+                    [("source", 1), ("calendario_id", 1), ("event_start", 1), ("event_end", 1)],
                     unique=True
                 )
                 self.dias.create_index("fecha", unique=True)
@@ -152,10 +158,13 @@ class DatabaseService:
         """Guarda eventos en airbnb-dias y días en 'dias' usando bulk operations.
 
         3.0.0: soporta múltiples calendarios de múltiples sources (Airbnb, Booking, ...).
-        - event_key = (source, start, end) — sin esto, 2 calendarios con misma fecha colisionan.
+        3.5.1: scope por calendario_id — sin esto, 2 propiedades con fechas que se
+        solapan colisionan (ej. paraiso 10→12 protegida omitía santiago 10→14 HMK33ZWYJ9):
+        - event_key = (source, calendario_id, start, end).
+        - protegidas y overlap solo dentro del mismo calendario_id (paralelas legítimas).
         - source y calendario_id se leen del evento entrante (taggeados por airbnb_calendar.py).
-        - Cache stale se marca y elimina por source (un fallo en Booking no borra reservas Airbnb).
-        - Reservas readonly=True nunca se tocan.
+        - Cache stale se marca y elimina por (source, calendario_id).
+        - Reservas readonly=True nunca se tocan (dentro de su calendario).
         - Datos históricos (< hoy) no se modifican.
         - NUNCA ejecutar con lista vacía: podría marcar todo como stale.
         """
@@ -174,51 +183,61 @@ class DatabaseService:
 
         hoy = datetime.now().strftime("%Y-%m-%d")
 
-        # Determinar sources presentes en este sync (puede ser 1+).
+        # Determinar pares (source, calendario_id) presentes en este sync.
         sources_in_sync = {e.get("source", "airbnb") for e in eventos}
+        pares_in_sync = {(e.get("source", "airbnb"), e.get("calendario_id", "default")) for e in eventos}
         print(f"🔄 Sync multi-source: sources={sources_in_sync} eventos={len(eventos)}")
 
-        # 1. Obtener eventos actuales de iCal (claves (source, start, end))
+        # 1. Obtener eventos actuales de iCal (claves (source, calendario_id, start, end))
         eventos_ical_keys = set()
         for event in eventos:
             if event["end"] >= hoy:
                 src = event.get("source", "airbnb")
-                eventos_ical_keys.add((src, event["start"], event["end"]))
+                cid = event.get("calendario_id", "default")
+                eventos_ical_keys.add((src, cid, event["start"], event["end"]))
 
-        # 2. Marcar eventos futuros de los sources en sync como cache_<source>
-        #    (NO tocar readonly=True ni otros sources que no están en este sync)
-        for src in sources_in_sync:
+        # 2. Marcar eventos futuros como cache_<source> por (source, calendario_id).
+        # 3.5.1: si 2 propiedades comparten source (2 airbnb), no pisarse entre sí;
+        # si un calendario falla (no viene en el sync), no marcarlo como stale.
+        #    (NO tocar readonly=True ni pares que no están en este sync)
+        for src, cid_marca in sorted(pares_in_sync):
             try:
                 result = self.reservas.update_many(
                     {
                         "event_end": {"$gte": hoy},
                         "source": src,
+                        "calendario_id": cid_marca,
                         "readonly": {"$ne": True}
                     },
                     {"$set": {"source": f"cache_{src}"}}
                 )
                 if result.modified_count:
-                    print(f"   ↳ {result.modified_count} eventos {src} marcados como cache_{src}")
+                    print(f"   ↳ {result.modified_count} eventos {src}/{cid_marca} marcados como cache_{src}")
             except Exception as e:
                 print(f"❌ Error marcando cache {src}: {e}")
 
-        # 3. Obtener reservas protegidas (readonly=True) para no sobrescribirlas
+        # 3. Obtener reservas protegidas (readonly=True) para no sobrescribirlas.
+        # 3.5.1: scope por calendario_id — una protegida de paraiso no bloquea
+        # a santiago (paralelas legítimas). Solo bloquea su mismo calendario.
         reservas_protegidas = set()
         reservas_protegidas_rangos = []
         try:
-            for doc in self.reservas.find({"readonly": True}, {"event_start": 1, "event_end": 1}):
-                reservas_protegidas.add((doc['event_start'], doc['event_end']))
+            for doc in self.reservas.find({"readonly": True}, {"event_start": 1, "event_end": 1, "calendario_id": 1}):
+                cid_p = doc.get('calendario_id')
+                reservas_protegidas.add((cid_p, doc['event_start'], doc['event_end']))
                 prot_start = datetime.strptime(doc['event_start'], "%Y-%m-%d")
                 prot_end = datetime.strptime(doc['event_end'], "%Y-%m-%d")
-                reservas_protegidas_rangos.append((prot_start, prot_end))
+                reservas_protegidas_rangos.append((cid_p, prot_start, prot_end))
         except Exception as e:
             print(f"❌ Error obteniendo reservas protegidas: {e}")
 
-        def superpone_con_protegida(start_str, end_str):
+        def superpone_con_protegida(start_str, end_str, calendario_id=None):
             try:
                 start = datetime.strptime(start_str, "%Y-%m-%d")
                 end = datetime.strptime(end_str, "%Y-%m-%d")
-                for prot_start, prot_end in reservas_protegidas_rangos:
+                for cid_p, prot_start, prot_end in reservas_protegidas_rangos:
+                    if cid_p != calendario_id:
+                        continue
                     if start < prot_end and end > prot_start:
                         print(f"🚫 Evento {start_str}->{end_str} superpone con protegida {prot_start.strftime('%Y-%m-%d')}->{prot_end.strftime('%Y-%m-%d')}")
                         return True
@@ -236,15 +255,16 @@ class DatabaseService:
 
             src = event.get("source", "airbnb")
             cid = event.get("calendario_id", "default")
-            event_key = (src, event["start"], event["end"])
+            event_key = (src, cid, event["start"], event["end"])
 
-            # NO sobrescribir reservas protegidas (readonly): sin importar source.
-            if (event["start"], event["end"]) in reservas_protegidas:
+            # NO sobrescribir reservas protegidas (readonly) del MISMO calendario.
+            if (cid, event["start"], event["end"]) in reservas_protegidas:
                 print(f"⚠️ Reserva protegida, omitiendo: {event_key}")
                 continue
 
             # NO crear bloqueos que se superponen con reservas protegidas
-            if superpone_con_protegida(event["start"], event["end"]):
+            # del MISMO calendario (otra propiedad puede solaparse libremente).
+            if superpone_con_protegida(event["start"], event["end"], cid):
                 print(f"⚠️ Se superpone con reserva protegida, omitiendo: {event_key}")
                 continue
 
@@ -262,16 +282,17 @@ class DatabaseService:
 
                 eventos_unicos[event_key] = {"event": event, "estado": estado, "source": src, "calendario_id": cid}
 
-                # Buscar existente por (source, start, end) — la nueva clave única.
+                # Buscar existente por (source, calendario_id, start, end).
                 existente = self.reservas.find_one({
                     "source": src,
+                    "calendario_id": cid,
                     "event_start": event["start"],
                     "event_end": event["end"]
                 })
                 if existente and existente.get("estado") == "reservado":
                     codigo = event.get("codigo_reserva") or existente.get("codigo_reserva")
                     eventos_ops.append(UpdateOne(
-                        {"source": src, "event_start": event["start"], "event_end": event["end"]},
+                        {"source": src, "calendario_id": cid, "event_start": event["start"], "event_end": event["end"]},
                         {"$set": {
                             "source": src,
                             "calendario_id": cid,
@@ -284,7 +305,7 @@ class DatabaseService:
                     ))
                 else:
                     eventos_ops.append(UpdateOne(
-                        {"source": src, "event_start": event["start"], "event_end": event["end"]},
+                        {"source": src, "calendario_id": cid, "event_start": event["start"], "event_end": event["end"]},
                         {"$set": {
                             "event_start": event["start"],
                             "event_end": event["end"],
@@ -312,19 +333,20 @@ class DatabaseService:
             print(f"❌ Error bulk eventos: {e}")
             return 0
 
-        # 6. Marcar días futuros como cache_<source> (por source en sync)
-        for src in sources_in_sync:
+        # 6. Marcar días futuros como cache_<source> por (source, calendario_id).
+        for src, cid_marca in sorted(pares_in_sync):
             try:
                 self.dias.update_many(
                     {
                         "fecha": {"$gte": hoy},
                         "source": src,
+                        "calendario_id": cid_marca,
                         "readonly": {"$ne": True}
                     },
                     {"$set": {"source": f"cache_{src}"}}
                 )
             except Exception as e:
-                print(f"❌ Error marcando días cache {src}: {e}")
+                print(f"❌ Error marcando días cache {src}/{cid_marca}: {e}")
 
         # 7. Obtener días protegidos (readonly=True)
         dias_protegidos = set()
@@ -381,17 +403,18 @@ class DatabaseService:
             print(f"❌ Error bulk días: {e}")
 
         # 10. Borrar físicamente los que quedaron como cache_<source> (ya no están en iCal).
-        #     Solo borrar del mismo source del sync (multi-source safe).
-        for src in sources_in_sync:
+        # 3.5.1: por (source, calendario_id) para no borrar santiago cuando solo
+        # cambió paraiso (mismo source airbnb, distinta propiedad).
+        for src, cid_stale in sorted(pares_in_sync):
             try:
                 stale = list(self.reservas.find(
-                    {"event_end": {"$gte": hoy}, "source": f"cache_{src}", "readonly": {"$ne": True}},
-                    {"_id": 1, "event_start": 1, "event_end": 1}
+                    {"event_end": {"$gte": hoy}, "source": f"cache_{src}", "calendario_id": cid_stale, "readonly": {"$ne": True}},
+                    {"_id": 1, "event_start": 1, "event_end": 1, "calendario_id": 1}
                 ))
-                # Doble verificación: solo borrar si (source, start, end) realmente no está en iCal
+                # Doble verificación: solo borrar si (source, calendario, start, end) realmente no está en iCal
                 realmente_stale = [
                     d for d in stale
-                    if (src, d['event_start'], d['event_end']) not in eventos_ical_keys
+                    if (src, d.get('calendario_id', cid_stale), d['event_start'], d['event_end']) not in eventos_ical_keys
                 ]
                 if realmente_stale:
                     ids = [d["_id"] for d in realmente_stale]
@@ -402,11 +425,12 @@ class DatabaseService:
                             "fecha": {"$gte": hoy},
                             "event_start": ev_start,
                             "event_end": ev_end,
+                            "calendario_id": cid_stale,
                             "readonly": {"$ne": True}
                         })
-                    print(f"🗑️ Eliminados {len(ids)} eventos {src} obsoletos (no están en iCal)")
+                    print(f"🗑️ Eliminados {len(ids)} eventos {src}/{cid_stale} obsoletos (no están en iCal)")
             except Exception as e:
-                print(f"❌ Error eliminando stale {src}: {e}")
+                print(f"❌ Error eliminando stale {src}/{cid_stale}: {e}")
 
         return eventos_guardados
     
@@ -658,12 +682,23 @@ class DatabaseService:
                 "user_origin": audit.get("user_origin", "admin"),
                 "user_agent": audit.get("user_agent", "admin")
             }
-            # calendario_id: solo se setea en creación (None si no se eligió).
-            # En edición NO se toca (mantiene el valor original de la DB).
+            # calendario_id: se setea en creación (None si no se eligió).
+            # En edición se permite SOLO la primera asignación (legacy sin
+            # calendario): con calendario ya seteado se preserva el original.
             if not reserva_id and 'calendario_id' in datos:
                 doc["calendario_id"] = datos.get('calendario_id') or None
-            
+
             if reserva_id:
+                # Primera asignación: si no tenía calendario y viene uno válido.
+                if 'calendario_id' in datos and datos.get('calendario_id'):
+                    try:
+                        existente = self.reservas.find_one(
+                            {"_id": ObjectId(reserva_id)}, {"calendario_id": 1}
+                        )
+                        if existente is not None and not existente.get("calendario_id"):
+                            doc["calendario_id"] = datos.get('calendario_id')
+                    except Exception:
+                        pass
                 # Actualizar existente
                 result = self.reservas.update_one(
                     {"_id": ObjectId(reserva_id)},

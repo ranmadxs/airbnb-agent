@@ -1214,6 +1214,7 @@ header {
     align-items: center;
     gap: 6px;
     padding: 6px 12px;
+    min-height: 40px;
     background: white;
     border: 2px solid transparent;
     border-radius: 18px;
@@ -1230,18 +1231,22 @@ header {
     border-color: rgba(0,0,0,0.1);
 }
 .calendar-filter-chip.active {
-    border-color: var(--airbnb-red, #FF5A5F);
+    border-color: #9ca3af;
     background: #fff;
-    box-shadow: 0 0 0 3px rgba(255, 90, 95, 0.08);
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
 }
 .calendar-filter-chip.disabled {
     opacity: 0.4;
     background: #f3f4f6;
 }
 .calendar-filter-chip .chip-icon {
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
 }
 .calendar-filter-chip .chip-count {
     background: var(--airbnb-red, #FF5A5F);
@@ -1272,17 +1277,18 @@ header {
     border: 2px solid var(--chip-border-color, rgba(0,0,0,0.08));
 }
 
-/* Logo badge de la propiedad ANCLADO a la franja (solape ~25%, sin tapar el número):
-   - inicio (azul): borde inferior-izquierdo del azul, sobrepuesto al azul.
-   - checkout (rojo): sobre el rojo, inferior-derecha.
+/* Logo badge de la propiedad CENTRADO en la mitad de la franja:
+   - inicio (azul): centrado vertical sobre el azul, a la izquierda.
+   - checkout (rojo): centrado vertical sobre el rojo, a la derecha.
    - continuación (negra): esquina inferior-izquierda de la celda.
-   Las franjas miden 28px centradas: su borde inferior está en 50% + 14px;
-   con badge de 18px y top en 50% + 9px el solape vertical es ~5px. */
+   La franja mide 28px centrada al 50%: el badge de 22px con
+   top 50% + translateY(-50%) queda justo en su mitad. */
   .day-cell > .cal-logo-badge {
       position: absolute;
-      top: calc(50% + 9px);
-      width: 18px;
-      height: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       object-fit: cover;
       box-shadow: 0 1px 2px rgba(0,0,0,0.3);
@@ -1292,10 +1298,10 @@ header {
       border: 1.5px solid #9ca3af;   /* fallback; el JS aplica el color del calendario */
   }
   .day-cell > .cal-logo-badge.pos-inicio {
-      left: calc(15% - 9px);
+      left: calc(15% - 11px);
   }
   .day-cell > .cal-logo-badge.pos-checkout {
-      right: calc(15% - 9px);
+      right: calc(15% - 11px);
   }
   .day-cell > .cal-logo-badge.pos-medio {
       left: 2px;
@@ -1565,6 +1571,16 @@ header {
 }
 .multi-reserva-card[data-source="airbnb"] .multi-reserva-dot { background: #222; }
 .multi-reserva-card[data-source="booking"] .multi-reserva-dot { background: #003580; }
+/* Thumbnail cuadrado con bordes redondeados sobre el card (logo de la propiedad). */
+.multi-reserva-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #fff;
+    border: 2px solid #9ca3af;   /* el JS aplica el color del calendario */
+}
 .multi-reserva-source {
     font-weight: 500;
     color: #374151;
@@ -2072,11 +2088,11 @@ header {
 }
 
 /* ============================================================
- * v3.0.0 — Multi-calendario: stack de bandas en una celda
+ * v3.5.2 — Multi-calendario: stack de píldoras en una celda
  * ============================================================
  * Cuando caen 2+ reservas el mismo día, la celda lleva la clase
- * `.multi-band` y N hijos `.band` (uno por evento). Cada banda
- * tiene `data-source` (color) y `data-calendario-id` (patrón).
+ * `.multi-band` y N hijos `.pill` (uno por evento, máx. 3 visibles +
+ * expansor). Cada píldora lleva el color de su calendario + mini-logo.
  */
 
 /* Reset del ::after en multi-band (la franja única no se usa) */
@@ -2086,33 +2102,108 @@ header {
 }
 
 .day-cell.multi-band {
-    /* Permitir que el stack crezca verticalmente */
-    aspect-ratio: auto;
+    /* Cuadradas como el resto (aspect-ratio: 1 heredado): si se pierde,
+       los meses llenos como febrero colapsan y quedan chicos. */
     min-height: 60px;
-    padding-bottom: 24px; /* espacio para los globitos apilados */
+    padding-bottom: 24px; /* espacio para expansor y filas extra */
 }
 
-.day-cell.multi-band .band {
+/* En días multi el número va arriba-izquierda (patrón calendario clásico):
+   así las píldoras nunca lo tapan. Color oscuro explícito porque el fondo
+   de la celda es claro (la franja de checkout va centrada, no arriba). */
+.day-cell.multi-band .day-number {
+    position: absolute;
+    top: 3px;
+    left: 6px;
+    transform: none;
+    z-index: 5;
+    color: #111827 !important;
+    font-weight: 600;
+}
+/* Píldora por evento en día multi (2+ reservas el mismo día):
+   cada propiedad con su color sólido + mini-logo + nombre, apiladas
+   verticalmente centradas en la celda. El JS centra el grupo con
+   top: calc(50% + offset) según el índice (máx. 3 visibles + expansor). */
+.day-cell.multi-band .pill {
     position: absolute;
     left: 4%;
     right: 4%;
-    height: 9px;
-    background: #222; /* fallback */
-    z-index: 1;
-    border-radius: 0;
-    /* Cada banda se coloca con un offset proporcional al índice.
-       Usamos una variable CSS --band-index seteada por JS.
-       Como fallback, usamos nth-child para los primeros 5 casos. */
-    top: calc(50% - 4px);
+    height: 15px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 6px 0 2px;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    z-index: 2;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.35);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.35);
+    cursor: pointer;
+    top: 36px;
 }
-
-/* Posicionamiento automático de las bandas en stack vertical.
-   Las primeras 5 bandas se distribuyen centradas en la celda. */
-.day-cell.multi-band .band:nth-child(1) { transform: translateY(-12px); }
-.day-cell.multi-band .band:nth-child(2) { transform: translateY(-2px); }
-.day-cell.multi-band .band:nth-child(3) { transform: translateY(8px); }
-.day-cell.multi-band .band:nth-child(4) { transform: translateY(18px); }
-.day-cell.multi-band .band:nth-child(5) { transform: translateY(28px); }
+/* Etiqueta larga: el nombre flota sobre su propia tira continua
+   (solo cuando conecta a la derecha) en vez de cortarse. */
+.day-cell.multi-band .pill.label-largo {
+    overflow: visible;
+    z-index: 3;
+}
+.day-cell.multi-band .pill.label-largo .pill-name {
+    overflow: visible;
+    text-overflow: clip;
+    max-width: 400px;
+    flex-shrink: 0;
+}
+/* Tira continua: la píldora se une con la del día vecino (sin corte). */
+.day-cell.multi-band .pill.con-izq {
+    left: -2px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    padding-left: 6px;
+}
+.day-cell.multi-band .pill.con-der {
+    right: -2px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+/* Un solo calendario ese día → tira GRANDE (tamaño original). */
+.day-cell.multi-band .pill.grande {
+    height: 28px;
+    font-size: 12px;
+}
+.day-cell.multi-band .pill.grande img {
+    width: 20px;
+    height: 20px;
+}
+/* La que termina va en chiquito; la que sigue queda grande. */
+.day-cell.multi-band .pill.mini {
+    height: 11px;
+    font-size: 8px;
+}
+.day-cell.multi-band .pill img {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #fff;
+}
+.day-cell.multi-band .pill .pill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    flex-shrink: 0;
+    margin-left: 3px;
+}
+.day-cell.multi-band .pill .pill-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 /* Modo expandido: mini-lista inline cuando caen 3+ eventos el mismo día.
    La celda crece verticalmente y muestra cada evento como una fila con dot + nombre + precio. */
@@ -2172,6 +2263,13 @@ header {
     font-weight: 600;
 }
 
+/* Fila de pago de arriendo (★): anclada abajo para no solaparse
+   con las burbujas de precio/tinaja ni con las tiras. Solo aplica a la
+   lista propia de pagos (la mini-lista expandida sigue arriba). */
+.day-cell .day-event-list.arriendo-list {
+    justify-content: flex-end;
+}
+
 /* Mobile: lista aún más compacta */
 @media (max-width: 768px) {
     .day-cell.expanded-day {
@@ -2182,53 +2280,27 @@ header {
     }
 }
 
-/* Colores por source */
-.day-cell.multi-band .band[data-source="airbnb"] { background: #222; }
-.day-cell.multi-band .band[data-source="booking"] { background: #003580; }
-.day-cell.multi-band .band[data-source="tencha"] { background: #6f42c1; }
-.day-cell.multi-band .band[data-source="admin"] { background: #374151; }
-.day-cell.multi-band .band[data-source="whatsapp"] { background: #25d366; }
-.day-cell.multi-band .band[data-source="manual"] { background: #6b7280; }
-.day-cell.multi-band .band[data-source="googleMaps"] { background: #ea4335; }
+/* Colores por source (fallback cuando el calendario no tiene color propio;
+   el JS pinta cada píldora con el color de su calendario). */
+/* Patrones por calendario_id eliminados en 3.5.2: las píldoras usan color
+   sólido por calendario + logo, sin rayas/puntos. */
 
-/* Patrones por calendario_id (mismo source, distinto calendario) */
-/* Airbnb 1: sólido (default ya está) */
-/* Airbnb 2: rayas diagonales */
-.day-cell.multi-band .band[data-calendario-id="santiago_magno"] {
-    background-image: repeating-linear-gradient(
-        45deg,
-        #222,
-        #222 4px,
-        #555 4px,
-        #555 8px
-    );
-    background-color: #222;
-}
-/* Calendarios adicionales: puntos */
-.day-cell.multi-band .band[data-calendario-id="paraiso_los_quinquelles_1"] {
-    background-image: radial-gradient(circle, #555 1px, transparent 1px);
-    background-size: 6px 6px;
-    background-color: #222;
-}
-/* Booking con rayas verticales */
-.day-cell.multi-band .band[data-source="booking"] {
-    background-image: repeating-linear-gradient(
-        90deg,
-        #003580,
-        #003580 6px,
-        #1a5fb4 6px,
-        #1a5fb4 8px
-    );
-}
-
-/* Mobile: reducir alto de banda */
+/* Mobile: píldoras más compactas */
 @media (max-width: 768px) {
     .day-cell.multi-band {
         min-height: 50px;
         padding-bottom: 20px;
     }
-    .day-cell.multi-band .band {
-        height: 6px;
+    .day-cell.multi-band .pill {
+        height: 12px;
+        font-size: 8px;
+    }
+    .day-cell.multi-band .pill.grande {
+        height: 18px;
+    }
+    .day-cell.multi-band .pill.grande img {
+        width: 14px;
+        height: 14px;
     }
 }
 
@@ -2262,14 +2334,10 @@ header {
     border: 1px solid var(--border-color);
 }
 
-.legend-color.checkin-dot {
-    background: #3B82F6;
-    border-radius: 4px;
-}
-
-.legend-color.reserved {
-    background: #222222;
-    border-radius: 8px;
+.legend-color.reserva-strip {
+    width: 28px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb 0 50%, #dc2626 50% 100%);
 }
 
 .legend-color.blocked {

@@ -216,12 +216,8 @@
                     <span>Disponible</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color checkin-dot"></span>
-                    <span>Entrada</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-color reserved"></span>
-                    <span>Reservado</span>
+                    <span class="legend-color reserva-strip"></span>
+                    <span>Reservado (color de la propiedad)</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-color blocked"></span>
@@ -275,7 +271,6 @@
                 </div>
                 <div class="reservations-list" id="reservations-list">
                     {% if events %}
-                        {% set ns = namespace(found_next=false) %}
                         {% for event in events|sort(attribute='start') %}
                             {% set is_reservation = event.estado == 'reservado' %}
                             {% set is_deleted = event.estado == 'eliminado' %}
@@ -289,8 +284,8 @@
                             {# En curso: empezó, no terminó (o termina hoy pero aún no es hora de checkout) #}
                             {% set is_in_progress = event.start <= today and (event.end > today or (event.end == today and now_time < hora_checkout)) and not has_checkout and is_reservation %}
                             {% set is_upcoming = event.start > today and is_reservation and not is_deleted and not is_canceled %}
-                            {% set is_next = is_upcoming and not ns.found_next %}
-                            {% if is_next %}{% set ns.found_next = true %}{% endif %}
+                            {# Próxima por calendario (una por propiedad): viene calculado del server en next_ids #}
+                            {% set is_next = event.id in next_ids %}
                             <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-arriendo-pago' if event.source == 'arriendo' else '' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}"
                                  data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}" data-source="{{ event.source or '' }}"
                                  data-calendario-id="{{ event.calendario_id or '__legacy__' }}">
@@ -609,7 +604,7 @@
                 <input type="hidden" id="reserva-id" name="id">
                 <input type="hidden" id="reserva-calendario-id" name="calendario_id">
 
-                <!-- Selector de calendario (edición: readonly, creación: editable) -->
+                <!-- Selector de calendario (con calendario: readonly; sin calendario o creación: editable) -->
                 <div class="form-row">
                     <div class="form-group">
                         <label>🏠 Calendario / Propiedad</label>
@@ -1838,6 +1833,14 @@
             return `${y}-${m}-${d}`;
         }
 
+        // Suma días calendario de forma segura ante horario de verano
+        // (ej. 2026-04-04 en Chile dura 25h: +86400000 ms cae el mismo día).
+        function sumarDias(dateStr, n) {
+            const d = new Date(dateStr + 'T00:00:00');
+            d.setDate(d.getDate() + n);
+            return formatDate(d);
+        }
+
         function eventIdDe(ev) {
             return ev.id || (ev.start + '_' + ev.end + '_' + (ev.calendario_id || ev.source));
         }
@@ -1850,7 +1853,8 @@
             row.dataset.source = ev.source || 'unknown';
             row.dataset.calendarioId = ev.calendario_id || '';
             row.dataset.eventId = eventIdDe(ev);
-            const nombre = (ev.nombre_huesped || '?').substring(0, 12);
+            const nombreCalRow = calendariosDisponibles.find(c => c.calendario_id === (ev.calendario_id || ''))?.nombre || '';
+            const nombre = (ev.nombre_huesped || nombreCalRow.split(' ')[0] || '?').substring(0, 12);
             const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
             const totalPersonas = (ev.adultos || 0) + (ev.ninos || 0);
             const precio = isAdmin && ev.precio ? `$${(ev.precio || 0).toLocaleString('es-CL')}` : '';
@@ -1864,6 +1868,124 @@
             return row;
         }
 
+        // Píldora de un evento: color de su calendario.
+        // Las píldoras del mismo evento en días seguidos forman UNA tira
+        // continua (más fina que la franja): logo+nombre solo al inicio,
+        // resto con logo, chiquita al terminar.
+        // Carril vertical estable por fila semanal (Lu-Do): el mismo evento
+        // va siempre a la misma altura, compartido o solo el día.
+        // Coloreo greedy por (start, id) sobre rangos de tira [start, end].
+        function carrilEnFila(ev, dia) {
+            const d = new Date(dia + 'T00:00:00');
+            const dow = (d.getDay() + 6) % 7;
+            const lun = new Date(d); lun.setDate(lun.getDate() - dow);
+            const dom = new Date(lun); dom.setDate(dom.getDate() + 6);
+            const ini = formatDate(lun), fin = formatDate(dom);
+            const enFila = events
+                .filter(e => e.estado === 'reservado' && e.source !== 'arriendo')
+                .filter(e => (e.start || '') <= fin && (e.end || '') >= ini)
+                .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : (a.id < b.id ? -1 : 1)));
+            const finPorCarril = [];
+            const carril = new Map();
+            const solapa = (a, b) => a.start <= b.end && b.start <= a.end;
+            enFila.forEach(e => {
+                let c = 0;
+                while (c < finPorCarril.length && solapa(e, finPorCarril[c])) c++;
+                carril.set(eventIdDe(e), c);
+                finPorCarril[c] = e;
+            });
+            return carril.get(eventIdDe(ev)) ?? 0;
+        }
+
+        function construirPildora(ev, carril, flags) {
+            const f = flags || {};
+            const pill = document.createElement('div');
+            pill.className = 'pill'
+                + (f.izq ? ' con-izq' : '')
+                + (f.der ? ' con-der' : '')
+                + (f.mini ? ' mini' : '')
+                + (f.grande ? ' grande' : '')
+                + ((f.etiqueta === 'full' && f.der) ? ' label-largo' : '');
+            const cid = ev.calendario_id || '';
+            const cal = calendariosImagenes[cid] || {};
+            const color = cal.color || getCalendarioColor(cid);
+            pill.style.background = color;
+            pill.dataset.source = ev.source || 'unknown';
+            pill.dataset.calendarioId = cid;
+            pill.dataset.eventId = eventIdDe(ev);
+            // Altura por carril (estable entre días); sin translate para que
+            // los bordes superiores queden alineados.
+            const movil = window.innerWidth < 768;
+            const base = movil ? 30 : 44, pitch = movil ? 13 : 17;
+            pill.style.top = `${base + carril * pitch}px`;
+            pill.style.transform = 'none';
+            const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || '';
+            const logo = calLogoUrl(cal);
+            const dot = '<span class="pill-dot"></span>';
+            let etiqueta = f.etiqueta || 'logo';
+            if (etiqueta !== 'full' && etiqueta !== 'logo') etiqueta = 'nada';
+            let dentro = '';
+            if (etiqueta === 'full') {
+                // Si la tira continúa, nombre completo flotando sobre ella;
+                // si termina acá, cortado a la celda.
+                const largo = f.der ? 30 : 12;
+                const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, largo);
+                const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+                dentro = `
+                    ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : dot}
+                    <span class="pill-name">${ini}</span>
+                `;
+            } else if (etiqueta === 'logo') {
+                dentro = `${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : dot}`;
+            }
+            // 'nada': tira limpia (solo, días intermedios).
+            pill.innerHTML = dentro;
+            pill.title = `${ev.nombre_huesped || ev.summary || ''} — ${nombreCal || cid || (ev.source || '')} — ${ev.start} → ${ev.end}`;
+            if (isAdmin) {
+                pill.addEventListener('click', (e) => { e.stopPropagation(); abrirModalReservaPorId(ev.id); });
+            }
+            return pill;
+        }
+
+        // Píldoras visibles de una celda: el día de checkout SÍ lleva tira
+        // (final redondeado + logo). Máx. 3. Orden estable por (start, id)
+        // para que la misma tira quede alineada entre días.
+        function pildorasVisibles(cell) {
+            const evs = (cell._eventosDia || [])
+                .slice()
+                .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : (a.id < b.id ? -1 : 1)));
+            return { vis: evs.slice(0, 3) };
+        }
+
+        function restaurarPildoras(cell) {
+            cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
+            const { vis } = pildorasVisibles(cell);
+            // Un solo calendario ese día → tira GRANDE (tamaño original).
+            const solo = (cell._eventosDia || []).length <= 1;
+            const dia = cell.dataset.date;
+            const diaMas1 = sumarDias(dia, 1);
+            const dNum = parseInt(dia.slice(8, 10), 10);
+            vis.forEach((ev) => {
+                const esInicio = ev.start === dia;
+                const esCheckout = dia === ev.end;
+                const primeraVez = esInicio || dNum === 1;
+                // Logo + nombre solo en la primera; si la tira es continua,
+                // el resto va limpio (sin logos repetidos).
+                const etiqueta = primeraVez ? 'full' : 'nada';
+                // Carril estable de la fila semanal; máx. 3 (el resto tras +N).
+                const lane = carrilEnFila(ev, dia);
+                const movil = window.innerWidth < 768;
+                if (lane >= (movil ? 2 : 3)) return;
+                cell.appendChild(construirPildora(ev, lane, {
+                    izq: ev.start < dia,
+                    der: diaMas1 <= ev.end,
+                    etiqueta,
+                    mini: !solo && esCheckout && etiqueta !== 'full',
+                    grande: solo,
+                }));
+            });
+        }
+
         // Expande/contrae un día multievento inline (misma mini-lista del modo expandido).
         function toggleExpandDia(cell) {
             const evs = cell._eventosDia || [];
@@ -1872,24 +1994,11 @@
             if (cell.classList.contains('expanded-day')) {
                 cell.querySelector(':scope > .day-event-list')?.remove();
                 cell.classList.remove('expanded-day');
-                evs.forEach(ev => {
-                    // Al contraer se restauran bandas, salvo de eventos que
-                    // terminan ese día (el checkout se marca con colita, no banda).
-                    if (formatDate(new Date(ev.end + 'T00:00:00')) === cell.dataset.date) return;
-                    const evId = eventIdDe(ev);
-                    if (!cell.querySelector(`.band[data-event-id="${evId}"]`)) {
-                        const band = document.createElement('div');
-                        band.className = 'band';
-                        band.dataset.source = ev.source || 'unknown';
-                        band.dataset.calendarioId = ev.calendario_id || '';
-                        band.dataset.eventId = evId;
-                        cell.appendChild(band);
-                    }
-                });
+                restaurarPildoras(cell);
                 if (exp) { exp.textContent = `+${evs.length}`; exp.classList.remove('open'); exp.title = 'Ver eventos del día'; }
             } else {
                 cell.classList.add('multi-band', 'expanded-day');
-                cell.querySelectorAll(':scope > .band').forEach(b => b.remove());
+                cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
                 const list = document.createElement('div');
                 list.className = 'day-event-list';
                 evs.forEach(ev => list.appendChild(construirFilaEventoDia(ev)));
@@ -1948,10 +2057,12 @@
 
             // Suma de arriendos por día (globito verde): si varios arriendos
             // pintan burbuja de precio el mismo día, se muestra UNA con el total.
-            // Los azules (tinaja) no se tocan: siguen uno por reserva.
+            // Suma de tinajas por día (globito azul): mismo criterio con extra_valor.
             // Todo sale de `events` (ya filtrado por calendario) así que respeta filtros.
             const sumaVerdePorDia = new Map(); // dia -> {total, nombres:[], proporcional}
             const gruposVerdePintados = new Set();
+            const sumaAzulPorDia = new Map(); // dia -> {total, nombres:[], proporcional}
+            const azulesPintados = new Set();
             {
                 const _ini = new Date(currentYear, currentMonth - 1, 1);
                 const _fin = new Date(currentYear, currentMonth, 0);
@@ -1969,14 +2080,28 @@
                     const prop = diasEnMes / diasTotales;
                     const esProp = diasEnMes < diasTotales;
                     const muestra = esProp ? Math.round((event.precio || 0) * prop) : (event.precio || 0);
-                    if (!isAdmin || muestra <= 0) return;
-                    if (!sumaVerdePorDia.has(diaBurbuja)) {
-                        sumaVerdePorDia.set(diaBurbuja, {total: 0, nombres: [], proporcional: false});
+                    if (!isAdmin) return;
+                    if (muestra > 0) {
+                        if (!sumaVerdePorDia.has(diaBurbuja)) {
+                            sumaVerdePorDia.set(diaBurbuja, {total: 0, nombres: [], proporcional: false});
+                        }
+                        const g = sumaVerdePorDia.get(diaBurbuja);
+                        g.total += muestra;
+                        g.proporcional = g.proporcional || esProp;
+                        g.nombres.push(`${event.nombre_huesped || event.summary || '?'} $${muestra.toLocaleString('es-CL')}`);
                     }
-                    const g = sumaVerdePorDia.get(diaBurbuja);
-                    g.total += muestra;
-                    g.proporcional = g.proporcional || esProp;
-                    g.nombres.push(`${event.nombre_huesped || event.summary || '?'} $${muestra.toLocaleString('es-CL')}`);
+                    // Azul (tinaja/extra): se suma igual que el verde, incluso
+                    // si el arriendo es 0 (ej. solo tinaja reservada).
+                    const extraMuestra = esProp ? Math.round((event.extra_valor || 0) * prop) : (event.extra_valor || 0);
+                    if (isAdmin && extraMuestra > 0) {
+                        if (!sumaAzulPorDia.has(diaBurbuja)) {
+                            sumaAzulPorDia.set(diaBurbuja, {total: 0, nombres: [], proporcional: false, concepto: event.extra_concepto || 'Tinaja'});
+                        }
+                        const a = sumaAzulPorDia.get(diaBurbuja);
+                        a.total += extraMuestra;
+                        a.proporcional = a.proporcional || esProp;
+                        a.nombres.push(`${event.nombre_huesped || event.summary || '?'} $${extraMuestra.toLocaleString('es-CL')}`);
+                    }
                 });
             }
 
@@ -1998,48 +2123,24 @@
                 }
             });
 
-            // PASO 2: Después marcar TODAS las reservas (franja negra, tiene prioridad)
+            // PASO 2: Tiras por reserva (color + logo + nombre de su calendario).
+            // Reemplazan las franjas azul/negra/roja (incluso cuando van solas).
             // (los pagos de arriendo van en el PASO 2b con estrella, no como estadía)
             events.filter(e => esReserva(e) && !esPagoArriendo(e)).forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
-                const reservationUrl = event.reservation_url;
                 const esCache = event.source === 'cache_airbnb';
-
-                // Calcular mes actual visible
-                const inicioMesVisible = new Date(currentYear, currentMonth - 1, 1);
-                const finMesVisible = new Date(currentYear, currentMonth, 0);
-
-                // Calcular días totales de la reserva (incluyendo día de checkout)
-                const diasTotales = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
-
-                // Calcular días en el mes visible (end + 1 día para incluir checkout)
-                const endInclusive = new Date(end.getTime() + 86400000);
-                const overlapStart = new Date(Math.max(start, inicioMesVisible));
-                const overlapEnd = new Date(Math.min(endInclusive, new Date(finMesVisible.getTime() + 86400000)));
-                const diasEnEsteMes = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
-
-                // Calcular proporción para este mes
-                const proporcion = diasEnEsteMes / diasTotales;
-                const precioProporcion = Math.round((event.precio || 0) * proporcion);
-                const extraProporcion = Math.round((event.extra_valor || 0) * proporcion);
-
-                // Determinar si la reserva empieza en este mes o viene de antes
-                const empiezaEnEsteMes = start >= inicioMesVisible && start <= finMesVisible;
-                let globitoPuesto = false;
 
                 let current = new Date(start);
                 while (current <= end) {
                     const dateStr = formatDate(current);
                     const cell = document.querySelector(`[data-date="${dateStr}"]`);
                     if (cell) {
-                        const esPrimerDiaReserva = formatDate(current) === formatDate(start);
-                        const esUltimoDiaReserva = formatDate(current) === formatDate(end);
 
-                        // Decidir si este día lleva multi-band (stack), expandido (mini-lista) o banda única (look actual).
+                        // Tiras por evento (solas o apiladas): color + logo + nombre
+                        // de su calendario. Reemplazan las franjas azul/negra/roja.
                         const eventosEseDia = eventosPorFecha.get(dateStr) || [];
-                        const esMulti = eventosEseDia.length > 1 && !esUltimoDiaReserva;
-                        const esExpanded = eventosEseDia.length >= 3 && !esUltimoDiaReserva;
+                        const esExpanded = eventosEseDia.length >= 3;
 
                         if (esExpanded) {
                             // Modo expandido: mini-lista inline con scroll (3+ eventos el mismo día).
@@ -2051,25 +2152,12 @@
                                 eventosEseDia.forEach(ev => list.appendChild(construirFilaEventoDia(ev)));
                                 cell.appendChild(list);
                             }
-                            // No aplicar .reserved (la celda se ve con la lista)
-                        } else if (esMulti) {
-                            // Modo stack: 2 bandas (regression-safe path)
-                            cell.classList.add('multi-band');
-                            const existeBanda = cell.querySelector(
-                                `.band[data-event-id="${event.id || (event.start + '_' + event.end + '_' + (event.calendario_id || event.source))}"]`
-                            );
-                            if (!existeBanda) {
-                                const band = document.createElement('div');
-                                band.className = 'band';
-                                band.dataset.source = event.source || 'unknown';
-                                band.dataset.calendarioId = event.calendario_id || '';
-                                band.dataset.eventId = event.id || (event.start + '_' + event.end + '_' + (event.calendario_id || event.source));
-                                cell.appendChild(band);
-                            }
+                            // No aplicar franja (la celda se ve con la lista)
                         } else {
-                            // Look actual: 1 banda con ::after (regresión 0)
-                            if (!esUltimoDiaReserva) {
-                                cell.classList.add('reserved');
+                            cell.classList.add('multi-band');
+                            cell._eventosDia = eventosEseDia;
+                            if (!cell.querySelector(':scope > .pill')) {
+                                restaurarPildoras(cell);
                             }
                         }
 
@@ -2080,175 +2168,43 @@
                         }
 
                         if (esCache) cell.classList.add('from-cache');
-                        const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
 
-                        // Logo badge de la propiedad ANCLADO a la franja (UN SOLO badge
-                        // por evento y mes): inicio (azul) abajo-izquierda sobre el azul,
-                        // checkout (rojo) abajo-derecha sobre el rojo si el azul no se ve,
-                        // travesía completa del mes → día 1. Solape ~25% sin tapar el número.
-                        const cid = event.calendario_id || '';
-                        const calImg = calendariosImagenes[cid] || {};
-                        const logoPath = calLogoUrl(calImg);
-                        const calColor = calImg.color || '#9ca3af';
-
-                        // Mostrar globitos en: primer día de reserva O primer día del mes si viene de antes
-                        // NO mostrar en día de checkout (las franjas se manejan con CSS)
-                        const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
-
-                        // Logo: UN SOLO badge por evento y mes.
-                        // - Empieza aquí (azul visible) → solo al inicio.
-                        // - Viene de otro mes y termina aquí → solo en checkout (rojo).
-                        // - Atraviesa el mes completo → día 1.
-                        const terminaAqui = end >= inicioMesVisible && end <= finMesVisible;
-                        let ponerBadge = false, posClase = '';
-                        if (empiezaEnEsteMes) {
-                            ponerBadge = esPrimerDiaReserva;
-                            posClase = (esPrimerDiaReserva && esUltimoDiaReserva) ? 'pos-checkout' : 'pos-inicio';
-                        } else if (terminaAqui) {
-                            ponerBadge = esUltimoDiaReserva;
-                            posClase = 'pos-checkout';
-                        } else {
-                            ponerBadge = (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
-                            posClase = 'pos-medio';
-                        }
-                        if (logoPath && ponerBadge && !cell.querySelector(':scope > .cal-logo-badge')) {
-                            const badge = document.createElement('img');
-                            badge.className = 'cal-logo-badge ' + posClase;
-                            badge.src = logoPath;
-                            badge.alt = '';
-                            badge.loading = 'lazy';
-                            badge.style.borderColor = calColor;
-                            const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || cid;
-                            const diaMulti = (eventosPorFecha.get(dateStr) || []).length > 1;
-                            if (diaMulti) {
-                                badge.classList.add('clickable');
-                                badge.title = `${nombreCal} — ver eventos del día`;
-                                badge.addEventListener('click', (e) => { e.stopPropagation(); toggleExpandDia(cell); });
-                            } else {
-                                badge.title = posClase === 'pos-checkout' ? `${nombreCal} (checkout)` : nombreCal;
-                            }
-                            badge.onerror = () => badge.remove();
-                            cell.appendChild(badge);
-                        }
-
-                        if (mostrarGlobitos) {
-                            // Marcar checkin solo si es el primer día real de la reserva
-                            if (esPrimerDiaReserva) {
-                                cell.classList.add('checkin');
-                            }
-
-                            // Contar cuántos globitos ya hay en este día para apilarlos
-                            const existingGuestBubbles = cell.querySelectorAll('.guest-bubble').length;
-                            const existingPriceBubbles = cell.querySelectorAll('.price-bubble').length;
-
-                            // Crear globito con inicial y conteo
-                            const nombre = event.nombre_huesped || '';
-                            const adultos = event.adultos || 0;
-                            const ninos = event.ninos || 0;
-                            const mascotas = event.mascotas || 0;
-                            const totalPersonas = adultos + ninos;
-
-                            if (nombre || totalPersonas > 0) {
-                                const bubble = document.createElement('div');
-                                bubble.className = 'guest-bubble';
-
-                                // Apilar si ya hay otros globitos de huéspedes
-                                if (existingGuestBubbles > 0) {
-                                    bubble.style.bottom = (28 + existingGuestBubbles * 16) + 'px';
-                                }
-
-                                // Primeras 10 letras del nombre (primera mayúscula, resto minúscula)
-                                const nombreCorto = nombre ? nombre.substring(0, 10) : '?';
-                                const nombreFormateado = nombreCorto.charAt(0).toUpperCase() + nombreCorto.slice(1).toLowerCase();
-                                let contenido = `<span class="bubble-initial">${nombreFormateado}</span>`;
-
-                                // +N personas (si hay más de 1)
-                                if (totalPersonas > 1) {
-                                    contenido += `<span class="bubble-count">+${totalPersonas - 1}</span>`;
-                                }
-
-                                // +M mascotas (más pequeño)
-                                if (mascotas > 0) {
-                                    contenido += `<span class="bubble-pets">+${mascotas}</span>`;
-                                }
-
-                                bubble.innerHTML = contenido;
-                                // Taggear el globito con el event_id para que el stack pueda
-                                // posicionarlo sobre la banda correspondiente.
-                                bubble.dataset.eventId = event.id || (event.start + '_' + event.end + '_' + (event.calendario_id || event.source));
-                                cell.appendChild(bubble);
-                            }
-
-                            // Globito de precio (solo admin) - verde con valor proporcional
-                            // Siempre usar proporción si la reserva cruza meses.
-                            // Si varios arriendos comparten día de burbuja, UNA burbuja con la suma.
-                            const esProporcional = diasEnEsteMes < diasTotales;
-                            const precioMostrar = esProporcional ? precioProporcion : (event.precio || 0);
-                            const grupoVerde = sumaVerdePorDia.get(dateStr);
-                            const esGrupoVerde = isAdmin && grupoVerde && grupoVerde.nombres.length > 1;
-                            if (esGrupoVerde && !gruposVerdePintados.has(dateStr)) {
+                        // Burbujas de precio (solo admin): UNA verde con la suma del
+                        // día (arriendo) y UNA azul con la suma de tinaja. Las
+                        // tiras ya identifican cada evento con logo + nombre.
+                        if (isAdmin) {
+                            const gv = sumaVerdePorDia.get(dateStr);
+                            if (gv && gv.total > 0 && !gruposVerdePintados.has(dateStr) && !cell.querySelector(':scope > .price-bubble')) {
                                 const totalBubble = document.createElement('div');
                                 totalBubble.className = 'price-bubble total-dia';
-                                if (grupoVerde.proporcional) {
+                                if (gv.proporcional) {
                                     totalBubble.classList.add('proporcional');
                                 }
-                                totalBubble.innerHTML = `$${grupoVerde.total.toLocaleString('es-CL')}`;
-                                totalBubble.title = grupoVerde.nombres.join(' + ') + ` = $${grupoVerde.total.toLocaleString('es-CL')}`;
+                                totalBubble.innerHTML = `$${gv.total.toLocaleString('es-CL')}`;
+                                totalBubble.title = gv.nombres.join(' + ') + ` = $${gv.total.toLocaleString('es-CL')}`;
                                 cell.appendChild(totalBubble);
                                 gruposVerdePintados.add(dateStr);
-                            } else if (isAdmin && precioMostrar > 0 && !esGrupoVerde) {
-                                const priceBubble = document.createElement('div');
-                                priceBubble.className = 'price-bubble';
-                                if (esProporcional) {
-                                    priceBubble.classList.add('proporcional');
-                                }
-
-                                // Apilar si ya hay otros globitos de precio
-                                if (existingPriceBubbles > 0) {
-                                    priceBubble.style.top = (2 + existingPriceBubbles * 14) + 'px';
-                                }
-
-                                const precioFormateado = precioMostrar.toLocaleString('es-CL');
-                                priceBubble.innerHTML = `$${precioFormateado}`;
-                                priceBubble.title = esProporcional ? `Proporcional: ${diasEnEsteMes}/${diasTotales} días` : 'Precio total';
-                                cell.appendChild(priceBubble);
                             }
-
-                            // Globito de extra (solo admin) - azul con valor proporcional
-                            const extraMostrar = esProporcional ? extraProporcion : (event.extra_valor || 0);
-                            const extraConcepto = event.extra_concepto || '';
-                            if (isAdmin && extraMostrar > 0) {
-                                const extraBubble = document.createElement('div');
-                                // Si reserva es de 1 día, poner debajo del verde
-                                const duracionDias = Math.round((end - start) / (1000 * 60 * 60 * 24));
-                                extraBubble.className = duracionDias === 1 ? 'extra-bubble extra-bubble-below' : 'extra-bubble';
-                                if (esProporcional) {
-                                    extraBubble.classList.add('proporcional');
+                            const ga = sumaAzulPorDia.get(dateStr);
+                            if (ga && ga.total > 0 && !azulesPintados.has(dateStr) && !cell.querySelector(':scope > .extra-bubble')) {
+                                const azulBubble = document.createElement('div');
+                                azulBubble.className = 'extra-bubble';
+                                if (ga.proporcional) {
+                                    azulBubble.classList.add('proporcional');
                                 }
-
-                                // Apilar extras también
-                                const existingExtraBubbles = cell.querySelectorAll('.extra-bubble').length;
-                                if (existingExtraBubbles > 0) {
-                                    extraBubble.style.top = (2 + existingExtraBubbles * 14) + 'px';
-                                }
-
-                                const extraFormateado = extraMostrar.toLocaleString('es-CL');
-                                extraBubble.innerHTML = `$${extraFormateado}`;
-                                extraBubble.title = esProporcional ? `Proporcional: ${diasEnEsteMes}/${diasTotales} días - ${extraConcepto}` : extraConcepto;
-                                cell.appendChild(extraBubble);
+                                azulBubble.style.left = 'auto';
+                                azulBubble.style.right = '2px';
+                                azulBubble.style.top = '20px';
+                                azulBubble.innerHTML = `$${ga.total.toLocaleString('es-CL')}`;
+                                azulBubble.title = `${ga.concepto}: ` + ga.nombres.join(' + ') + ` = $${ga.total.toLocaleString('es-CL')}`;
+                                cell.appendChild(azulBubble);
+                                azulesPintados.add(dateStr);
                             }
-
-                            globitoPuesto = true;
                         }
                     }
                     current.setDate(current.getDate() + 1);
                 }
 
-                // Día de checkout (end) - marcar con colita negra
-                const checkoutCell = document.querySelector(`[data-date="${formatDate(end)}"]`);
-                if (checkoutCell) {
-                    checkoutCell.classList.add('checkout-day');
-                }
             });
 
             // PASO 2b: Pagos de arriendo con alias (solo admin). Se pintan como
@@ -2361,14 +2317,16 @@
             } else {
                 urlLink.style.display = 'none';
             }
-            // calendario_id: en edición el campo queda readonly con el valor actual.
-            setCalendarioInModal(data.calendario_id || '', /*readonly=*/true);
+            // calendario_id: readonly solo si ya tiene uno asignado.
+            // Sin calendario (legacy) se puede elegir por primera vez.
+            setCalendarioInModal(data.calendario_id || '', /*readonly=*/!!data.calendario_id);
             actualizarLinkPagoTinaja();
         }
 
         /**
          * Popula el dropdown de calendarios en el modal y muestra el logo del
-         * seleccionado. Si readonly=true, no se puede cambiar (modo edición).
+         * seleccionado. Si readonly=true, no se puede cambiar (ya asignado).
+         * Sin calendario asignado queda editable para la primera asignación.
          */
         // Paleta determinística por índice (no configurable). Coincide con la
 // paleta de los chips en la barra de filtros (ver CHIP_PALETTE arriba).
@@ -2429,6 +2387,9 @@
                     ? 'Esta reserva no tiene calendario asignado.'
                     : 'Sin asignar — elegí una propiedad si querés asociarla.';
             }
+
+            // Al cambiar, refrescar hidden + logo + hint en vivo.
+            select.onchange = () => setCalendarioInModal(select.value, false);
         }
         
         async function abrirModalReserva(fecha) {
@@ -2496,14 +2457,18 @@
                 card.className = 'multi-reserva-card';
                 card.dataset.source = r.source || 'unknown';
                 card.dataset.calendarioId = r.calendario_id || '';
-                const nombre = r.nombre_huesped || '(sin nombre)';
+                const nombreCalD = calendariosDisponibles.find(c => c.calendario_id === (r.calendario_id || ''))?.nombre || '';
+                const nombre = r.nombre_huesped || nombreCalD.split(' ')[0] || '(sin nombre)';
                 const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
                 const totalPersonas = (r.adultos || 0) + (r.ninos || 0);
                 const precio = r.precio ? `$${(r.precio || 0).toLocaleString('es-CL')}` : '';
                 const sourceIcon = r.source === 'airbnb' ? '🏠' : (r.source === 'booking' ? '🏨' : '📅');
+                const calD = calendariosImagenes[r.calendario_id || ''] || {};
+                const thumbD = calThumbUrl(calD) || calLogoUrl(calD);
+                const colD = calD.color || getCalendarioColor(r.calendario_id || '');
                 card.innerHTML = `
                     <div class="multi-reserva-card-header">
-                        <span class="multi-reserva-dot"></span>
+                        ${thumbD ? `<img class="multi-reserva-thumb" src="${thumbD}" alt="" loading="lazy" style="border-color: ${colD};" onerror="this.remove()">` : '<span class="multi-reserva-dot"></span>'}
                         <span class="multi-reserva-source">${sourceIcon} ${r.calendario_id || r.source || ''}</span>
                         <span class="multi-reserva-estado estado-${r.estado}">${r.estado}</span>
                     </div>
