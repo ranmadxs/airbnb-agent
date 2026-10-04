@@ -1904,7 +1904,8 @@
                 + (f.izq ? ' con-izq' : '')
                 + (f.der ? ' con-der' : '')
                 + (f.mini ? ' mini' : '')
-                + (f.grande ? ' grande' : '');
+                + (f.grande ? ' grande' : '')
+                + ((f.etiqueta === 'full' && f.der) ? ' label-largo' : '');
             const cid = ev.calendario_id || '';
             const cal = calendariosImagenes[cid] || {};
             const color = cal.color || getCalendarioColor(cid);
@@ -1925,7 +1926,10 @@
             if (etiqueta !== 'full' && etiqueta !== 'logo') etiqueta = 'nada';
             let dentro = '';
             if (etiqueta === 'full') {
-                const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, 12);
+                // Si la tira continúa, nombre completo flotando sobre ella;
+                // si termina acá, cortado a la celda.
+                const largo = f.der ? 30 : 12;
+                const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, largo);
                 const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
                 dentro = `
                     ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : dot}

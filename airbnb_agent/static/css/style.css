@@ -2146,6 +2146,18 @@ header {
     cursor: pointer;
     top: 36px;
 }
+/* Etiqueta larga: el nombre flota sobre su propia tira continua
+   (solo cuando conecta a la derecha) en vez de cortarse. */
+.day-cell.multi-band .pill.label-largo {
+    overflow: visible;
+    z-index: 3;
+}
+.day-cell.multi-band .pill.label-largo .pill-name {
+    overflow: visible;
+    text-overflow: clip;
+    max-width: 400px;
+    flex-shrink: 0;
+}
 /* Tira continua: la píldora se une con la del día vecino (sin corte). */
 .day-cell.multi-band .pill.con-izq {
     left: -2px;
