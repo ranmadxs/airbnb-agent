@@ -24,8 +24,11 @@ body {
     background: var(--bg-secondary);
     color: var(--airbnb-dark);
     min-height: 100vh;
-    /* Guardarraíl: ningún derrame transitorio (fetches, imágenes,
-       transiciones) ensancha la página. El scroll vertical sigue igual. */
+}
+/* Guardarraíl: ningún derrame transitorio (fetches, imágenes,
+   transiciones) ensancha la página. En html y body (propagación).
+   El scroll vertical sigue igual. */
+html, body {
     overflow-x: clip;
 }
 
