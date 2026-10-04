@@ -1,3 +1,10 @@
+## [3.6.0] - 2026-10-04
+### Fixed
+- Logo de la propiedad centrado en la mitad de la franja azul/roja (antes colgaba por debajo).
+- Día con 2+ reservas: píldoras apiladas con el color y logo de cada calendario (reemplaza bandas con rayas/puntos); globitos y badge flotante se omiten esos días para no descuadrar. Botón +N y modo expandido intactos.
+- Drawer multi-reserva: thumbnail cuadrado con bordes redondeados y borde del color del calendario sobre cada card.
+- PRÓXIMA ESTADÍA ahora es una por calendario: dos check-in el mismo día en distintas propiedades se marcan ambas (antes solo la primera global).
+
 ## [3.5.0] - 2026-10-03
 ### Added
 - Crear calendarios desde el home (solo admin): modal con nombre, plataforma, URL iCal opcional, color a elección y subida de logo (PNG/JPG/WEBP/SVG ≤ 2 MB; imagen por defecto si no se sube). El logo se guarda en MongoDB y se sirve por endpoint, así funciona en serverless sin disco escribible. Los calendarios de `.env` no se pueden eliminar; los creados sí (✕ en el chip). Lápiz ✏️ para editar nombre, plataforma, URL, color y reemplazar el logo (sin subir nada se conserva).

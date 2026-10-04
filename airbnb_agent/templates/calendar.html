@@ -275,7 +275,6 @@
                 </div>
                 <div class="reservations-list" id="reservations-list">
                     {% if events %}
-                        {% set ns = namespace(found_next=false) %}
                         {% for event in events|sort(attribute='start') %}
                             {% set is_reservation = event.estado == 'reservado' %}
                             {% set is_deleted = event.estado == 'eliminado' %}
@@ -289,8 +288,8 @@
                             {# En curso: empezó, no terminó (o termina hoy pero aún no es hora de checkout) #}
                             {% set is_in_progress = event.start <= today and (event.end > today or (event.end == today and now_time < hora_checkout)) and not has_checkout and is_reservation %}
                             {% set is_upcoming = event.start > today and is_reservation and not is_deleted and not is_canceled %}
-                            {% set is_next = is_upcoming and not ns.found_next %}
-                            {% if is_next %}{% set ns.found_next = true %}{% endif %}
+                            {# Próxima por calendario (una por propiedad): viene calculado del server en next_ids #}
+                            {% set is_next = event.id in next_ids %}
                             <div class="reservation-item {{ 'is-reservation' if is_reservation else 'is-blocked' }} {{ 'is-arriendo-pago' if event.source == 'arriendo' else '' }} {{ 'is-past' if is_past else '' }} {{ 'is-deleted' if is_deleted else '' }} {{ 'is-canceled' if is_canceled else '' }} {{ 'is-in-progress' if is_in_progress else '' }} {{ 'is-upcoming' if is_upcoming else '' }} {{ 'is-next' if is_next else '' }} {{ 'is-finished' if is_finished and is_reservation else '' }} {{ 'is-reserved' if is_reservation and not is_deleted and not is_canceled and not is_finished and not is_next and not is_in_progress else '' }}"
                                  data-start="{{ event.start }}" data-end="{{ event.end }}" data-id="{{ event.id }}" data-estado="{{ event.estado }}" data-source="{{ event.source or '' }}"
                                  data-calendario-id="{{ event.calendario_id or '__legacy__' }}">
@@ -1864,6 +1863,48 @@
             return row;
         }
 
+        // Píldora de un evento en día multi: color de su calendario + mini-logo.
+        // idx/total centran el grupo verticalmente (máx. 3 visibles + expansor).
+        function construirPildora(ev, idx, total) {
+            const pill = document.createElement('div');
+            pill.className = 'pill';
+            const cid = ev.calendario_id || '';
+            const cal = calendariosImagenes[cid] || {};
+            const color = cal.color || getCalendarioColor(cid);
+            pill.style.background = color;
+            pill.dataset.source = ev.source || 'unknown';
+            pill.dataset.calendarioId = cid;
+            pill.dataset.eventId = eventIdDe(ev);
+            const n = Math.max(1, total || 1);
+            pill.style.top = `calc(50% + ${(idx - (n - 1) / 2) * 19}px)`;
+            const nombre = (ev.nombre_huesped || ev.summary || '?').substring(0, 12);
+            const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+            const logo = calLogoUrl(cal);
+            pill.innerHTML = `
+                ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : '<span class="pill-dot"></span>'}
+                <span class="pill-name">${ini}</span>
+            `;
+            const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || cid || (ev.source || '');
+            pill.title = `${ev.nombre_huesped || ev.summary || ''} — ${nombreCal} — ${ev.start} → ${ev.end}`;
+            if (isAdmin) {
+                pill.addEventListener('click', (e) => { e.stopPropagation(); abrirModalReservaPorId(ev.id); });
+            }
+            return pill;
+        }
+
+        // Píldoras visibles de una celda (excluye eventos que terminan ese día:
+        // el checkout se marca con colita, no con píldora). Máx. 3 + expansor.
+        function pildorasVisibles(cell) {
+            const evs = (cell._eventosDia || []).filter(ev => formatDate(new Date(ev.end + 'T00:00:00')) !== cell.dataset.date);
+            return evs.slice(0, 3);
+        }
+
+        function restaurarPildoras(cell) {
+            cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
+            const vis = pildorasVisibles(cell);
+            vis.forEach((ev, i) => cell.appendChild(construirPildora(ev, i, vis.length)));
+        }
+
         // Expande/contrae un día multievento inline (misma mini-lista del modo expandido).
         function toggleExpandDia(cell) {
             const evs = cell._eventosDia || [];
@@ -1872,24 +1913,11 @@
             if (cell.classList.contains('expanded-day')) {
                 cell.querySelector(':scope > .day-event-list')?.remove();
                 cell.classList.remove('expanded-day');
-                evs.forEach(ev => {
-                    // Al contraer se restauran bandas, salvo de eventos que
-                    // terminan ese día (el checkout se marca con colita, no banda).
-                    if (formatDate(new Date(ev.end + 'T00:00:00')) === cell.dataset.date) return;
-                    const evId = eventIdDe(ev);
-                    if (!cell.querySelector(`.band[data-event-id="${evId}"]`)) {
-                        const band = document.createElement('div');
-                        band.className = 'band';
-                        band.dataset.source = ev.source || 'unknown';
-                        band.dataset.calendarioId = ev.calendario_id || '';
-                        band.dataset.eventId = evId;
-                        cell.appendChild(band);
-                    }
-                });
+                restaurarPildoras(cell);
                 if (exp) { exp.textContent = `+${evs.length}`; exp.classList.remove('open'); exp.title = 'Ver eventos del día'; }
             } else {
                 cell.classList.add('multi-band', 'expanded-day');
-                cell.querySelectorAll(':scope > .band').forEach(b => b.remove());
+                cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
                 const list = document.createElement('div');
                 list.className = 'day-event-list';
                 evs.forEach(ev => list.appendChild(construirFilaEventoDia(ev)));
@@ -2036,7 +2064,7 @@
                         const esPrimerDiaReserva = formatDate(current) === formatDate(start);
                         const esUltimoDiaReserva = formatDate(current) === formatDate(end);
 
-                        // Decidir si este día lleva multi-band (stack), expandido (mini-lista) o banda única (look actual).
+                        // Decidir si este día lleva multi (píldoras apiladas), expandido (mini-lista) o franja única (look actual).
                         const eventosEseDia = eventosPorFecha.get(dateStr) || [];
                         const esMulti = eventosEseDia.length > 1 && !esUltimoDiaReserva;
                         const esExpanded = eventosEseDia.length >= 3 && !esUltimoDiaReserva;
@@ -2053,18 +2081,13 @@
                             }
                             // No aplicar .reserved (la celda se ve con la lista)
                         } else if (esMulti) {
-                            // Modo stack: 2 bandas (regression-safe path)
+                            // Modo stack: una píldora por evento (color + logo
+                            // de su calendario). Las píldoras llevan el nombre,
+                            // así que los globitos se omiten en días multi.
                             cell.classList.add('multi-band');
-                            const existeBanda = cell.querySelector(
-                                `.band[data-event-id="${event.id || (event.start + '_' + event.end + '_' + (event.calendario_id || event.source))}"]`
-                            );
-                            if (!existeBanda) {
-                                const band = document.createElement('div');
-                                band.className = 'band';
-                                band.dataset.source = event.source || 'unknown';
-                                band.dataset.calendarioId = event.calendario_id || '';
-                                band.dataset.eventId = event.id || (event.start + '_' + event.end + '_' + (event.calendario_id || event.source));
-                                cell.appendChild(band);
+                            cell._eventosDia = eventosEseDia;
+                            if (!cell.querySelector(':scope > .pill')) {
+                                restaurarPildoras(cell);
                             }
                         } else {
                             // Look actual: 1 banda con ::after (regresión 0)
@@ -2093,7 +2116,8 @@
 
                         // Mostrar globitos en: primer día de reserva O primer día del mes si viene de antes
                         // NO mostrar en día de checkout (las franjas se manejan con CSS)
-                        const mostrarGlobitos = esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
+                        // NI en días multi (las píldoras ya muestran nombre + logo de cada evento)
+                        const mostrarGlobitos = (esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto)) && eventosEseDia.length < 2;
 
                         // Logo: UN SOLO badge por evento y mes.
                         // - Empieza aquí (azul visible) → solo al inicio.
@@ -2111,7 +2135,9 @@
                             ponerBadge = (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
                             posClase = 'pos-medio';
                         }
-                        if (logoPath && ponerBadge && !cell.querySelector(':scope > .cal-logo-badge')) {
+                        // Logo flotante solo en días de un evento (en días multi
+                        // las píldoras ya llevan el logo de cada propiedad).
+                        if (logoPath && ponerBadge && eventosEseDia.length < 2 && !cell.querySelector(':scope > .cal-logo-badge')) {
                             const badge = document.createElement('img');
                             badge.className = 'cal-logo-badge ' + posClase;
                             badge.src = logoPath;
@@ -2501,9 +2527,12 @@
                 const totalPersonas = (r.adultos || 0) + (r.ninos || 0);
                 const precio = r.precio ? `$${(r.precio || 0).toLocaleString('es-CL')}` : '';
                 const sourceIcon = r.source === 'airbnb' ? '🏠' : (r.source === 'booking' ? '🏨' : '📅');
+                const calD = calendariosImagenes[r.calendario_id || ''] || {};
+                const thumbD = calThumbUrl(calD) || calLogoUrl(calD);
+                const colD = calD.color || getCalendarioColor(r.calendario_id || '');
                 card.innerHTML = `
                     <div class="multi-reserva-card-header">
-                        <span class="multi-reserva-dot"></span>
+                        ${thumbD ? `<img class="multi-reserva-thumb" src="${thumbD}" alt="" loading="lazy" style="border-color: ${colD};" onerror="this.remove()">` : '<span class="multi-reserva-dot"></span>'}
                         <span class="multi-reserva-source">${sourceIcon} ${r.calendario_id || r.source || ''}</span>
                         <span class="multi-reserva-estado estado-${r.estado}">${r.estado}</span>
                     </div>
