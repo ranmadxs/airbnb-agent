@@ -1833,6 +1833,14 @@
             return `${y}-${m}-${d}`;
         }
 
+        // Suma días calendario de forma segura ante horario de verano
+        // (ej. 2026-04-04 en Chile dura 25h: +86400000 ms cae el mismo día).
+        function sumarDias(dateStr, n) {
+            const d = new Date(dateStr + 'T00:00:00');
+            d.setDate(d.getDate() + n);
+            return formatDate(d);
+        }
+
         function eventIdDe(ev) {
             return ev.id || (ev.start + '_' + ev.end + '_' + (ev.calendario_id || ev.source));
         }
@@ -1951,7 +1959,7 @@
             // Un solo calendario ese día → tira GRANDE (tamaño original).
             const solo = (cell._eventosDia || []).length <= 1;
             const dia = cell.dataset.date;
-            const diaMas1 = formatDate(new Date(new Date(dia + 'T00:00:00').getTime() + 86400000));
+            const diaMas1 = sumarDias(dia, 1);
             const dNum = parseInt(dia.slice(8, 10), 10);
             const esLunes = new Date(dia + 'T00:00:00').getDay() === 1;
             vis.forEach((ev) => {
