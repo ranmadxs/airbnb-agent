@@ -8,6 +8,7 @@
 - Tiras unificadas: solas o apiladas usan logo + nombre + color de la propiedad (fin de franjas azul/negra/roja); tiras continuas entre días, logo de nuevo al bajar de semana, chiquita la que termina; leyenda actualizada.
 - Día de checkout con tira (final redondeado + logo); un solo calendario al día con tira grande original.
 - Toda píldora con logo (nunca barra vacía); azul de tinaja suma aunque arriendo sea 0; Michelle Tapia 19→20 asignada a paraíso (estaba sin calendario).
+- Fila de pago de arriendo (★) anclada abajo para no solapar burbujas ni tiras.
 
 ## [3.5.0] - 2026-10-03
 ### Added

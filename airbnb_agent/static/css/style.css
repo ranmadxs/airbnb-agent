@@ -2252,6 +2252,13 @@ header {
     font-weight: 600;
 }
 
+/* Fila de pago de arriendo (★): anclada abajo para no solaparse
+   con las burbujas de precio/tinaja ni con las tiras. Solo aplica a la
+   lista propia de pagos (la mini-lista expandida sigue arriba). */
+.day-cell .day-event-list.arriendo-list {
+    justify-content: flex-end;
+}
+
 /* Mobile: lista aún más compacta */
 @media (max-width: 768px) {
     .day-cell.expanded-day {
