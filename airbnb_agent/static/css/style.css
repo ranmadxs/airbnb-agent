@@ -25,6 +25,12 @@ body {
     color: var(--airbnb-dark);
     min-height: 100vh;
 }
+/* Guardarraíl: ningún derrame transitorio (fetches, imágenes,
+   transiciones) ensancha la página. En html y body (propagación).
+   El scroll vertical sigue igual. */
+html, body {
+    overflow-x: clip;
+}
 
 .container {
     max-width: 1200px;
@@ -1314,37 +1320,6 @@ header {
       box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2563eb;
   }
 
-/* Botón +/− para expandir días multievento inline. */
-.day-expander {
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1px solid #9ca3af;
-    background: rgba(255,255,255,0.94);
-    color: #374151;
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-    z-index: 4;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.day-expander:hover {
-    border-color: #2563eb;
-    color: #2563eb;
-}
-.day-expander.open {
-    background: #374151;
-    border-color: #374151;
-    color: #fff;
-}
-
 /* Globito verde con la SUMA de arriendos del día (varios inicios el mismo día). */
 .price-bubble.total-dia {
     background: #047857;
@@ -1690,7 +1665,10 @@ header {
 
 .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    /* minmax(0, 1fr): sin el 0, el mínimo automático transfiere el alto
+       (aspect-ratio/min-height de las celdas) al ancho y la grilla supera
+       el viewport en mobile (días cortados). */
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 0;
     padding: 0;
 }
@@ -1709,13 +1687,18 @@ header {
 
 .day-cell {
     aspect-ratio: 1;
+    /* Altura mínima uniforme: cuadrados cuando la columna es ancha,
+       rectángulos iguales cuando es angosta. Nunca unos más chicos. */
+    min-height: 120px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 0;
     border: 1px solid var(--border-color);
     cursor: pointer;
-    transition: all 0.2s ease;
+    /* Solo visual (no layout): animar todo incluye aspect-ratio/padding
+       y revienta el ancho transitoriamente en mobile. */
+    transition: background-color 0.2s ease;
     position: relative;
     background: white;
     overflow: visible;
@@ -2101,16 +2084,11 @@ header {
     display: none !important;
 }
 
-.day-cell.multi-band {
-    /* Cuadradas como el resto (aspect-ratio: 1 heredado): si se pierde,
-       los meses llenos como febrero colapsan y quedan chicos. */
-    min-height: 60px;
-    padding-bottom: 24px; /* espacio para expansor y filas extra */
-}
+/* Las celdas con eventos NO crecen: todas miden lo mismo (cuadrado
+   aspect-ratio). El contenido (tiras, burbujas, expansor) es absoluto. */
 
 /* En días multi el número va arriba-izquierda (patrón calendario clásico):
-   así las píldoras nunca lo tapan. Color oscuro explícito porque el fondo
-   de la celda es claro (la franja de checkout va centrada, no arriba). */
+   así las píldoras nunca lo tapan. Color oscuro porque el fondo es claro. */
 .day-cell.multi-band .day-number {
     position: absolute;
     top: 3px;
@@ -2144,7 +2122,7 @@ header {
     box-shadow: 0 1px 2px rgba(0,0,0,0.35);
     text-shadow: 0 1px 1px rgba(0,0,0,0.35);
     cursor: pointer;
-    top: 36px;
+    top: 60px;
 }
 /* Etiqueta larga: el nombre flota sobre su propia tira continua
    (solo cuando conecta a la derecha) en vez de cortarse. */
@@ -2155,8 +2133,18 @@ header {
 .day-cell.multi-band .pill.label-largo .pill-name {
     overflow: visible;
     text-overflow: clip;
-    max-width: 400px;
+    max-width: 220px;
     flex-shrink: 0;
+}
+/* La etiqueta larga nunca ensancha la página en mobile (días cortados). */
+@media (max-width: 768px) {
+    .day-cell.multi-band .pill.label-largo .pill-name {
+        max-width: 140px;
+    }
+}
+/* Guardarraíl: nada dentro de la tarjeta ensancha la página. */
+.calendar-card {
+    overflow-x: clip;
 }
 /* Tira continua: la píldora se une con la del día vecino (sin corte). */
 .day-cell.multi-band .pill.con-izq {
@@ -2203,6 +2191,22 @@ header {
 .day-cell.multi-band .pill .pill-name {
     overflow: hidden;
     text-overflow: ellipsis;
+}
+/* Conteos de personas en la tira: círculo blanco con total. */
+.day-cell.multi-band .pill .p-count {
+    background: #fff;
+    color: #111;
+    border-radius: 999px;
+    min-width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 0 3px;
+    flex-shrink: 0;
+    text-shadow: none;
 }
 
 /* Modo expandido: mini-lista inline cuando caen 3+ eventos el mismo día.
@@ -2263,11 +2267,47 @@ header {
     font-weight: 600;
 }
 
-/* Fila de pago de arriendo (★): anclada abajo para no solaparse
-   con las burbujas de precio/tinaja ni con las tiras. Solo aplica a la
-   lista propia de pagos (la mini-lista expandida sigue arriba). */
+/* Fila de pago de arriendo (★): si el monto no cabe, desborda a la
+   celda vecina para que se lea completo (como las etiquetas largas). */
 .day-cell .day-event-list.arriendo-list {
     justify-content: flex-end;
+    overflow: visible;
+}
+.day-cell .day-event-row.is-arriendo-pago {
+    overflow: visible;
+    position: relative;
+    z-index: 3;
+    /* La caja crece con el texto (fondo sólido) en vez de dejarlo escapar. */
+    width: max-content;
+    max-width: 300px;
+}
+.day-cell .day-event-row.is-arriendo-pago .day-event-price {
+    overflow: visible;
+    text-overflow: clip;
+    flex-shrink: 0;
+}
+
+/* Fila de montos del día: verde (arriendo) a la izquierda del azul
+   (tinaja). Anclada a la IZQUIERDA para partir en su día (a la derecha
+   el verde se derramaba al día anterior). El JS la ubica sobre la tira;
+   apilada solo en eventos de 1 día. */
+.day-prices {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    z-index: 11;
+}
+.day-prices.vertical {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+.day-prices > .price-bubble,
+.day-prices > .extra-bubble {
+    position: static;
 }
 
 /* Mobile: lista aún más compacta */
@@ -2285,11 +2325,15 @@ header {
 /* Patrones por calendario_id eliminados en 3.5.2: las píldoras usan color
    sólido por calendario + logo, sin rayas/puntos. */
 
-/* Mobile: píldoras más compactas */
+/* Mobile: TODAS las celdas miden lo mismo (días con eventos y vacíos).
+   Sin esto, las filas con eventos se alargan y el resto no. */
 @media (max-width: 768px) {
+    .day-cell {
+        aspect-ratio: auto;
+        min-height: 96px;
+    }
     .day-cell.multi-band {
-        min-height: 50px;
-        padding-bottom: 20px;
+        padding-bottom: 22px;
     }
     .day-cell.multi-band .pill {
         height: 12px;

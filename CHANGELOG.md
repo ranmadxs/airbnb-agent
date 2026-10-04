@@ -1,3 +1,14 @@
+## [3.6.1] - 2026-10-04
+### Fixed
+- Botón +N solo el primer día del tramo multi (antes se repetía todos los días).
+- Mobile: tira sola siempre centrada verticalmente; con dos, ambas centradas en grupo.
+- Mobile: celdas con eventos crecen en altura (ya no derraman contenido a otras filas).
+- Rectángulos uniformes en todos los días (nunca unos más chicos); conteos +N en tiras; verde a la izquierda del azul.
+- Grilla con minmax(0,1fr) y transiciones solo visuales: sin cortes ni parpadeos de ancho.
+- Fila ★ desborda a la celda vecina si el monto no cabe (siempre visible).
+- Montos sobre la primera tira; personas sumadas +N👤 y mascotas +N🐾 en tiras.
+- Apilado vertical si la fila no cabe o al evento le queda 1 día visible en el mes.
+
 ## [3.6.0] - 2026-10-04
 ### Fixed
 - Sync multi-calendario ya no pierde reservas paralelas el mismo día (ej. `santiago_magno 10→14 HMK33ZWYJ9` se omitía por solapar con protegida `paraiso 10→12`): `guardar_eventos` scopea protegidas, overlap, `event_key`, `find_one`/`UpdateOne` y borrado stale por `(source, calendario_id, start, end)`; índice único Mongo ahora incluye `calendario_id`. Paraiso `readonly` intacto; santiago se inserta en el próximo sync.
