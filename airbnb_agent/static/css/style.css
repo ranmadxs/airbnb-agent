@@ -2277,8 +2277,10 @@ header {
     overflow: visible;
     position: relative;
     z-index: 3;
+    /* La caja crece con el texto (fondo sólido) en vez de dejarlo escapar. */
+    width: max-content;
+    max-width: 300px;
 }
-.day-cell .day-event-row.is-arriendo-pago .day-event-name,
 .day-cell .day-event-row.is-arriendo-pago .day-event-price {
     overflow: visible;
     text-overflow: clip;
@@ -2286,12 +2288,13 @@ header {
 }
 
 /* Fila de montos del día: verde (arriendo) a la izquierda del azul
-   (tinaja). Va anclada SOBRE la primera tira (el JS la posiciona);
+   (tinaja). Anclada a la IZQUIERDA para partir en su día (a la derecha
+   el verde se derramaba al día anterior). El JS la ubica sobre la tira;
    apilada solo en eventos de 1 día. */
 .day-prices {
     position: absolute;
     top: 2px;
-    right: 2px;
+    left: 2px;
     display: flex;
     gap: 3px;
     align-items: center;
@@ -2299,7 +2302,7 @@ header {
 }
 .day-prices.vertical {
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 2px;
 }
 .day-prices > .price-bubble,
