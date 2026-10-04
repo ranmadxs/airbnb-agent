@@ -2102,10 +2102,10 @@ header {
 }
 
 .day-cell.multi-band {
-    /* Permitir que el stack crezca verticalmente */
-    aspect-ratio: auto;
+    /* Cuadradas como el resto (aspect-ratio: 1 heredado): si se pierde,
+       los meses llenos como febrero colapsan y quedan chicos. */
     min-height: 60px;
-    padding-bottom: 24px; /* espacio para los globitos apilados */
+    padding-bottom: 24px; /* espacio para expansor y filas extra */
 }
 
 /* En días multi el número va arriba-izquierda (patrón calendario clásico):
@@ -2282,6 +2282,13 @@ header {
     .day-cell.multi-band .pill {
         height: 12px;
         font-size: 8px;
+    }
+    .day-cell.multi-band .pill.grande {
+        height: 18px;
+    }
+    .day-cell.multi-band .pill.grande img {
+        width: 14px;
+        height: 14px;
     }
 }
 

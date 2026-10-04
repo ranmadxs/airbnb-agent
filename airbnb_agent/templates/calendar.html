@@ -1915,7 +1915,7 @@
             // Altura por carril (estable entre días); sin translate para que
             // los bordes superiores queden alineados.
             const movil = window.innerWidth < 768;
-            const base = movil ? 30 : 36, pitch = movil ? 13 : 17;
+            const base = movil ? 30 : 44, pitch = movil ? 13 : 17;
             pill.style.top = `${base + carril * pitch}px`;
             pill.style.transform = 'none';
             const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || '';
