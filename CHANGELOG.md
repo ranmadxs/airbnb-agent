@@ -3,6 +3,7 @@
 - Botón +N solo el primer día del tramo multi (antes se repetía todos los días).
 - Mobile: tira sola siempre centrada verticalmente; con dos, ambas centradas en grupo.
 - Mobile: celdas con eventos crecen en altura (ya no derraman contenido a otras filas).
+- Grilla con minmax(0,1fr) y transiciones solo visuales: sin cortes ni parpadeos de ancho.
 
 ## [3.6.0] - 2026-10-04
 ### Fixed

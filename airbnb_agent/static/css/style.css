@@ -1690,7 +1690,10 @@ header {
 
 .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    /* minmax(0, 1fr): sin el 0, el mínimo automático transfiere el alto
+       (aspect-ratio/min-height de las celdas) al ancho y la grilla supera
+       el viewport en mobile (días cortados). */
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 0;
     padding: 0;
 }
@@ -1715,7 +1718,9 @@ header {
     border-radius: 0;
     border: 1px solid var(--border-color);
     cursor: pointer;
-    transition: all 0.2s ease;
+    /* Solo visual (no layout): animar todo incluye aspect-ratio/padding
+       y revienta el ancho transitoriamente en mobile. */
+    transition: background-color 0.2s ease;
     position: relative;
     background: white;
     overflow: visible;
