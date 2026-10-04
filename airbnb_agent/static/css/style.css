@@ -2285,11 +2285,14 @@ header {
 /* Patrones por calendario_id eliminados en 3.5.2: las píldoras usan color
    sólido por calendario + logo, sin rayas/puntos. */
 
-/* Mobile: píldoras más compactas */
+/* Mobile: las celdas con eventos crecen (número + burbujas + 2 tiras +
+   expansor no caben en 45px); si no, el contenido se derrama a otras filas.
+   Las vacías mantienen su tamaño y se estiran a la altura de la fila. */
 @media (max-width: 768px) {
     .day-cell.multi-band {
-        min-height: 50px;
-        padding-bottom: 20px;
+        aspect-ratio: auto;
+        min-height: 96px;
+        padding-bottom: 22px;
     }
     .day-cell.multi-band .pill {
         height: 12px;
