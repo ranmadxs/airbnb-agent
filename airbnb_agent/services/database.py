@@ -682,12 +682,23 @@ class DatabaseService:
                 "user_origin": audit.get("user_origin", "admin"),
                 "user_agent": audit.get("user_agent", "admin")
             }
-            # calendario_id: solo se setea en creación (None si no se eligió).
-            # En edición NO se toca (mantiene el valor original de la DB).
+            # calendario_id: se setea en creación (None si no se eligió).
+            # En edición se permite SOLO la primera asignación (legacy sin
+            # calendario): con calendario ya seteado se preserva el original.
             if not reserva_id and 'calendario_id' in datos:
                 doc["calendario_id"] = datos.get('calendario_id') or None
-            
+
             if reserva_id:
+                # Primera asignación: si no tenía calendario y viene uno válido.
+                if 'calendario_id' in datos and datos.get('calendario_id'):
+                    try:
+                        existente = self.reservas.find_one(
+                            {"_id": ObjectId(reserva_id)}, {"calendario_id": 1}
+                        )
+                        if existente is not None and not existente.get("calendario_id"):
+                            doc["calendario_id"] = datos.get('calendario_id')
+                    except Exception:
+                        pass
                 # Actualizar existente
                 result = self.reservas.update_one(
                     {"_id": ObjectId(reserva_id)},

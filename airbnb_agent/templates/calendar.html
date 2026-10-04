@@ -604,7 +604,7 @@
                 <input type="hidden" id="reserva-id" name="id">
                 <input type="hidden" id="reserva-calendario-id" name="calendario_id">
 
-                <!-- Selector de calendario (edición: readonly, creación: editable) -->
+                <!-- Selector de calendario (con calendario: readonly; sin calendario o creación: editable) -->
                 <div class="form-row">
                     <div class="form-group">
                         <label>🏠 Calendario / Propiedad</label>
@@ -2305,14 +2305,16 @@
             } else {
                 urlLink.style.display = 'none';
             }
-            // calendario_id: en edición el campo queda readonly con el valor actual.
-            setCalendarioInModal(data.calendario_id || '', /*readonly=*/true);
+            // calendario_id: readonly solo si ya tiene uno asignado.
+            // Sin calendario (legacy) se puede elegir por primera vez.
+            setCalendarioInModal(data.calendario_id || '', /*readonly=*/!!data.calendario_id);
             actualizarLinkPagoTinaja();
         }
 
         /**
          * Popula el dropdown de calendarios en el modal y muestra el logo del
-         * seleccionado. Si readonly=true, no se puede cambiar (modo edición).
+         * seleccionado. Si readonly=true, no se puede cambiar (ya asignado).
+         * Sin calendario asignado queda editable para la primera asignación.
          */
         // Paleta determinística por índice (no configurable). Coincide con la
 // paleta de los chips en la barra de filtros (ver CHIP_PALETTE arriba).
@@ -2373,6 +2375,9 @@
                     ? 'Esta reserva no tiene calendario asignado.'
                     : 'Sin asignar — elegí una propiedad si querés asociarla.';
             }
+
+            // Al cambiar, refrescar hidden + logo + hint en vivo.
+            select.onchange = () => setCalendarioInModal(select.value, false);
         }
         
         async function abrirModalReserva(fecha) {

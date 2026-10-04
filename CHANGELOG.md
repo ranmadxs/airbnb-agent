@@ -9,6 +9,7 @@
 - Día de checkout con tira (final redondeado + logo); un solo calendario al día con tira grande original.
 - Toda píldora con logo (nunca barra vacía); azul de tinaja suma aunque arriendo sea 0; Michelle Tapia 19→20 asignada a paraíso (estaba sin calendario).
 - Fila de pago de arriendo (★) anclada abajo para no solapar burbujas ni tiras.
+- Reserva sin calendario: se puede asignar por primera vez al editar (modal editable + backend lo acepta si estaba vacío).
 
 ## [3.5.0] - 2026-10-03
 ### Added
