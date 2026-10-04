@@ -1849,7 +1849,8 @@
             row.dataset.source = ev.source || 'unknown';
             row.dataset.calendarioId = ev.calendario_id || '';
             row.dataset.eventId = eventIdDe(ev);
-            const nombre = (ev.nombre_huesped || '?').substring(0, 12);
+            const nombreCalRow = calendariosDisponibles.find(c => c.calendario_id === (ev.calendario_id || ''))?.nombre || '';
+            const nombre = (ev.nombre_huesped || nombreCalRow.split(' ')[0] || '?').substring(0, 12);
             const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
             const totalPersonas = (ev.adultos || 0) + (ev.ninos || 0);
             const precio = isAdmin && ev.precio ? `$${(ev.precio || 0).toLocaleString('es-CL')}` : '';
@@ -1864,8 +1865,10 @@
         }
 
         // Píldora de un evento en día multi: color de su calendario + mini-logo.
-        // idx/total centran el grupo verticalmente (máx. 3 visibles + expansor).
-        function construirPildora(ev, idx, total) {
+        // idx/total centran el grupo; si hay checkout ese día (franja roja
+        // centrada), el grupo va DEBAJO de la franja para no montarse.
+        // Sin nombre de huésped (sincronizadas por iCal) muestra la propiedad.
+        function construirPildora(ev, idx, total, abajo) {
             const pill = document.createElement('div');
             pill.className = 'pill';
             const cid = ev.calendario_id || '';
@@ -1876,16 +1879,20 @@
             pill.dataset.calendarioId = cid;
             pill.dataset.eventId = eventIdDe(ev);
             const n = Math.max(1, total || 1);
-            pill.style.top = `calc(50% + ${(idx - (n - 1) / 2) * 19}px)`;
-            const nombre = (ev.nombre_huesped || ev.summary || '?').substring(0, 12);
+            if (abajo) {
+                pill.style.top = `calc(50% + ${25 + idx * 19}px)`;
+            } else {
+                pill.style.top = `calc(50% + ${(idx - (n - 1) / 2) * 19}px)`;
+            }
+            const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || '';
+            const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, 12);
             const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
             const logo = calLogoUrl(cal);
             pill.innerHTML = `
                 ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : '<span class="pill-dot"></span>'}
                 <span class="pill-name">${ini}</span>
             `;
-            const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || cid || (ev.source || '');
-            pill.title = `${ev.nombre_huesped || ev.summary || ''} — ${nombreCal} — ${ev.start} → ${ev.end}`;
+            pill.title = `${ev.nombre_huesped || ev.summary || ''} — ${nombreCal || cid || (ev.source || '')} — ${ev.start} → ${ev.end}`;
             if (isAdmin) {
                 pill.addEventListener('click', (e) => { e.stopPropagation(); abrirModalReservaPorId(ev.id); });
             }
@@ -1893,16 +1900,19 @@
         }
 
         // Píldoras visibles de una celda (excluye eventos que terminan ese día:
-        // el checkout se marca con colita, no con píldora). Máx. 3 + expansor.
+        // el checkout se marca con colita, no con píldora). Con checkout hay
+        // menos espacio (debajo de la franja): máx. 2; sin checkout: máx. 3.
         function pildorasVisibles(cell) {
-            const evs = (cell._eventosDia || []).filter(ev => formatDate(new Date(ev.end + 'T00:00:00')) !== cell.dataset.date);
-            return evs.slice(0, 3);
+            const dia = cell.dataset.date;
+            const hayCheckout = (cell._eventosDia || []).some(ev => formatDate(new Date(ev.end + 'T00:00:00')) === dia);
+            const evs = (cell._eventosDia || []).filter(ev => formatDate(new Date(ev.end + 'T00:00:00')) !== dia);
+            return { vis: evs.slice(0, hayCheckout ? 2 : 3), abajo: hayCheckout };
         }
 
         function restaurarPildoras(cell) {
             cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
-            const vis = pildorasVisibles(cell);
-            vis.forEach((ev, i) => cell.appendChild(construirPildora(ev, i, vis.length)));
+            const { vis, abajo } = pildorasVisibles(cell);
+            vis.forEach((ev, i) => cell.appendChild(construirPildora(ev, i, vis.length, abajo)));
         }
 
         // Expande/contrae un día multievento inline (misma mini-lista del modo expandido).
@@ -2522,7 +2532,8 @@
                 card.className = 'multi-reserva-card';
                 card.dataset.source = r.source || 'unknown';
                 card.dataset.calendarioId = r.calendario_id || '';
-                const nombre = r.nombre_huesped || '(sin nombre)';
+                const nombreCalD = calendariosDisponibles.find(c => c.calendario_id === (r.calendario_id || ''))?.nombre || '';
+                const nombre = r.nombre_huesped || nombreCalD.split(' ')[0] || '(sin nombre)';
                 const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
                 const totalPersonas = (r.adultos || 0) + (r.ninos || 0);
                 const precio = r.precio ? `$${(r.precio || 0).toLocaleString('es-CL')}` : '';

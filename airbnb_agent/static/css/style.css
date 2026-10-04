@@ -2103,6 +2103,18 @@ header {
     padding-bottom: 24px; /* espacio para los globitos apilados */
 }
 
+/* En días multi el número va arriba-izquierda (patrón calendario clásico):
+   así las píldoras nunca lo tapan. Color oscuro explícito porque el fondo
+   de la celda es claro (la franja de checkout va centrada, no arriba). */
+.day-cell.multi-band .day-number {
+    position: absolute;
+    top: 3px;
+    left: 6px;
+    transform: none;
+    z-index: 5;
+    color: #111827 !important;
+    font-weight: 600;
+}
 /* Píldora por evento en día multi (2+ reservas el mismo día):
    cada propiedad con su color sólido + mini-logo + nombre, apiladas
    verticalmente centradas en la celda. El JS centra el grupo con
