@@ -2128,14 +2128,14 @@ header {
     position: absolute;
     left: 4%;
     right: 4%;
-    height: 17px;
+    height: 15px;
     border-radius: 999px;
     display: flex;
     align-items: center;
     gap: 4px;
     padding: 0 6px 0 2px;
     color: #fff;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     line-height: 1;
     white-space: nowrap;
@@ -2147,9 +2147,26 @@ header {
     top: 50%;
     transform: translateY(-50%);
 }
+/* Tira continua: la píldora se une con la del día vecino (sin corte). */
+.day-cell.multi-band .pill.con-izq {
+    left: -2px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    padding-left: 6px;
+}
+.day-cell.multi-band .pill.con-der {
+    right: -2px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+/* La que termina va en chiquito; la que sigue queda grande. */
+.day-cell.multi-band .pill.mini {
+    height: 11px;
+    font-size: 8px;
+}
 .day-cell.multi-band .pill img {
-    width: 13px;
-    height: 13px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
@@ -2248,8 +2265,8 @@ header {
         padding-bottom: 20px;
     }
     .day-cell.multi-band .pill {
-        height: 14px;
-        font-size: 9px;
+        height: 12px;
+        font-size: 8px;
     }
 }
 
@@ -2283,14 +2300,10 @@ header {
     border: 1px solid var(--border-color);
 }
 
-.legend-color.checkin-dot {
-    background: #3B82F6;
-    border-radius: 4px;
-}
-
-.legend-color.reserved {
-    background: #222222;
-    border-radius: 8px;
+.legend-color.reserva-strip {
+    width: 28px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb 0 50%, #dc2626 50% 100%);
 }
 
 .legend-color.blocked {

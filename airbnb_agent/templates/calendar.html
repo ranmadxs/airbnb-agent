@@ -216,12 +216,8 @@
                     <span>Disponible</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color checkin-dot"></span>
-                    <span>Entrada</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-color reserved"></span>
-                    <span>Reservado</span>
+                    <span class="legend-color reserva-strip"></span>
+                    <span>Reservado (color de la propiedad)</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-color blocked"></span>
@@ -1868,9 +1864,17 @@
         // idx/total centran el grupo; si hay checkout ese día (franja roja
         // centrada), el grupo va DEBAJO de la franja para no montarse.
         // Sin nombre de huésped (sincronizadas por iCal) muestra la propiedad.
-        function construirPildora(ev, idx, total, abajo) {
+        // Píldora de un evento en día multi: color de su calendario.
+        // Las píldoras del mismo evento en días seguidos forman UNA tira
+        // continua (más fina que la franja): logo+nombre solo al inicio
+        // (o al bajar de semana), el resto barra sola, chiquita al terminar.
+        function construirPildora(ev, idx, total, abajo, flags) {
+            const f = flags || {};
             const pill = document.createElement('div');
-            pill.className = 'pill';
+            pill.className = 'pill'
+                + (f.izq ? ' con-izq' : '')
+                + (f.der ? ' con-der' : '')
+                + (f.mini ? ' mini' : '');
             const cid = ev.calendario_id || '';
             const cal = calendariosImagenes[cid] || {};
             const color = cal.color || getCalendarioColor(cid);
@@ -1880,18 +1884,26 @@
             pill.dataset.eventId = eventIdDe(ev);
             const n = Math.max(1, total || 1);
             if (abajo) {
-                pill.style.top = `calc(50% + ${25 + idx * 19}px)`;
+                pill.style.top = `calc(50% + ${25 + idx * 17}px)`;
             } else {
-                pill.style.top = `calc(50% + ${(idx - (n - 1) / 2) * 19}px)`;
+                pill.style.top = `calc(50% + ${(idx - (n - 1) / 2) * 17}px)`;
             }
             const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || '';
-            const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, 12);
-            const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
             const logo = calLogoUrl(cal);
-            pill.innerHTML = `
-                ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : '<span class="pill-dot"></span>'}
-                <span class="pill-name">${ini}</span>
-            `;
+            let etiqueta = f.etiqueta || 'nada';
+            if (etiqueta === 'logo' && !logo) etiqueta = 'nada';
+            let dentro = '';
+            if (etiqueta === 'full') {
+                const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, 12);
+                const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+                dentro = `
+                    ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : '<span class="pill-dot"></span>'}
+                    <span class="pill-name">${ini}</span>
+                `;
+            } else if (etiqueta === 'logo') {
+                dentro = `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">`;
+            }
+            pill.innerHTML = dentro;
             pill.title = `${ev.nombre_huesped || ev.summary || ''} — ${nombreCal || cid || (ev.source || '')} — ${ev.start} → ${ev.end}`;
             if (isAdmin) {
                 pill.addEventListener('click', (e) => { e.stopPropagation(); abrirModalReservaPorId(ev.id); });
@@ -1902,17 +1914,35 @@
         // Píldoras visibles de una celda (excluye eventos que terminan ese día:
         // el checkout se marca con colita, no con píldora). Con checkout hay
         // menos espacio (debajo de la franja): máx. 2; sin checkout: máx. 3.
+        // Orden estable por (start, id) para que la misma tira quede alineada.
         function pildorasVisibles(cell) {
             const dia = cell.dataset.date;
             const hayCheckout = (cell._eventosDia || []).some(ev => formatDate(new Date(ev.end + 'T00:00:00')) === dia);
-            const evs = (cell._eventosDia || []).filter(ev => formatDate(new Date(ev.end + 'T00:00:00')) !== dia);
+            const evs = (cell._eventosDia || [])
+                .filter(ev => formatDate(new Date(ev.end + 'T00:00:00')) !== dia)
+                .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : (a.id < b.id ? -1 : 1)));
             return { vis: evs.slice(0, hayCheckout ? 2 : 3), abajo: hayCheckout };
         }
 
         function restaurarPildoras(cell) {
             cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
             const { vis, abajo } = pildorasVisibles(cell);
-            vis.forEach((ev, i) => cell.appendChild(construirPildora(ev, i, vis.length, abajo)));
+            const dia = cell.dataset.date;
+            const diaMas1 = formatDate(new Date(new Date(dia + 'T00:00:00').getTime() + 86400000));
+            const dNum = parseInt(dia.slice(8, 10), 10);
+            const esLunes = new Date(dia + 'T00:00:00').getDay() === 1;
+            vis.forEach((ev, i) => {
+                const esInicio = ev.start === dia;
+                const esFin = diaMas1 === ev.end;
+                const primeraVez = esInicio || dNum === 1;
+                const etiqueta = primeraVez ? 'full' : (esLunes ? 'logo' : 'nada');
+                cell.appendChild(construirPildora(ev, i, vis.length, abajo, {
+                    izq: ev.start < dia,
+                    der: diaMas1 < ev.end,
+                    etiqueta,
+                    mini: esFin && etiqueta !== 'full',
+                }));
+            });
         }
 
         // Expande/contrae un día multievento inline (misma mini-lista del modo expandido).
@@ -2049,48 +2079,24 @@
                 }
             });
 
-            // PASO 2: Después marcar TODAS las reservas (franja negra, tiene prioridad)
+            // PASO 2: Tiras por reserva (color + logo + nombre de su calendario).
+            // Reemplazan las franjas azul/negra/roja (incluso cuando van solas).
             // (los pagos de arriendo van en el PASO 2b con estrella, no como estadía)
             events.filter(e => esReserva(e) && !esPagoArriendo(e)).forEach(event => {
                 const start = new Date(event.start + 'T00:00:00');
                 const end = new Date(event.end + 'T00:00:00');
-                const reservationUrl = event.reservation_url;
                 const esCache = event.source === 'cache_airbnb';
-
-                // Calcular mes actual visible
-                const inicioMesVisible = new Date(currentYear, currentMonth - 1, 1);
-                const finMesVisible = new Date(currentYear, currentMonth, 0);
-
-                // Calcular días totales de la reserva (incluyendo día de checkout)
-                const diasTotales = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
-
-                // Calcular días en el mes visible (end + 1 día para incluir checkout)
-                const endInclusive = new Date(end.getTime() + 86400000);
-                const overlapStart = new Date(Math.max(start, inicioMesVisible));
-                const overlapEnd = new Date(Math.min(endInclusive, new Date(finMesVisible.getTime() + 86400000)));
-                const diasEnEsteMes = Math.max(0, Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
-
-                // Calcular proporción para este mes
-                const proporcion = diasEnEsteMes / diasTotales;
-                const precioProporcion = Math.round((event.precio || 0) * proporcion);
-                const extraProporcion = Math.round((event.extra_valor || 0) * proporcion);
-
-                // Determinar si la reserva empieza en este mes o viene de antes
-                const empiezaEnEsteMes = start >= inicioMesVisible && start <= finMesVisible;
-                let globitoPuesto = false;
 
                 let current = new Date(start);
                 while (current <= end) {
                     const dateStr = formatDate(current);
                     const cell = document.querySelector(`[data-date="${dateStr}"]`);
                     if (cell) {
-                        const esPrimerDiaReserva = formatDate(current) === formatDate(start);
-                        const esUltimoDiaReserva = formatDate(current) === formatDate(end);
 
-                        // Decidir si este día lleva multi (píldoras apiladas), expandido (mini-lista) o franja única (look actual).
+                        // Tiras por evento (solas o apiladas): color + logo + nombre
+                        // de su calendario. Reemplazan las franjas azul/negra/roja.
                         const eventosEseDia = eventosPorFecha.get(dateStr) || [];
-                        const esMulti = eventosEseDia.length > 1 && !esUltimoDiaReserva;
-                        const esExpanded = eventosEseDia.length >= 3 && !esUltimoDiaReserva;
+                        const esExpanded = eventosEseDia.length >= 3;
 
                         if (esExpanded) {
                             // Modo expandido: mini-lista inline con scroll (3+ eventos el mismo día).
@@ -2102,20 +2108,12 @@
                                 eventosEseDia.forEach(ev => list.appendChild(construirFilaEventoDia(ev)));
                                 cell.appendChild(list);
                             }
-                            // No aplicar .reserved (la celda se ve con la lista)
-                        } else if (esMulti) {
-                            // Modo stack: una píldora por evento (color + logo
-                            // de su calendario). Las píldoras llevan el nombre,
-                            // así que los globitos se omiten en días multi.
+                            // No aplicar franja (la celda se ve con la lista)
+                        } else {
                             cell.classList.add('multi-band');
                             cell._eventosDia = eventosEseDia;
                             if (!cell.querySelector(':scope > .pill')) {
                                 restaurarPildoras(cell);
-                            }
-                        } else {
-                            // Look actual: 1 banda con ::after (regresión 0)
-                            if (!esUltimoDiaReserva) {
-                                cell.classList.add('reserved');
                             }
                         }
 
@@ -2126,175 +2124,11 @@
                         }
 
                         if (esCache) cell.classList.add('from-cache');
-                        const esPrimerDiaMes = current.getDate() === 1 && current.getMonth() === (currentMonth - 1) && current.getFullYear() === currentYear;
 
-                        // Logo badge de la propiedad ANCLADO a la franja (UN SOLO badge
-                        // por evento y mes): inicio (azul) abajo-izquierda sobre el azul,
-                        // checkout (rojo) abajo-derecha sobre el rojo si el azul no se ve,
-                        // travesía completa del mes → día 1. Solape ~25% sin tapar el número.
-                        const cid = event.calendario_id || '';
-                        const calImg = calendariosImagenes[cid] || {};
-                        const logoPath = calLogoUrl(calImg);
-                        const calColor = calImg.color || '#9ca3af';
-
-                        // Mostrar globitos en: primer día de reserva O primer día del mes si viene de antes
-                        // NO mostrar en día de checkout (las franjas se manejan con CSS)
-                        // NI en días multi (las píldoras ya muestran nombre + logo de cada evento)
-                        const mostrarGlobitos = (esPrimerDiaReserva || (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto)) && eventosEseDia.length < 2;
-
-                        // Logo: UN SOLO badge por evento y mes.
-                        // - Empieza aquí (azul visible) → solo al inicio.
-                        // - Viene de otro mes y termina aquí → solo en checkout (rojo).
-                        // - Atraviesa el mes completo → día 1.
-                        const terminaAqui = end >= inicioMesVisible && end <= finMesVisible;
-                        let ponerBadge = false, posClase = '';
-                        if (empiezaEnEsteMes) {
-                            ponerBadge = esPrimerDiaReserva;
-                            posClase = (esPrimerDiaReserva && esUltimoDiaReserva) ? 'pos-checkout' : 'pos-inicio';
-                        } else if (terminaAqui) {
-                            ponerBadge = esUltimoDiaReserva;
-                            posClase = 'pos-checkout';
-                        } else {
-                            ponerBadge = (!empiezaEnEsteMes && esPrimerDiaMes && !globitoPuesto);
-                            posClase = 'pos-medio';
-                        }
-                        // Logo flotante solo en días de un evento (en días multi
-                        // las píldoras ya llevan el logo de cada propiedad).
-                        if (logoPath && ponerBadge && eventosEseDia.length < 2 && !cell.querySelector(':scope > .cal-logo-badge')) {
-                            const badge = document.createElement('img');
-                            badge.className = 'cal-logo-badge ' + posClase;
-                            badge.src = logoPath;
-                            badge.alt = '';
-                            badge.loading = 'lazy';
-                            badge.style.borderColor = calColor;
-                            const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || cid;
-                            const diaMulti = (eventosPorFecha.get(dateStr) || []).length > 1;
-                            if (diaMulti) {
-                                badge.classList.add('clickable');
-                                badge.title = `${nombreCal} — ver eventos del día`;
-                                badge.addEventListener('click', (e) => { e.stopPropagation(); toggleExpandDia(cell); });
-                            } else {
-                                badge.title = posClase === 'pos-checkout' ? `${nombreCal} (checkout)` : nombreCal;
-                            }
-                            badge.onerror = () => badge.remove();
-                            cell.appendChild(badge);
-                        }
-
-                        if (mostrarGlobitos) {
-                            // Marcar checkin solo si es el primer día real de la reserva
-                            if (esPrimerDiaReserva) {
-                                cell.classList.add('checkin');
-                            }
-
-                            // Contar cuántos globitos ya hay en este día para apilarlos
-                            const existingGuestBubbles = cell.querySelectorAll('.guest-bubble').length;
-                            const existingPriceBubbles = cell.querySelectorAll('.price-bubble').length;
-
-                            // Crear globito con inicial y conteo
-                            const nombre = event.nombre_huesped || '';
-                            const adultos = event.adultos || 0;
-                            const ninos = event.ninos || 0;
-                            const mascotas = event.mascotas || 0;
-                            const totalPersonas = adultos + ninos;
-
-                            if (nombre || totalPersonas > 0) {
-                                const bubble = document.createElement('div');
-                                bubble.className = 'guest-bubble';
-
-                                // Apilar si ya hay otros globitos de huéspedes
-                                if (existingGuestBubbles > 0) {
-                                    bubble.style.bottom = (28 + existingGuestBubbles * 16) + 'px';
-                                }
-
-                                // Primeras 10 letras del nombre (primera mayúscula, resto minúscula)
-                                const nombreCorto = nombre ? nombre.substring(0, 10) : '?';
-                                const nombreFormateado = nombreCorto.charAt(0).toUpperCase() + nombreCorto.slice(1).toLowerCase();
-                                let contenido = `<span class="bubble-initial">${nombreFormateado}</span>`;
-
-                                // +N personas (si hay más de 1)
-                                if (totalPersonas > 1) {
-                                    contenido += `<span class="bubble-count">+${totalPersonas - 1}</span>`;
-                                }
-
-                                // +M mascotas (más pequeño)
-                                if (mascotas > 0) {
-                                    contenido += `<span class="bubble-pets">+${mascotas}</span>`;
-                                }
-
-                                bubble.innerHTML = contenido;
-                                // Taggear el globito con el event_id para que el stack pueda
-                                // posicionarlo sobre la banda correspondiente.
-                                bubble.dataset.eventId = event.id || (event.start + '_' + event.end + '_' + (event.calendario_id || event.source));
-                                cell.appendChild(bubble);
-                            }
-
-                            // Globito de precio (solo admin) - verde con valor proporcional
-                            // Siempre usar proporción si la reserva cruza meses.
-                            // Si varios arriendos comparten día de burbuja, UNA burbuja con la suma.
-                            const esProporcional = diasEnEsteMes < diasTotales;
-                            const precioMostrar = esProporcional ? precioProporcion : (event.precio || 0);
-                            const grupoVerde = sumaVerdePorDia.get(dateStr);
-                            const esGrupoVerde = isAdmin && grupoVerde && grupoVerde.nombres.length > 1;
-                            if (esGrupoVerde && !gruposVerdePintados.has(dateStr)) {
-                                const totalBubble = document.createElement('div');
-                                totalBubble.className = 'price-bubble total-dia';
-                                if (grupoVerde.proporcional) {
-                                    totalBubble.classList.add('proporcional');
-                                }
-                                totalBubble.innerHTML = `$${grupoVerde.total.toLocaleString('es-CL')}`;
-                                totalBubble.title = grupoVerde.nombres.join(' + ') + ` = $${grupoVerde.total.toLocaleString('es-CL')}`;
-                                cell.appendChild(totalBubble);
-                                gruposVerdePintados.add(dateStr);
-                            } else if (isAdmin && precioMostrar > 0 && !esGrupoVerde) {
-                                const priceBubble = document.createElement('div');
-                                priceBubble.className = 'price-bubble';
-                                if (esProporcional) {
-                                    priceBubble.classList.add('proporcional');
-                                }
-
-                                // Apilar si ya hay otros globitos de precio
-                                if (existingPriceBubbles > 0) {
-                                    priceBubble.style.top = (2 + existingPriceBubbles * 14) + 'px';
-                                }
-
-                                const precioFormateado = precioMostrar.toLocaleString('es-CL');
-                                priceBubble.innerHTML = `$${precioFormateado}`;
-                                priceBubble.title = esProporcional ? `Proporcional: ${diasEnEsteMes}/${diasTotales} días` : 'Precio total';
-                                cell.appendChild(priceBubble);
-                            }
-
-                            // Globito de extra (solo admin) - azul con valor proporcional
-                            const extraMostrar = esProporcional ? extraProporcion : (event.extra_valor || 0);
-                            const extraConcepto = event.extra_concepto || '';
-                            if (isAdmin && extraMostrar > 0) {
-                                const extraBubble = document.createElement('div');
-                                // Si reserva es de 1 día, poner debajo del verde
-                                const duracionDias = Math.round((end - start) / (1000 * 60 * 60 * 24));
-                                extraBubble.className = duracionDias === 1 ? 'extra-bubble extra-bubble-below' : 'extra-bubble';
-                                if (esProporcional) {
-                                    extraBubble.classList.add('proporcional');
-                                }
-
-                                // Apilar extras también
-                                const existingExtraBubbles = cell.querySelectorAll('.extra-bubble').length;
-                                if (existingExtraBubbles > 0) {
-                                    extraBubble.style.top = (2 + existingExtraBubbles * 14) + 'px';
-                                }
-
-                                const extraFormateado = extraMostrar.toLocaleString('es-CL');
-                                extraBubble.innerHTML = `$${extraFormateado}`;
-                                extraBubble.title = esProporcional ? `Proporcional: ${diasEnEsteMes}/${diasTotales} días - ${extraConcepto}` : extraConcepto;
-                                cell.appendChild(extraBubble);
-                            }
-
-                            globitoPuesto = true;
-                        }
-
-                        // Días multi (2+ eventos): los globitos individuales se
-                        // omiten (las píldoras ya identifican cada evento), pero
-                        // SÍ se muestra UNA burbuja verde con la suma del día y
-                        // UNA azul con la suma de tinaja (si hay montos).
-                        if (eventosEseDia.length > 1 && isAdmin) {
+                        // Burbujas de precio (solo admin): UNA verde con la suma del
+                        // día (arriendo) y UNA azul con la suma de tinaja. Las
+                        // tiras ya identifican cada evento con logo + nombre.
+                        if (isAdmin) {
                             const gv = sumaVerdePorDia.get(dateStr);
                             if (gv && gv.total > 0 && !gruposVerdePintados.has(dateStr) && !cell.querySelector(':scope > .price-bubble')) {
                                 const totalBubble = document.createElement('div');
@@ -2327,11 +2161,6 @@
                     current.setDate(current.getDate() + 1);
                 }
 
-                // Día de checkout (end) - marcar con colita negra
-                const checkoutCell = document.querySelector(`[data-date="${formatDate(end)}"]`);
-                if (checkoutCell) {
-                    checkoutCell.classList.add('checkout-day');
-                }
             });
 
             // PASO 2b: Pagos de arriendo con alias (solo admin). Se pintan como
