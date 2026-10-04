@@ -2155,8 +2155,18 @@ header {
 .day-cell.multi-band .pill.label-largo .pill-name {
     overflow: visible;
     text-overflow: clip;
-    max-width: 400px;
+    max-width: 220px;
     flex-shrink: 0;
+}
+/* La etiqueta larga nunca ensancha la página en mobile (días cortados). */
+@media (max-width: 768px) {
+    .day-cell.multi-band .pill.label-largo .pill-name {
+        max-width: 140px;
+    }
+}
+/* Guardarraíl: nada dentro de la tarjeta ensancha la página. */
+.calendar-card {
+    overflow-x: clip;
 }
 /* Tira continua: la píldora se une con la del día vecino (sin corte). */
 .day-cell.multi-band .pill.con-izq {
