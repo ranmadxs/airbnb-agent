@@ -1965,15 +1965,13 @@
             const dia = cell.dataset.date;
             const diaMas1 = sumarDias(dia, 1);
             const dNum = parseInt(dia.slice(8, 10), 10);
-            const esLunes = new Date(dia + 'T00:00:00').getDay() === 1;
             vis.forEach((ev) => {
                 const esInicio = ev.start === dia;
                 const esCheckout = dia === ev.end;
                 const primeraVez = esInicio || dNum === 1;
-                // Solo: etiqueta una sola vez al inicio, resto tira limpia.
-                // Multi: nombre una vez; logo al bajar de semana y al
-                // terminar; resto tira limpia (sin logos repetidos).
-                const etiqueta = primeraVez ? 'full' : (solo ? 'nada' : ((esLunes || esCheckout) ? 'logo' : 'nada'));
+                // Logo + nombre solo en la primera; si la tira es continua,
+                // el resto va limpio (sin logos repetidos).
+                const etiqueta = primeraVez ? 'full' : 'nada';
                 // Carril estable de la fila semanal; máx. 3 (el resto tras +N).
                 const lane = carrilEnFila(ev, dia);
                 const movil = window.innerWidth < 768;
