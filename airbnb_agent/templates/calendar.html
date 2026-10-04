@@ -1994,6 +1994,21 @@
                 });
                 cell.appendChild(pill);
                 puestas.push(pill);
+                // Repliegue: si el nombre se recorta con … y hay conteos,
+                // los +N bajan debajo (solo en ese caso, para que quepa).
+                // En label-largo hay espacio de sobra (no aplica).
+                const counts = pill.querySelectorAll(':scope > .p-count');
+                const nameEl = pill.querySelector(':scope > .pill-name');
+                if (counts.length && !pill.classList.contains('label-largo') && nameEl
+                        && nameEl.scrollWidth > nameEl.clientWidth + 1) {
+                    const below = document.createElement('div');
+                    below.className = 'guest-bubble';
+                    const n = cell.querySelectorAll(':scope > .guest-bubble').length;
+                    if (n > 0) below.style.bottom = (2 + n * 16) + 'px';
+                    below.title = pill.title;
+                    below.append(...counts);
+                    cell.appendChild(below);
+                }
             });
             // En mobile las tiras van centradas verticalmente (una sola) o
             // centradas en grupo (dos), sin importar las burbujas.
@@ -2157,7 +2172,19 @@
                             const tieneVerde = gv && gv.total > 0 && !gruposVerdePintados.has(dateStr);
                             const tieneAzul = ga && ga.total > 0 && !azulesPintados.has(dateStr);
                             if (tieneVerde || tieneAzul) {
-                                const vertical = eventosEseDia.every(ev => ev.start === ev.end);
+                                // Vertical si al evento le queda 1 solo día visible
+                                // en el mes (típico fin de mes) o si es de 1 día:
+                                // verde arriba y azul abajo para que se vean.
+                                const mesIni = new Date(currentYear, currentMonth - 1, 1);
+                                const mesFin = new Date(currentYear, currentMonth, 0);
+                                const diasVisibles = (ev) => {
+                                    const s = new Date(ev.start + 'T00:00:00');
+                                    const t = new Date(ev.end + 'T00:00:00');
+                                    const a = s < mesIni ? mesIni : s;
+                                    const b = t > mesFin ? mesFin : t;
+                                    return Math.round((b - a) / 86400000) + 1;
+                                };
+                                const vertical = eventosEseDia.every(ev => diasVisibles(ev) < 2);
                                 const wrap = document.createElement('div');
                                 wrap.className = 'day-prices' + (vertical ? ' vertical' : '');
                                 if (tieneVerde) {
@@ -2183,6 +2210,12 @@
                                     azulesPintados.add(dateStr);
                                 }
                                 cell.appendChild(wrap);
+                                // Si la fila no cabe (taparía al vecino), apilar:
+                                // verde arriba y azul abajo.
+                                if (!vertical && (tieneVerde && tieneAzul)
+                                        && wrap.scrollWidth > cell.clientWidth + 1) {
+                                    wrap.classList.add('vertical');
+                                }
                                 // Anclar sobre la primera tira (no en la esquina).
                                 const primera = [...cell.querySelectorAll(':scope > .pill')]
                                     .sort((a, b) => a.offsetTop - b.offsetTop)[0];

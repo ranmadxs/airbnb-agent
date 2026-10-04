@@ -7,6 +7,7 @@
 - Grilla con minmax(0,1fr) y transiciones solo visuales: sin cortes ni parpadeos de ancho.
 - Fila ★ desborda a la celda vecina si el monto no cabe (siempre visible).
 - Montos sobre la primera tira; personas sumadas +N👤 y mascotas +N🐾 en tiras.
+- Apilado vertical si la fila no cabe o al evento le queda 1 día visible en el mes.
 
 ## [3.6.0] - 2026-10-04
 ### Fixed
