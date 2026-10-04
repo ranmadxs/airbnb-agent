@@ -1860,15 +1860,36 @@
             return row;
         }
 
-        // Píldora de un evento en día multi: color de su calendario + mini-logo.
-        // idx/total centran el grupo; si hay checkout ese día (franja roja
-        // centrada), el grupo va DEBAJO de la franja para no montarse.
-        // Sin nombre de huésped (sincronizadas por iCal) muestra la propiedad.
-        // Píldora de un evento en día multi: color de su calendario.
+        // Píldora de un evento: color de su calendario.
         // Las píldoras del mismo evento en días seguidos forman UNA tira
-        // continua (más fina que la franja): logo+nombre solo al inicio
-        // (o al bajar de semana), el resto barra sola, chiquita al terminar.
-        function construirPildora(ev, idx, total, flags) {
+        // continua (más fina que la franja): logo+nombre solo al inicio,
+        // resto con logo, chiquita al terminar.
+        // Carril vertical estable por fila semanal (Lu-Do): el mismo evento
+        // va siempre a la misma altura, compartido o solo el día.
+        // Coloreo greedy por (start, id) sobre rangos de tira [start, end].
+        function carrilEnFila(ev, dia) {
+            const d = new Date(dia + 'T00:00:00');
+            const dow = (d.getDay() + 6) % 7;
+            const lun = new Date(d); lun.setDate(lun.getDate() - dow);
+            const dom = new Date(lun); dom.setDate(dom.getDate() + 6);
+            const ini = formatDate(lun), fin = formatDate(dom);
+            const enFila = events
+                .filter(e => e.estado === 'reservado' && e.source !== 'arriendo')
+                .filter(e => (e.start || '') <= fin && (e.end || '') >= ini)
+                .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : (a.id < b.id ? -1 : 1)));
+            const finPorCarril = [];
+            const carril = new Map();
+            const solapa = (a, b) => a.start <= b.end && b.start <= a.end;
+            enFila.forEach(e => {
+                let c = 0;
+                while (c < finPorCarril.length && solapa(e, finPorCarril[c])) c++;
+                carril.set(eventIdDe(e), c);
+                finPorCarril[c] = e;
+            });
+            return carril.get(eventIdDe(ev)) ?? 0;
+        }
+
+        function construirPildora(ev, carril, flags) {
             const f = flags || {};
             const pill = document.createElement('div');
             pill.className = 'pill'
@@ -1883,8 +1904,12 @@
             pill.dataset.source = ev.source || 'unknown';
             pill.dataset.calendarioId = cid;
             pill.dataset.eventId = eventIdDe(ev);
-            const n = Math.max(1, total || 1);
-            pill.style.top = `calc(50% + ${(idx - (n - 1) / 2) * 17}px)`;
+            // Altura por carril (estable entre días); sin translate para que
+            // los bordes superiores queden alineados.
+            const movil = window.innerWidth < 768;
+            const base = movil ? 30 : 36, pitch = movil ? 13 : 17;
+            pill.style.top = `${base + carril * pitch}px`;
+            pill.style.transform = 'none';
             const nombreCal = calendariosDisponibles.find(c => c.calendario_id === cid)?.nombre || '';
             const logo = calLogoUrl(cal);
             const dot = '<span class="pill-dot"></span>';
@@ -1928,14 +1953,18 @@
             const dia = cell.dataset.date;
             const diaMas1 = formatDate(new Date(new Date(dia + 'T00:00:00').getTime() + 86400000));
             const dNum = parseInt(dia.slice(8, 10), 10);
-            vis.forEach((ev, i) => {
+            vis.forEach((ev) => {
                 const esInicio = ev.start === dia;
                 const esCheckout = dia === ev.end;
                 const primeraVez = esInicio || dNum === 1;
                 // Solo: etiqueta una sola vez al inicio, resto tira limpia.
                 // Multi: nombre una vez, logo siempre (nunca barra vacía).
                 const etiqueta = primeraVez ? 'full' : (solo ? 'nada' : 'logo');
-                cell.appendChild(construirPildora(ev, i, vis.length, {
+                // Carril estable de la fila semanal; máx. 3 (el resto tras +N).
+                const lane = carrilEnFila(ev, dia);
+                const movil = window.innerWidth < 768;
+                if (lane >= (movil ? 2 : 3)) return;
+                cell.appendChild(construirPildora(ev, lane, {
                     izq: ev.start < dia,
                     der: diaMas1 <= ev.end,
                     etiqueta,
