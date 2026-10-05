@@ -268,6 +268,24 @@ class DatabaseService:
                 print(f"⚠️ Se superpone con reserva protegida, omitiendo: {event_key}")
                 continue
 
+            # 3.5.2: NO duplicar por código. Si el iCal trae un código que ya
+            # existe como reserva manual (admin, con huésped y precio), se
+            # omite aunque no tenga candado: el código es la identidad real
+            # (bug Julián 7-oct: manual sin readonly + gemelo airbnb).
+            codigo_ev = (event.get("codigo_reserva") or "").strip()
+            if codigo_ev:
+                try:
+                    dup = self.reservas.find_one({
+                        "codigo_reserva": codigo_ev,
+                        "source": "admin",
+                        "estado": "reservado",
+                    })
+                except Exception:
+                    dup = None
+                if dup:
+                    print(f"⚠️ Duplicado por código {codigo_ev}, omitiendo iCal (ya existe manual)")
+                    continue
+
             if event_key not in eventos_unicos:
                 summary_ical = event.get("summary", "")
                 es_reserva = event.get("reservation_url") or "reserved" in summary_ical.lower()
