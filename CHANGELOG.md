@@ -1,3 +1,7 @@
+## [3.6.2] - 2026-10-05
+### Fixed
+- Sync no duplica por código: si el iCal trae un código que ya existe como reserva manual (con huésped y precio), se omite aunque no tenga candado (bug Julián 7-oct: gemelo airbnb de HMPYPZTKA3 eliminado + candado puesto).
+
 ## [3.6.1] - 2026-10-04
 ### Fixed
 - Botón +N solo el primer día del tramo multi (antes se repetía todos los días).

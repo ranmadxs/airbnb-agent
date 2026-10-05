@@ -173,3 +173,107 @@ class TestSyncMulticalendarioMismoDia:
 
         ops = captured.get("ops", [])
         assert ops == [], f"protegida mismo calendario debe seguir omitida, ops={filtros_de_ops(ops)}"
+
+
+def setup_mocks_codigo(svc, manual_doc):
+    """Mockea Mongo para guardar_eventos con find_one por código.
+    Si el filtro trae codigo_reserva y coincide, retorna el manual;
+    si no, None (no existe por clave)."""
+    svc.connect = lambda: True
+    svc.reservas = MagicMock()
+    svc.dias = MagicMock()
+    svc.reservas.update_many.return_value = MagicMock(modified_count=0)
+    svc.dias.update_many.return_value = MagicMock(modified_count=0)
+    dias_cursor = MagicMock()
+    dias_cursor.__iter__ = lambda self: iter([])
+    svc.dias.find.return_value = dias_cursor
+    svc.dias.bulk_write.return_value = MagicMock()
+    svc.dias.delete_many.return_value = MagicMock()
+
+    def find_one_ef(filter_doc=None, *args, **kwargs):
+        if (filter_doc or {}).get("codigo_reserva") == (manual_doc or {}).get("codigo_reserva"):
+            return dict(manual_doc)
+        return None
+
+    svc.reservas.find_one.side_effect = find_one_ef
+
+    def find_ef(filter_doc=None, *args, **kwargs):
+        cur = MagicMock()
+        cur.__iter__ = lambda self: iter([])
+        return cur
+
+    svc.reservas.find.side_effect = find_ef
+    svc.reservas.delete_many.return_value = MagicMock()
+    captured = {}
+
+    def fake_bulk_write(ops, *args, **kwargs):
+        captured["ops"] = list(ops)
+        res = MagicMock()
+        res.upserted_count = len(captured["ops"])
+        res.modified_count = 0
+        return res
+
+    svc.reservas.bulk_write.side_effect = fake_bulk_write
+    return captured
+
+
+def codigos_en_ops(ops):
+    out = []
+    for op in ops:
+        doc = getattr(op, "_doc", {}) or {}
+        for section in doc.values():
+            if isinstance(section, dict) and "codigo_reserva" in section:
+                out.append(section["codigo_reserva"])
+    return out
+
+
+class TestSyncDedupPorCodigo:
+    """Bug Julián 7-oct: manual admin (sin candado) + iCal mismo código
+    HMPYPZTKA3 → el sync creaba el gemelo airbnb. Con el mismo código
+    (identidad real de la reserva) no se duplica aunque falte readonly."""
+
+    def test_ical_no_duplica_manual_mismo_codigo(self):
+        base = future(40)
+        fin = future(42)
+        svc = make_svc()
+        manual = {
+            "_id": "abc",
+            "codigo_reserva": "HMJJ2ZEQHQ",
+            "source": "admin",
+            "estado": "reservado",
+            "calendario_id": "paraiso_los_quinquelles_1",
+            "event_start": base,
+            "event_end": fin,
+        }
+        captured = setup_mocks_codigo(svc, manual)
+        svc.guardar_eventos(
+            [ical_event("paraiso_los_quinquelles_1", base, fin, "HMJJ2ZEQHQ")],
+            audit={"user_origin": "system", "user_agent": "system"},
+        )
+        ops = captured.get("ops", [])
+        assert "HMJJ2ZEQHQ" not in codigos_en_ops(ops), (
+            f"iCal duplicó manual mismo código, ops={filtros_de_ops(ops)}"
+        )
+
+    def test_codigo_distinto_si_se_guarda(self):
+        base = future(50)
+        fin = future(52)
+        svc = make_svc()
+        manual = {
+            "_id": "abc",
+            "codigo_reserva": "HMJJ2ZEQHQ",
+            "source": "admin",
+            "estado": "reservado",
+            "calendario_id": "paraiso_los_quinquelles_1",
+            "event_start": base,
+            "event_end": fin,
+        }
+        captured = setup_mocks_codigo(svc, manual)
+        svc.guardar_eventos(
+            [ical_event("paraiso_los_quinquelles_1", base, fin, "OTROCODIGO")],
+            audit={"user_origin": "system", "user_agent": "system"},
+        )
+        ops = captured.get("ops", [])
+        assert "OTROCODIGO" in codigos_en_ops(ops), (
+            f"código nuevo debe guardarse, ops={filtros_de_ops(ops)}"
+        )
