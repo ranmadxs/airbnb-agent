@@ -4198,3 +4198,10 @@ footer {
         font-size: 0.8em;
     }
 }
+
+/* Ranking admin top copas oro/plata/bronce */
+.ranking-link { display: block; }
+.ranking-pos { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #F3F4F6; border: 2px solid #E5E7EB; flex-shrink: 0; }
+.ranking-pos.copa-oro { background: linear-gradient(135deg,#FFD700,#B8860B); color: #fff; border-color: #B8860B; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.ranking-pos.copa-plata { background: linear-gradient(135deg,#E5E7EB,#9CA3AF); color: #fff; border-color: #9CA3AF; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.ranking-pos.copa-bronce { background: linear-gradient(135deg,#F59E0B,#92400E); color: #fff; border-color: #92400E; text-shadow: 0 1px 2px rgba(0,0,0,.4); }

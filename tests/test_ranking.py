@@ -45,3 +45,9 @@ def test_pagina_ranking_solo_admin(logged_in_flask_client, flask_client):
     r = flask_client.get("/ranking", follow_redirects=False)
     assert r.status_code in (302, 401)
     assert "/login" in r.headers.get("Location", "") or r.status_code == 401
+
+
+def test_ranking_css_copas_existe():
+    from pathlib import Path
+    css = Path("airbnb_agent/static/css/style.css").read_text(encoding="utf-8")
+    assert ".copa-oro" in css and ".copa-plata" in css and ".copa-bronce" in css
