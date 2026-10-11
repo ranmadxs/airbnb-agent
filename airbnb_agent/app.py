@@ -1090,6 +1090,90 @@ def api_promedio_anual():
     })
 
 
+def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict) -> dict:
+    """Top10 anual por ingresos brutos (arriendo+tinaja). Tinaja siempre sumada."""
+    meses = []
+    ing_por_cal: dict = {}
+    cli: dict = {}
+    for mes in range(1, 13):
+        arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(all_events, year, mes)
+        ingresos = (arriendo or 0) + (tinaja or 0)
+        g = (gastos_por_mes or {}).get(mes, {})
+        gastos = sum((g.get(k, 0) or 0) for k in ('agua', 'internet', 'gasolina', 'aseo', 'otros', 'electricidad'))
+        if ingresos > 0:
+            meses.append({'mes': mes, 'nombre_mes': MESES_ES[mes], 'anio': year,
+                          'ingresos': ingresos, 'gastos': gastos, 'neto': ingresos - gastos})
+        por_cal = _calcular_ingresos_por_calendario(all_events, year, mes)
+        for cid, v in por_cal.items():
+            slot = ing_por_cal.setdefault(cid, {'ingresos': 0, 'gastos': 0})
+            slot['ingresos'] += (v.get('arriendo', 0) or 0) + (v.get('tinaja', 0) or 0)
+            # prorrateo de gastos del mes proporcional al ingreso del calendario
+            if ingresos > 0:
+                slot['gastos'] += round(gastos * ((v.get('total', 0) or 0) / ingresos))
+    # clientes: prorrateo por mes igual que calendario
+    for ev in (all_events or []):
+        if ev.get('estado') != 'reservado':
+            continue
+        nombre = (ev.get('nombre_huesped') or '').strip() or (ev.get('summary') or '').strip() or 'Huésped'
+        try:
+            ev_start = date.fromisoformat(ev.get('start', ''))
+            ev_end = date.fromisoformat(ev.get('end', ''))
+        except Exception:
+            continue
+        dias_totales = max(1, (ev_end - ev_start).days + 1)
+        total_arriendo = 0
+        total_extras = 0
+        for mes in range(1, 13):
+            inicio_mes = date(year, mes, 1)
+            fin_mes = date(year + 1, 1, 1) if mes == 12 else date(year, mes + 1, 1)
+            if ev_start >= fin_mes or ev_end < inicio_mes:
+                continue
+            ev_end_excl = ev_end + timedelta(days=1)
+            dias_en_mes = max(0, (min(ev_end_excl, fin_mes) - max(ev_start, inicio_mes)).days)
+            if dias_en_mes <= 0:
+                continue
+            prop = dias_en_mes / dias_totales
+            total_arriendo += round((ev.get('precio', 0) or 0) * prop)
+            total_extras += round((ev.get('extra_valor', 0) or 0) * prop)
+        if total_arriendo + total_extras > 0:
+            slot = cli.setdefault(nombre, {'arriendo': 0, 'extras': 0})
+            slot['arriendo'] += total_arriendo
+            slot['extras'] += total_extras
+    nombres_cal = {c['calendario_id']: c.get('nombre') or c['calendario_id'] for c in obtener_todos_calendarios()}
+    calendarios = [{'calendario_id': cid, 'nombre': nombres_cal.get(cid, cid),
+                     'ingresos': v['ingresos'], 'gastos': v['gastos'], 'neto': v['ingresos'] - v['gastos']}
+                    for cid, v in ing_por_cal.items() if v['ingresos'] > 0]
+    clientes = [{'cliente': k, 'arriendo': v['arriendo'], 'extras': v['extras'], 'ingresos': v['arriendo'] + v['extras']}
+                for k, v in cli.items()]
+    meses_top = sorted(meses, key=lambda x: x['ingresos'], reverse=True)[:10]
+    cal_top = sorted(calendarios, key=lambda x: x['ingresos'], reverse=True)[:10]
+    cli_top = sorted(clientes, key=lambda x: x['ingresos'], reverse=True)[:10]
+    return {'meses_top': meses_top, 'calendarios_top': cal_top, 'clientes_top': cli_top}
+
+
+@app.route('/api/ranking')
+@login_required
+def api_ranking():
+    """API: ranking anual top10 por ingresos brutos."""
+    year = request.args.get('year', date.today().year, type=int)
+    all_events = db_service.obtener_eventos_formato_ical()
+    try:
+        fn_pagos = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
+        if callable(fn_pagos):
+            pagos_anio = []
+            for _m in range(1, 13):
+                _r = fn_pagos(year, _m)
+                if isinstance(_r, list) and _r:
+                    pagos_anio.extend(_r)
+            if pagos_anio:
+                all_events = list(all_events) + pagos_anio
+    except Exception:
+        pass
+    gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
+    data = _ranking_anual(year, all_events, gastos_por_mes)
+    return jsonify({'year': year, **data})
+
+
 @app.route('/api/estadisticas-total-mes')
 @login_required
 def api_estadisticas_total_mes():
