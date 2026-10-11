@@ -2,6 +2,34 @@
 from __future__ import annotations
 
 
+def _gastos_mensuales(total_mes: int):
+    return {m: {"agua": total_mes, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0} for m in range(1, 13)}
+
+
+def test_gastos_por_calendario_reales_no_prorrateo(logged_in_flask_client, app_module):
+    """Todos los gastos son de Paraíso: Villa y Santiago deben mostrar $0, no prorrateo."""
+    app_module.db_service.obtener_eventos_formato_ical.return_value = [
+        {"start": "2026-01-05", "end": "2026-01-07", "estado": "reservado", "precio": 600000, "extra_valor": 0,
+         "calendario_id": "paraiso_los_quinquelles_1", "nombre_huesped": "A"},
+        {"start": "2026-01-10", "end": "2026-01-12", "estado": "reservado", "precio": 300000, "extra_valor": 0,
+         "calendario_id": "villa_futuro", "nombre_huesped": "B"},
+    ]
+
+    def gastos_por_filtro(year, calendario_ids=None):
+        if calendario_ids is None:
+            return _gastos_mensuales(90000)
+        if "paraiso_los_quinquelles_1" in calendario_ids:
+            return _gastos_mensuales(90000)
+        return _gastos_mensuales(0)
+
+    app_module.db_service.obtener_gastos_agregados_anio.side_effect = gastos_por_filtro
+    r = logged_in_flask_client.get("/api/ranking?year=2026")
+    assert r.status_code == 200
+    por_cal = {c["calendario_id"]: c for c in r.get_json()["calendarios_top"]}
+    assert por_cal["paraiso_los_quinquelles_1"]["gastos"] == 90000 * 12
+    assert por_cal["villa_futuro"]["gastos"] == 0
+
+
 def test_api_ranking_anual_top10_por_ingresos_brutos(logged_in_flask_client, app_module):
     app_module.db_service.obtener_eventos_formato_ical.return_value = [
         {"start": "2026-01-05", "end": "2026-01-07", "estado": "reservado", "precio": 300000, "extra_valor": 50000, "calendario_id": "casa_costa", "nombre_huesped": "Juan"},

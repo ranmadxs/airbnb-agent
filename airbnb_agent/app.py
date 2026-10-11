@@ -1101,8 +1101,42 @@ def api_promedio_anual():
     })
 
 
-def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict) -> dict:
-    """Top10 anual por ingresos brutos (arriendo+tinaja). Tinaja siempre sumada."""
+# Todos los gastos históricos del sistema pertenecen a Paraíso (migración
+# scripts/migrate_gastos_calendario_id.py). Los docs legacy sin calendario_id
+# se cuentan en Paraíso hasta que la migración corra.
+PARAISO_CALENDARIO_ID = "paraiso_los_quinquelles_1"
+
+
+def _gastos_anuales_por_calendario(year: int, calendario_ids: list) -> dict:
+    """Gastos reales anuales por calendario_id (sin prorrateo).
+
+    Paraíso incluye docs legacy sin calendario_id. '__legacy__' retorna 0
+    para no duplicar con Paraíso.
+    """
+    totales: dict = {}
+    for cid in (calendario_ids or []):
+        if cid == '__legacy__':
+            totales[cid] = 0
+            continue
+        try:
+            filtro = [cid, '__legacy__'] if cid == PARAISO_CALENDARIO_ID else [cid]
+            agg = db_service.obtener_gastos_agregados_anio(year, calendario_ids=filtro)
+        except Exception:
+            agg = {}
+        total = 0
+        for mes in range(1, 13):
+            g = (agg or {}).get(mes, {})
+            total += sum((g.get(k, 0) or 0) for k in ('agua', 'internet', 'gasolina', 'aseo', 'otros', 'electricidad'))
+        totales[cid] = total
+    return totales
+
+
+def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict, gastos_anuales_por_cal: dict | None = None) -> dict:
+    """Top10 anual por ingresos brutos (arriendo+tinaja). Tinaja siempre sumada.
+
+    gastos_anuales_por_cal: {calendario_id: gastos_reales_anio}. Si se entrega,
+    se usa gasto real por calendario; si no, prorrateo proporcional (legacy tests).
+    """
     meses = []
     ing_por_cal: dict = {}
     cli: dict = {}
@@ -1116,11 +1150,20 @@ def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict) -> dict:
                           'ingresos': ingresos, 'gastos': gastos, 'neto': ingresos - gastos})
         por_cal = _calcular_ingresos_por_calendario(all_events, year, mes)
         for cid, v in por_cal.items():
-            slot = ing_por_cal.setdefault(cid, {'ingresos': 0, 'gastos': 0})
+            slot = ing_por_cal.setdefault(cid, {'ingresos': 0})
             slot['ingresos'] += (v.get('arriendo', 0) or 0) + (v.get('tinaja', 0) or 0)
-            # prorrateo de gastos del mes proporcional al ingreso del calendario
-            if ingresos > 0:
-                slot['gastos'] += round(gastos * ((v.get('total', 0) or 0) / ingresos))
+    if gastos_anuales_por_cal is None:
+        # fallback prorrateo (tests unitarios sin DB)
+        for mes in range(1, 13):
+            arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(all_events, year, mes)
+            ingresos = (arriendo or 0) + (tinaja or 0)
+            g = (gastos_por_mes or {}).get(mes, {})
+            gastos = sum((g.get(k, 0) or 0) for k in ('agua', 'internet', 'gasolina', 'aseo', 'otros', 'electricidad'))
+            por_cal = _calcular_ingresos_por_calendario(all_events, year, mes)
+            for cid, v in por_cal.items():
+                slot = ing_por_cal.setdefault(cid, {'ingresos': 0, 'gastos': 0})
+                if ingresos > 0:
+                    slot['gastos'] = slot.get('gastos', 0) + round(gastos * ((v.get('total', 0) or 0) / ingresos))
     # clientes: prorrateo por mes igual que calendario (excluye pagos arriendo sintéticos)
     for ev in (all_events or []):
         if ev.get('estado') != 'reservado':
@@ -1153,9 +1196,16 @@ def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict) -> dict:
             slot['arriendo'] += total_arriendo
             slot['extras'] += total_extras
     nombres_cal = {c['calendario_id']: c.get('nombre') or c['calendario_id'] for c in obtener_todos_calendarios()}
-    calendarios = [{'calendario_id': cid, 'nombre': nombres_cal.get(cid, cid),
-                     'ingresos': v['ingresos'], 'gastos': v['gastos'], 'neto': v['ingresos'] - v['gastos']}
-                    for cid, v in ing_por_cal.items() if v['ingresos'] > 0]
+    calendarios = []
+    for cid, v in ing_por_cal.items():
+        if v['ingresos'] <= 0:
+            continue
+        if gastos_anuales_por_cal is not None and cid in gastos_anuales_por_cal:
+            g_real = gastos_anuales_por_cal[cid] or 0
+        else:
+            g_real = v.get('gastos', 0) or 0
+        calendarios.append({'calendario_id': cid, 'nombre': nombres_cal.get(cid, cid),
+                            'ingresos': v['ingresos'], 'gastos': g_real, 'neto': v['ingresos'] - g_real})
     clientes = [{'cliente': k, 'arriendo': v['arriendo'], 'extras': v['extras'], 'ingresos': v['arriendo'] + v['extras']}
                 for k, v in cli.items()]
     meses_top = sorted(meses, key=lambda x: x['ingresos'], reverse=True)[:10]
@@ -1194,7 +1244,9 @@ def api_ranking():
     if pagos_anio:
         all_events = list(all_events) + pagos_anio
     gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
-    data = _ranking_anual(year, all_events, gastos_por_mes)
+    cals_del_anio = {ev.get('calendario_id') or '__legacy__' for ev in (all_events or [])}
+    gastos_reales = _gastos_anuales_por_calendario(year, sorted(cals_del_anio))
+    data = _ranking_anual(year, all_events, gastos_por_mes, gastos_reales)
     return jsonify({'year': year, **data})
 
 
@@ -1235,7 +1287,10 @@ def api_ranking_global():
             gastos = db_service.obtener_gastos_agregados_anio(y)
         except Exception:
             gastos = {}
-        d = _ranking_anual(y, all_events, gastos or {})
+        cals_y = {ev.get('calendario_id') or '__legacy__' for ev in (all_events or [])
+                  if (ev.get('start') or '')[:4] == str(y)}
+        reales_y = _gastos_anuales_por_calendario(y, sorted(cals_y))
+        d = _ranking_anual(y, all_events, gastos or {}, reales_y)
         meses_all.extend(d.get('meses_top', []))
         for c in d.get('calendarios_top', []):
             slot = est.setdefault(c['calendario_id'], {'nombre': c.get('nombre') or c['calendario_id'], 'ingresos': 0, 'gastos': 0})
