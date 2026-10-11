@@ -2184,7 +2184,9 @@ header {
 .day-cell.multi-band .pill.fin {
     right: 25%;
 }
-/* Un solo calendario ese día → tira GRANDE (tamaño original). */
+/* Un solo calendario ese día → tira GRANDE (tamaño original).
+   (La variante .mini se eliminó: el checkout conserva el grosor y solo
+   se acorta a 3/4 con .fin para leerse como terminación continua.) */
 .day-cell.multi-band .pill.grande {
     height: 28px;
     font-size: 12px;
@@ -2192,11 +2194,6 @@ header {
 .day-cell.multi-band .pill.grande img {
     width: 20px;
     height: 20px;
-}
-/* La que termina va en chiquito; la que sigue queda grande. */
-.day-cell.multi-band .pill.mini {
-    height: 11px;
-    font-size: 8px;
 }
 .day-cell.multi-band .pill img {
     width: 11px;

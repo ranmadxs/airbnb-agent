@@ -1910,8 +1910,9 @@
 
         // Píldora de un evento: color de su calendario.
         // Las píldoras del mismo evento en días seguidos forman UNA tira
-        // continua (más fina que la franja): logo+nombre solo al inicio,
-        // resto con logo, chiquita al terminar.
+        // continua: logo+nombre solo al inicio, resto limpio; al terminar,
+        // la tira se acorta a 3/4 del día (clase fin) con el mismo grosor
+        // para que se lea como terminación y no como franja rota.
         // Carril vertical estable por fila semanal (Lu-Do): el mismo evento
         // va siempre a la misma altura, compartido o solo el día.
         // Coloreo greedy por (start, id) sobre rangos de tira [start, end].
@@ -1943,7 +1944,6 @@
             pill.className = 'pill'
                 + (f.izq ? ' con-izq' : '')
                 + (f.der ? ' con-der' : '')
-                + (f.mini ? ' mini' : '')
                 + (f.grande ? ' grande' : '')
                 + (f.fin ? ' fin' : '')
                 + ((f.etiqueta === 'full' && f.der) ? ' label-largo' : '');
@@ -2030,7 +2030,6 @@
                     izq: ev.start < dia,
                     der: diaMas1 <= ev.end,
                     etiqueta,
-                    mini: !solo && esCheckout && etiqueta !== 'full',
                     grande: solo,
                     fin: esCheckout,
                 });
