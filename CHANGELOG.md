@@ -1,3 +1,7 @@
+## [3.8.0] - 2026-10-11
+### Added
+- Ranking solo admin desde Total del Mes (`/ranking`): tabs Anual (año actual + flechas, top 10 meses / calendarios / clientes por ingresos brutos con tinaja sumada, filas Ingresos-Gastos=Neto) y Global todos los años (top 10 meses + establecimientos). Copas oro/plata/bronce 1-3 con número al medio.
+
 ## [3.7.0] - 2026-10-11
 ### Added
 - Gastos por calendario (propiedad): los 6 tipos (agua, internet, gasolina/transporte, aseo, otros, electricidad) aceptan `calendario_id` al crear y al editar (nuevo `PUT /api/gastos/<tipo>/<id>` + botón ✏️ en cada historial + selector en los 6 modales). GETs y `/api/desempeno*` aceptan `?calendario_ids=`. Devoluciones por cancelación heredan el calendario de la reserva.
