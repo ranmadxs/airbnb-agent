@@ -133,6 +133,7 @@ def test_ranking_filas_formato_colores():
     html = Path("airbnb_agent/templates/ranking.html").read_text(encoding="utf-8")
     assert "v-ing" in html and "v-gas" in html and "v-neto" in html
     assert "ranking-spinner" in html or "ranking-loading" in html
+    assert "ranking-copa" in html and "copa-emoji" in html and "copa-num" in html
 
 
 def test_ranking_tiene_spinner_carga():
