@@ -962,6 +962,27 @@ header {
     background: #fecaca;
 }
 
+.gasto-btn.editar-btn {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.gasto-btn.editar-btn:hover {
+    background: #bfdbfe;
+}
+
+.gasto-calendario {
+    display: inline-block;
+    font-size: 0.72em;
+    font-weight: 600;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    padding: 1px 8px;
+    margin-top: 2px;
+}
+
 .gasto-item.pendiente {
     border-left-color: #f59e0b;
     background: #fffbeb;
@@ -1814,7 +1835,7 @@ header {
     position: absolute !important;
     top: 50% !important;
     left: -3px !important;
-    right: 15% !important;
+    right: 25% !important;
     width: auto !important;
     height: 28px !important;
     background: var(--airbnb-red) !important;
@@ -2158,7 +2179,14 @@ header {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
 }
-/* Un solo calendario ese día → tira GRANDE (tamaño original). */
+/* Día de checkout: la tira termina acá y ocupa 3/4 del día (no completa).
+   Nunca coincide con con-der (en checkout der=false), va después para ganar. */
+.day-cell.multi-band .pill.fin {
+    right: 25%;
+}
+/* Un solo calendario ese día → tira GRANDE (tamaño original).
+   (La variante .mini se eliminó: el checkout conserva el grosor y solo
+   se acorta a 3/4 con .fin para leerse como terminación continua.) */
 .day-cell.multi-band .pill.grande {
     height: 28px;
     font-size: 12px;
@@ -2166,11 +2194,6 @@ header {
 .day-cell.multi-band .pill.grande img {
     width: 20px;
     height: 20px;
-}
-/* La que termina va en chiquito; la que sigue queda grande. */
-.day-cell.multi-band .pill.mini {
-    height: 11px;
-    font-size: 8px;
 }
 .day-cell.multi-band .pill img {
     width: 11px;
@@ -3706,7 +3729,7 @@ footer {
     .day-cell.blocked.checkout-day::after {
         height: 22px !important;
         left: -3px !important;
-        right: 15% !important;
+        right: 25% !important;
         width: auto !important;
         border-radius: 0 11px 11px 0 !important;
         background: var(--airbnb-red) !important;

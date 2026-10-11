@@ -1105,7 +1105,8 @@ class DatabaseService:
                     'valor': total,
                     'descripcion': f"Cancelación reserva {reserva.get('event_start', '')} - {reserva.get('event_end', '')}",
                     'reserva_id': reserva_id,
-                    'pagado': True
+                    'pagado': True,
+                    'calendario_id': (reserva.get('calendario_id') or '').strip(),
                 }
                 self.guardar_gasto_otros(gasto)
             
@@ -1182,8 +1183,36 @@ class DatabaseService:
     # ============================================================
     # GASTOS AGREGADOS POR AÑO (optimizado para desempeño)
     # ============================================================
-    
-    def obtener_gastos_agregados_anio(self, year: int) -> dict:
+
+    GASTOS_COLECCIONES = (
+        'gastos_agua', 'gastos_internet', 'gastos_gasolina',
+        'gastos_aseo', 'gastos_otros', 'gastos_electricidad',
+    )
+
+    @staticmethod
+    def _filtro_calendario_gastos(calendario_ids: list | None) -> dict:
+        """Filtro Mongo por calendario_id para gastos.
+
+        None = sin filtro (todos). Lista vacía = sin resultados (se maneja
+        en el llamante). '__legacy__' incluye docs sin calendario_id.
+        """
+        if calendario_ids is None:
+            return {}
+        if not calendario_ids:
+            return {'_id': None}  # no matchea nada
+        if '__legacy__' in calendario_ids:
+            others = [c for c in calendario_ids if c != '__legacy__']
+            if not others:
+                return {}
+            return {'$or': [
+                {'calendario_id': {'$in': others}},
+                {'calendario_id': None},
+                {'calendario_id': {'$exists': False}},
+                {'calendario_id': ''},
+            ]}
+        return {'calendario_id': {'$in': calendario_ids}}
+
+    def obtener_gastos_agregados_anio(self, year: int, calendario_ids: list = None) -> dict:
         """Obtiene gastos agregados por mes para un año. 4 queries en lugar de 48."""
         if not self.connect():
             return {m: {'agua': 0, 'internet': 0, 'gasolina': 0, 'aseo': 0, 'otros': 0, 'electricidad': 0, 'pagado': 0, 'proximos': 0} for m in range(1, 13)}
@@ -1191,9 +1220,11 @@ class DatabaseService:
         fin = f"{year + 1}-01-01"
         meses = {m: {'agua': 0, 'internet': 0, 'gasolina': 0, 'aseo': 0, 'otros': 0, 'electricidad': 0, 'pagado': 0, 'proximos': 0} for m in range(1, 13)}
         try:
+            filtro_cal = self._filtro_calendario_gastos(calendario_ids)
             for coll_name, key in [('gastos_agua', 'agua'), ('gastos_internet', 'internet'), ('gastos_gasolina', 'gasolina'), ('gastos_aseo', 'aseo'), ('gastos_otros', 'otros'), ('gastos_electricidad', 'electricidad')]:
                 coll = self.db[coll_name]
-                cursor = coll.find({'fecha_pago': {'$gte': inicio, '$lt': fin}}, {'fecha_pago': 1, 'valor': 1, 'pagado': 1})
+                query = {'fecha_pago': {'$gte': inicio, '$lt': fin}, **filtro_cal}
+                cursor = coll.find(query, {'fecha_pago': 1, 'valor': 1, 'pagado': 1})
                 for doc in cursor:
                     fp = doc.get('fecha_pago', '') or ''
                     try:
@@ -1211,22 +1242,22 @@ class DatabaseService:
             print(f"❌ Error obteniendo gastos agregados: {e}")
         return meses
     
-    def obtener_gastos_mes(self, year: int, month: int) -> dict:
+    def obtener_gastos_mes(self, year: int, month: int, calendario_ids: list = None) -> dict:
         """Obtiene todos los gastos del mes en un solo llamado. Retorna dict con agua, internet, gasolina, aseo, otros, electricidad."""
         return {
-            'agua': self.obtener_gastos_agua(year, month),
-            'internet': self.obtener_gastos_internet(year, month),
-            'gasolina': self.obtener_gastos_gasolina(year, month),
-            'aseo': self.obtener_gastos_aseo(year, month),
-            'otros': self.obtener_gastos_otros(year, month),
-            'electricidad': self.obtener_gastos_electricidad(year, month),
+            'agua': self.obtener_gastos_agua(year, month, calendario_ids=calendario_ids),
+            'internet': self.obtener_gastos_internet(year, month, calendario_ids=calendario_ids),
+            'gasolina': self.obtener_gastos_gasolina(year, month, calendario_ids=calendario_ids),
+            'aseo': self.obtener_gastos_aseo(year, month, calendario_ids=calendario_ids),
+            'otros': self.obtener_gastos_otros(year, month, calendario_ids=calendario_ids),
+            'electricidad': self.obtener_gastos_electricidad(year, month, calendario_ids=calendario_ids),
         }
     
     # ============================================================
     # GASTOS DE AGUA
     # ============================================================
     
-    def obtener_gastos_agua(self, year: int, month: int) -> list:
+    def obtener_gastos_agua(self, year: int, month: int, calendario_ids: list = None) -> list:
         """Obtiene gastos de agua del mes especificado."""
         if not self.connect():
             return []
@@ -1240,7 +1271,8 @@ class DatabaseService:
                 fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
             
             cursor = self.db.gastos_agua.find({
-                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes},
+                **self._filtro_calendario_gastos(calendario_ids),
             }).sort('fecha_pago', -1)
             
             gastos = []
@@ -1255,7 +1287,9 @@ class DatabaseService:
                     'valor': doc.get('valor', 0),
                     'descripcion': doc.get('descripcion', ''),
                     'whatsapp': doc.get('whatsapp', ''),
-                    'pagado': doc.get('pagado', True)
+                    'pagado': doc.get('pagado', True),
+                    'proveedor_id': doc.get('proveedor_id', ''),
+                    'calendario_id': doc.get('calendario_id', ''),
                 })
             
             return gastos
@@ -1279,7 +1313,8 @@ class DatabaseService:
                 'descripcion': gasto.get('descripcion', ''),
                 'whatsapp': gasto.get('whatsapp', ''),
                 'pagado': gasto.get('pagado', True),
-                'proveedor_id': gasto.get('proveedor_id', '')
+                'proveedor_id': gasto.get('proveedor_id', ''),
+                'calendario_id': (gasto.get('calendario_id') or '').strip(),
             }
             
             result = self.db.gastos_agua.insert_one(doc)
@@ -1318,12 +1353,54 @@ class DatabaseService:
         except Exception as e:
             print(f"❌ Error eliminando gasto: {e}")
             return {"success": False, "error": str(e)}
+
+    GASTOS_EDITABLES = (
+        'razon', 'nombre', 'tipo', 'fecha_pago', 'valor',
+        'descripcion', 'whatsapp', 'pagado', 'proveedor_id',
+        'calendario_id', 'reserva_id',
+    )
+
+    def actualizar_gasto(self, coleccion: str, gasto_id: str, datos: dict) -> dict:
+        """Edita un gasto existente (incluye reasignar calendario_id).
+
+        Solo permite keys en GASTOS_EDITABLES. calendario_id se normaliza
+        con strip ('' = sin asignar / legacy).
+        """
+        if coleccion not in self.GASTOS_COLECCIONES:
+            return {"success": False, "error": f"Colección inválida: {coleccion}"}
+        if not self.connect():
+            return {"success": False, "error": "No hay conexión"}
+        try:
+            from bson import ObjectId
+            coll = self.db[coleccion]
+            update = {}
+            for k in self.GASTOS_EDITABLES:
+                if k in (datos or {}):
+                    v = datos.get(k)
+                    if k == 'calendario_id':
+                        update[k] = (v or '').strip()
+                    elif k == 'valor':
+                        try:
+                            update[k] = int(v or 0)
+                        except (TypeError, ValueError):
+                            update[k] = 0
+                    elif k == 'pagado':
+                        update[k] = bool(v)
+                    else:
+                        update[k] = v
+            if not update:
+                return {"success": False, "error": "Nada que actualizar"}
+            r = coll.update_one({"_id": ObjectId(gasto_id)}, {"$set": update})
+            return {"success": r.matched_count > 0}
+        except Exception as e:
+            print(f"❌ Error actualizando gasto: {e}")
+            return {"success": False, "error": str(e)}
     
     # ============================================================
     # GASTOS DE INTERNET
     # ============================================================
     
-    def obtener_gastos_internet(self, year: int, month: int) -> list:
+    def obtener_gastos_internet(self, year: int, month: int, calendario_ids: list = None) -> list:
         """Obtiene gastos de internet del mes especificado."""
         if not self.connect():
             return []
@@ -1336,7 +1413,8 @@ class DatabaseService:
                 fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
             
             cursor = self.db.gastos_internet.find({
-                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes},
+                **self._filtro_calendario_gastos(calendario_ids),
             }).sort('fecha_pago', -1)
             
             gastos = []
@@ -1351,7 +1429,9 @@ class DatabaseService:
                     'valor': doc.get('valor', 0),
                     'descripcion': doc.get('descripcion', ''),
                     'whatsapp': doc.get('whatsapp', ''),
-                    'pagado': doc.get('pagado', True)
+                    'pagado': doc.get('pagado', True),
+                    'proveedor_id': doc.get('proveedor_id', ''),
+                    'calendario_id': doc.get('calendario_id', ''),
                 })
             
             return gastos
@@ -1375,7 +1455,8 @@ class DatabaseService:
                 'descripcion': gasto.get('descripcion', ''),
                 'whatsapp': gasto.get('whatsapp', ''),
                 'pagado': gasto.get('pagado', True),
-                'proveedor_id': gasto.get('proveedor_id', '')
+                'proveedor_id': gasto.get('proveedor_id', ''),
+                'calendario_id': (gasto.get('calendario_id') or '').strip(),
             }
             
             result = self.db.gastos_internet.insert_one(doc)
@@ -1389,8 +1470,8 @@ class DatabaseService:
     # GASTOS DE GASOLINA
     # ============================================================
     
-    def obtener_gastos_gasolina(self, year: int, month: int) -> list:
-        """Obtiene gastos de gasolina del mes especificado."""
+    def obtener_gastos_gasolina(self, year: int, month: int, calendario_ids: list = None) -> list:
+        """Obtiene gastos de gasolina/transporte del mes especificado."""
         if not self.connect():
             return []
         
@@ -1402,7 +1483,8 @@ class DatabaseService:
                 fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
             
             cursor = self.db.gastos_gasolina.find({
-                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes},
+                **self._filtro_calendario_gastos(calendario_ids),
             }).sort('fecha_pago', -1)
             
             gastos = []
@@ -1417,7 +1499,9 @@ class DatabaseService:
                     'valor': doc.get('valor', 0),
                     'descripcion': doc.get('descripcion', ''),
                     'whatsapp': doc.get('whatsapp', ''),
-                    'pagado': doc.get('pagado', True)
+                    'pagado': doc.get('pagado', True),
+                    'proveedor_id': doc.get('proveedor_id', ''),
+                    'calendario_id': doc.get('calendario_id', ''),
                 })
             
             return gastos
@@ -1426,7 +1510,7 @@ class DatabaseService:
             return []
     
     def guardar_gasto_gasolina(self, gasto: dict) -> dict:
-        """Guarda un nuevo gasto de gasolina."""
+        """Guarda un nuevo gasto de gasolina/transporte."""
         if not self.connect():
             return {"success": False, "error": "No se pudo conectar a la base de datos"}
         
@@ -1441,7 +1525,8 @@ class DatabaseService:
                 'descripcion': gasto.get('descripcion', ''),
                 'whatsapp': gasto.get('whatsapp', ''),
                 'pagado': gasto.get('pagado', True),
-                'proveedor_id': gasto.get('proveedor_id', '')
+                'proveedor_id': gasto.get('proveedor_id', ''),
+                'calendario_id': (gasto.get('calendario_id') or '').strip(),
             }
             
             result = self.db.gastos_gasolina.insert_one(doc)
@@ -1455,7 +1540,7 @@ class DatabaseService:
     # GASTOS DE ASEO
     # ============================================================
     
-    def obtener_gastos_aseo(self, year: int, month: int) -> list:
+    def obtener_gastos_aseo(self, year: int, month: int, calendario_ids: list = None) -> list:
         """Obtiene gastos de aseo del mes especificado."""
         if not self.connect():
             return []
@@ -1468,7 +1553,8 @@ class DatabaseService:
                 fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
             
             cursor = self.db.gastos_aseo.find({
-                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes},
+                **self._filtro_calendario_gastos(calendario_ids),
             }).sort('fecha_pago', -1)
             
             gastos = []
@@ -1483,7 +1569,9 @@ class DatabaseService:
                     'valor': doc.get('valor', 0),
                     'descripcion': doc.get('descripcion', ''),
                     'whatsapp': doc.get('whatsapp', ''),
-                    'pagado': doc.get('pagado', True)
+                    'pagado': doc.get('pagado', True),
+                    'proveedor_id': doc.get('proveedor_id', ''),
+                    'calendario_id': doc.get('calendario_id', ''),
                 })
             
             return gastos
@@ -1507,7 +1595,8 @@ class DatabaseService:
                 'descripcion': gasto.get('descripcion', ''),
                 'whatsapp': gasto.get('whatsapp', ''),
                 'pagado': gasto.get('pagado', True),
-                'proveedor_id': gasto.get('proveedor_id', '')
+                'proveedor_id': gasto.get('proveedor_id', ''),
+                'calendario_id': (gasto.get('calendario_id') or '').strip(),
             }
             
             result = self.db.gastos_aseo.insert_one(doc)
@@ -1521,7 +1610,7 @@ class DatabaseService:
     # GASTOS OTROS (devoluciones, electricidad, etc.)
     # ============================================================
     
-    def obtener_gastos_otros(self, year: int, month: int) -> list:
+    def obtener_gastos_otros(self, year: int, month: int, calendario_ids: list = None) -> list:
         """Obtiene gastos de otros del mes especificado."""
         if not self.connect():
             return []
@@ -1532,7 +1621,8 @@ class DatabaseService:
             else:
                 fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
             cursor = self.db.gastos_otros.find({
-                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes},
+                **self._filtro_calendario_gastos(calendario_ids),
             }).sort('fecha_pago', -1)
             gastos = []
             for doc in cursor:
@@ -1546,7 +1636,9 @@ class DatabaseService:
                     'valor': doc.get('valor', 0),
                     'descripcion': doc.get('descripcion', ''),
                     'whatsapp': doc.get('whatsapp', ''),
-                    'pagado': doc.get('pagado', True)
+                    'pagado': doc.get('pagado', True),
+                    'proveedor_id': doc.get('proveedor_id', ''),
+                    'calendario_id': doc.get('calendario_id', ''),
                 })
             return gastos
         except Exception as e:
@@ -1569,6 +1661,7 @@ class DatabaseService:
                 'whatsapp': gasto.get('whatsapp', ''),
                 'pagado': gasto.get('pagado', True),
                 'proveedor_id': gasto.get('proveedor_id', ''),
+                'calendario_id': (gasto.get('calendario_id') or '').strip(),
                 'reserva_id': gasto.get('reserva_id', '')
             }
             result = self.db.gastos_otros.insert_one(doc)
@@ -1581,7 +1674,7 @@ class DatabaseService:
     # GASTOS ELECTRICIDAD
     # ============================================================
     
-    def obtener_gastos_electricidad(self, year: int, month: int) -> list:
+    def obtener_gastos_electricidad(self, year: int, month: int, calendario_ids: list = None) -> list:
         """Obtiene gastos de electricidad del mes especificado."""
         if not self.connect():
             return []
@@ -1592,7 +1685,8 @@ class DatabaseService:
             else:
                 fin_mes = f"{year}-{str(month + 1).zfill(2)}-01"
             cursor = self.db.gastos_electricidad.find({
-                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes}
+                'fecha_pago': {'$gte': inicio_mes, '$lt': fin_mes},
+                **self._filtro_calendario_gastos(calendario_ids),
             }).sort('fecha_pago', -1)
             gastos = []
             for doc in cursor:
@@ -1606,7 +1700,9 @@ class DatabaseService:
                     'valor': doc.get('valor', 0),
                     'descripcion': doc.get('descripcion', ''),
                     'whatsapp': doc.get('whatsapp', ''),
-                    'pagado': doc.get('pagado', True)
+                    'pagado': doc.get('pagado', True),
+                    'proveedor_id': doc.get('proveedor_id', ''),
+                    'calendario_id': doc.get('calendario_id', ''),
                 })
             return gastos
         except Exception as e:
@@ -1628,7 +1724,8 @@ class DatabaseService:
                 'descripcion': gasto.get('descripcion', ''),
                 'whatsapp': gasto.get('whatsapp', ''),
                 'pagado': gasto.get('pagado', True),
-                'proveedor_id': gasto.get('proveedor_id', '')
+                'proveedor_id': gasto.get('proveedor_id', ''),
+                'calendario_id': (gasto.get('calendario_id') or '').strip(),
             }
             result = self.db.gastos_electricidad.insert_one(doc)
             return {"success": result.inserted_id is not None, "id": str(result.inserted_id)}
@@ -1718,6 +1815,30 @@ class DatabaseService:
                     print(f"✅ Proveedor '{p['nombre']}' creado")
         except Exception as e:
             print(f"❌ Error seeding proveedores: {e}")
+
+    def seed_proveedores_gastos(self):
+        """Seed idempotente v3.7.0: Comunidad Edificio Santiago Magno (otros)
+        + Tur Bus (gasolinera/transporte). No duplica si ya existen."""
+        if not self.connect():
+            return
+        try:
+            defaults = [
+                {'nombre': 'Comunidad Edificio Santiago Magno', 'servicio': 'Gasto Común', 'tipo': 'otros'},
+                {'nombre': 'Tur Bus', 'servicio': 'transporte', 'tipo': 'gasolinera'},
+            ]
+            for p in defaults:
+                if not self.db.proveedores.find_one({'nombre': p['nombre'], 'tipo': p['tipo']}):
+                    self.db.proveedores.insert_one({
+                        'nombre': p['nombre'],
+                        'servicio': p['servicio'],
+                        'tipo': p['tipo'],
+                        'banco': '', 'rut': '', 'tipo_cuenta': '',
+                        'numero_cuenta': '', 'email': '', 'whatsapp': '',
+                        'fecha_creacion': datetime.utcnow().isoformat()
+                    })
+                    print(f"✅ Proveedor '{p['nombre']}' creado")
+        except Exception as e:
+            print(f"❌ Error seeding proveedores gastos: {e}")
     
     def obtener_transacciones_mes(self, year: int, month: int) -> list:
         """Obtiene transacciones BCI del mes especificado desde la base de datos 'bci'.

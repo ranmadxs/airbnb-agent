@@ -89,10 +89,10 @@
                             <span class="expense-add-icon">+</span>
                         </div>
                         <div class="expense-widget-mini gasolina" onclick="abrirModalGasolina()">
-                            <div class="expense-icon">⛽</div>
+                            <div class="expense-icon">🚌</div>
                             <div class="expense-content">
                                 <span class="expense-value" id="expense-gasolina">-$0</span>
-                                <span class="expense-label">Gasolina</span>
+                                <span class="expense-label">Transporte</span>
                             </div>
                             <span class="expense-add-icon">+</span>
                         </div>
@@ -768,6 +768,12 @@
                         <option value="">-- Seleccionar proveedor --</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>Calendario (propiedad)</label>
+                    <select id="agua-calendario" name="calendario_id">
+                        <option value="">-- Seleccionar calendario --</option>
+                    </select>
+                </div>
                 
                 <div class="form-row">
                     <div class="form-group half">
@@ -850,6 +856,12 @@
                         <option value="">-- Seleccionar proveedor --</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>Calendario (propiedad)</label>
+                    <select id="internet-calendario" name="calendario_id">
+                        <option value="">-- Seleccionar calendario --</option>
+                    </select>
+                </div>
                 
                 <div class="form-row">
                     <div class="form-group half">
@@ -921,7 +933,7 @@
     <div id="gasolina-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content modal-gasolina">
             <div class="modal-header">
-                <h2>⛽ Gastos de Gasolina</h2>
+                <h2>🚌 Gastos de Transporte</h2>
                 <button type="button" class="modal-close" onclick="cerrarModalGasolina()">&times;</button>
             </div>
             
@@ -930,6 +942,12 @@
                     <label>Proveedor</label>
                     <select id="gasolina-proveedor" name="proveedor_id" onchange="seleccionarProveedorGasolina()">
                         <option value="">-- Seleccionar proveedor --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Calendario (propiedad)</label>
+                    <select id="gasolina-calendario" name="calendario_id">
+                        <option value="">-- Seleccionar calendario --</option>
                     </select>
                 </div>
                 
@@ -949,6 +967,8 @@
                         <label>Tipo</label>
                         <select id="gasolina-tipo" name="tipo">
                             <option value="combustible">Combustible</option>
+                            <option value="pasaje">Pasaje (bus/transporte)</option>
+                            <option value="traslado">Traslado</option>
                             <option value="aceite">Aceite</option>
                             <option value="mantención">Mantención</option>
                             <option value="otro">Otro</option>
@@ -1012,6 +1032,12 @@
                     <label>Proveedor</label>
                     <select id="aseo-proveedor" name="proveedor_id" onchange="seleccionarProveedorAseo()">
                         <option value="">-- Seleccionar proveedor --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Calendario (propiedad)</label>
+                    <select id="aseo-calendario" name="calendario_id">
+                        <option value="">-- Seleccionar calendario --</option>
                     </select>
                 </div>
                 
@@ -1094,6 +1120,12 @@
                         <option value="">-- Seleccionar proveedor --</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>Calendario (propiedad)</label>
+                    <select id="otros-calendario" name="calendario_id">
+                        <option value="">-- Seleccionar calendario --</option>
+                    </select>
+                </div>
                 <div class="form-row">
                     <div class="form-group half">
                         <label>Razón</label>
@@ -1111,6 +1143,8 @@
                             <option value="devolucion">Devolución</option>
                             <option value="gas">Gas</option>
                             <option value="mantencion">Mantención</option>
+                            <option value="gasto_comun">Gasto Común</option>
+                            <option value="contribuciones">Contribuciones</option>
                             <option value="otro">Otro</option>
                         </select>
                     </div>
@@ -1160,6 +1194,12 @@
                     <label>Proveedor</label>
                     <select id="electricidad-proveedor" name="proveedor_id" onchange="seleccionarProveedorElectricidad()">
                         <option value="">-- Seleccionar proveedor --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Calendario (propiedad)</label>
+                    <select id="electricidad-calendario" name="calendario_id">
+                        <option value="">-- Seleccionar calendario --</option>
                     </select>
                 </div>
                 <div class="form-row">
@@ -1870,8 +1910,9 @@
 
         // Píldora de un evento: color de su calendario.
         // Las píldoras del mismo evento en días seguidos forman UNA tira
-        // continua (más fina que la franja): logo+nombre solo al inicio,
-        // resto con logo, chiquita al terminar.
+        // continua: logo+nombre solo al inicio, resto limpio; al terminar,
+        // la tira se acorta a 3/4 del día (clase fin) con el mismo grosor
+        // para que se lea como terminación y no como franja rota.
         // Carril vertical estable por fila semanal (Lu-Do): el mismo evento
         // va siempre a la misma altura, compartido o solo el día.
         // Coloreo greedy por (start, id) sobre rangos de tira [start, end].
@@ -1903,8 +1944,8 @@
             pill.className = 'pill'
                 + (f.izq ? ' con-izq' : '')
                 + (f.der ? ' con-der' : '')
-                + (f.mini ? ' mini' : '')
                 + (f.grande ? ' grande' : '')
+                + (f.fin ? ' fin' : '')
                 + ((f.etiqueta === 'full' && f.der) ? ' label-largo' : '');
             const cid = ev.calendario_id || '';
             const cal = calendariosImagenes[cid] || {};
@@ -1929,15 +1970,21 @@
                 // Si la tira continúa, nombre completo flotando sobre ella;
                 // si termina acá, cortado a la celda.
                 const largo = f.der ? 30 : 12;
-                const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, largo);
-                const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
-                // Conteos: personas (adultos+niños) sumadas +👤, mascotas +N🐾.
+                let nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, largo);
+                // Conteos: personas (adultos+niños) y mascotas, sin "+" (ej. "2👤", "1🐾").
                 const ad = ev.adultos || 0, ni = ev.ninos || 0, ma = ev.mascotas || 0;
                 const per = ad + ni;
+                // En móvil el espacio es mínimo: con nombre largo y conteos,
+                // acortar a las primeras 4 letras + "..." (ej. "Andr...")
+                // para que la mascota siempre quepa.
+                if (window.innerWidth < 768 && (per > 1 || ma > 0) && nombre.length > 5) {
+                    nombre = nombre.substring(0, 4) + '...';
+                }
+                const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
                 let counts = '';
                 if (per > 1 || ma > 0) {
-                    if (per > 0) counts += `<span class="p-count">+${per}👤</span>`;
-                    if (ma > 0) counts += `<span class="p-count">+${ma}🐾</span>`;
+                    if (per > 0) counts += `<span class="p-count">${per}👤</span>`;
+                    if (ma > 0) counts += `<span class="p-count">${ma}🐾</span>`;
                 }
                 dentro = `
                     ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : dot}
@@ -1989,8 +2036,8 @@
                     izq: ev.start < dia,
                     der: diaMas1 <= ev.end,
                     etiqueta,
-                    mini: !solo && esCheckout && etiqueta !== 'full',
                     grande: solo,
+                    fin: esCheckout,
                 });
                 cell.appendChild(pill);
                 puestas.push(pill);
@@ -2855,6 +2902,102 @@
         }
         
         // ============================================================
+        // GASTOS POR CALENDARIO (v3.7.0): helpers compartidos
+        // ============================================================
+
+        let calendariosGastosCache = [];
+        let editandoGasto = {};  // {agua: id|null, internet: id|null, ...}
+
+        async function cargarCalendariosGastos() {
+            if (calendariosGastosCache.length) return calendariosGastosCache;
+            try {
+                const res = await fetch('/api/calendarios', { credentials: 'include' });
+                if (!res.ok) return [];
+                const data = await res.json();
+                calendariosGastosCache = data.configured || [];
+            } catch (err) {
+                console.error('Error cargando calendarios para gastos:', err);
+                calendariosGastosCache = [];
+            }
+            return calendariosGastosCache;
+        }
+
+        async function poblarSelectsCalendarioGastos(defaultId) {
+            const cals = await cargarCalendariosGastos();
+            const ids = ['agua-calendario', 'internet-calendario', 'gasolina-calendario', 'aseo-calendario', 'otros-calendario', 'electricidad-calendario'];
+            const dflt = defaultId || 'paraiso_los_quinquelles_1';
+            ids.forEach(sid => {
+                const sel = document.getElementById(sid);
+                if (!sel) return;
+                const actual = sel.value || dflt;
+                sel.innerHTML = '<option value="">-- Seleccionar calendario --</option>';
+                cals.forEach(c => {
+                    sel.innerHTML += `<option value="${c.calendario_id}">${c.nombre}</option>`;
+                });
+                if ([...sel.options].some(o => o.value === actual)) sel.value = actual;
+                else if ([...sel.options].some(o => o.value === dflt)) sel.value = dflt;
+            });
+        }
+
+        function nombreCalendarioGasto(cid) {
+            if (!cid) return '';
+            const c = calendariosGastosCache.find(x => x.calendario_id === cid);
+            return c ? c.nombre : cid;
+        }
+
+        function badgeCalendarioGasto(cid) {
+            const nombre = nombreCalendarioGasto(cid);
+            if (!nombre) return '';
+            return `<span class="gasto-calendario">🏠 ${nombre}</span>`;
+        }
+
+        async function actualizarGastoPUT(tipo, gastoId, data, recargarFn) {
+            try {
+                const res = await fetch(`/api/gastos/${tipo}/${gastoId}`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    if (recargarFn) await recargarFn();
+                    await refrescarTodosLosGastos();
+                    return true;
+                }
+                alert('Error: ' + (result.error || 'No se pudo actualizar'));
+                return false;
+            } catch (err) {
+                alert('Error de conexión');
+                return false;
+            }
+        }
+
+        function iniciarEdicionGasto(tipo, prefijo, gasto) {
+            // Rellena el modal de `prefijo` con los datos y marca modo edición.
+            document.getElementById(`${prefijo}-proveedor`).value = gasto.proveedor_id || '';
+            document.getElementById(`${prefijo}-calendario`).value = gasto.calendario_id || '';
+            document.getElementById(`${prefijo}-razon`).value = gasto.razon || '';
+            document.getElementById(`${prefijo}-nombre`).value = gasto.nombre || '';
+            const tipoSel = document.getElementById(`${prefijo}-tipo`);
+            if (tipoSel && gasto.tipo) {
+                if ([...tipoSel.options].some(o => o.value === gasto.tipo)) tipoSel.value = gasto.tipo;
+                else tipoSel.value = tipoSel.options[0].value;
+            }
+            document.getElementById(`${prefijo}-fecha-pago`).value = gasto.fecha_pago || new Date().toISOString().split('T')[0];
+            document.getElementById(`${prefijo}-valor`).value = gasto.valor || '';
+            document.getElementById(`${prefijo}-whatsapp`).value = gasto.whatsapp || '';
+            document.getElementById(`${prefijo}-descripcion`).value = gasto.descripcion || '';
+            document.getElementById(`${prefijo}-pagado`).checked = gasto.pagado !== false;
+            editandoGasto[tipo] = gasto.id;
+            const modal = document.getElementById(`${prefijo}-modal`);
+            if (modal) {
+                modal.style.display = 'flex';
+                modal.querySelector('.modal-content').scrollTop = 0;
+            }
+        }
+
+        // ============================================================
         // MODAL DE GASTOS DE AGUA
         // ============================================================
         
@@ -2866,8 +3009,10 @@
             
             // Cargar proveedores
             await cargarProveedores();
+            await poblarSelectsCalendarioGastos();
             
             // Limpiar formulario
+            editandoGasto['agua'] = null;
             document.getElementById('agua-proveedor').value = '';
             document.getElementById('agua-razon').value = '';
             document.getElementById('agua-nombre').value = '';
@@ -2978,6 +3123,7 @@
                                 <div class="gasto-info">
                                     <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
                                     <span class="gasto-proveedor">${g.nombre || ''}</span>
+                                    ${badgeCalendarioGasto(g.calendario_id)}
                                     <span class="gasto-fecha">${fechaPago}</span>
                                 </div>
                                 <div class="gasto-valor">
@@ -2985,6 +3131,7 @@
                                     <span class="gasto-estado">${estado}</span>
                                 </div>
                                 <div class="gasto-acciones">
+                                    <button type="button" class="gasto-btn editar-btn" onclick='editarGastoAgua("${g.id}")' title="Editar">✏️</button>
                                     <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('agua','${g.id}', cargarHistorialAgua)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
                                     <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('agua','${g.id}', cargarHistorialAgua)" title="Eliminar">🗑</button>
                                 </div>
@@ -3023,8 +3170,21 @@
                 whatsapp: document.getElementById('agua-whatsapp').value,
                 descripcion: document.getElementById('agua-descripcion').value,
                 pagado: document.getElementById('agua-pagado').checked,
-                proveedor_id: document.getElementById('agua-proveedor').value
+                proveedor_id: document.getElementById('agua-proveedor').value,
+                calendario_id: document.getElementById('agua-calendario').value
             };
+
+            if (editandoGasto['agua']) {
+                const ok = await actualizarGastoPUT('agua', editandoGasto['agua'], data, cargarHistorialAgua);
+                if (ok) {
+                    editandoGasto['agua'] = null;
+                    document.getElementById('agua-razon').value = '';
+                    document.getElementById('agua-valor').value = '';
+                    document.getElementById('agua-descripcion').value = '';
+                    alert('Gasto actualizado correctamente');
+                }
+                return;
+            }
             
             try {
                 const res = await fetch('/api/gastos/agua', {
@@ -3055,6 +3215,12 @@
         document.getElementById('agua-modal').addEventListener('click', (e) => {
             if (e.target.id === 'agua-modal') cerrarModalAgua();
         });
+
+        function editarGastoAgua(gastoId) {
+            const g = (gastosAgua || []).find(x => x.id === gastoId);
+            if (!g) return;
+            poblarSelectsCalendarioGastos().then(() => iniciarEdicionGasto('agua', 'agua', g));
+        }
         
         // ============================================================
         // MODAL DE GASTOS DE INTERNET
@@ -3068,8 +3234,10 @@
             
             // Cargar proveedores
             await cargarProveedoresInternet();
+            await poblarSelectsCalendarioGastos();
             
             // Limpiar formulario
+            editandoGasto['internet'] = null;
             document.getElementById('internet-proveedor').value = '';
             document.getElementById('internet-razon').value = '';
             document.getElementById('internet-nombre').value = '';
@@ -3144,6 +3312,7 @@
                                 <div class="gasto-info">
                                     <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
                                     <span class="gasto-proveedor">${g.nombre || ''}</span>
+                                    ${badgeCalendarioGasto(g.calendario_id)}
                                     <span class="gasto-fecha">${fechaPago}</span>
                                 </div>
                                 <div class="gasto-valor">
@@ -3151,6 +3320,7 @@
                                     <span class="gasto-estado">${estado}</span>
                                 </div>
                                 <div class="gasto-acciones">
+                                    <button type="button" class="gasto-btn editar-btn" onclick='editarGastoInternet("${g.id}")' title="Editar">✏️</button>
                                     <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('internet','${g.id}', cargarHistorialInternet)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
                                     <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('internet','${g.id}', cargarHistorialInternet)" title="Eliminar">🗑</button>
                                 </div>
@@ -3189,8 +3359,21 @@
                 whatsapp: document.getElementById('internet-whatsapp').value,
                 descripcion: document.getElementById('internet-descripcion').value,
                 pagado: document.getElementById('internet-pagado').checked,
-                proveedor_id: document.getElementById('internet-proveedor').value
+                proveedor_id: document.getElementById('internet-proveedor').value,
+                calendario_id: document.getElementById('internet-calendario').value
             };
+
+            if (editandoGasto['internet']) {
+                const ok = await actualizarGastoPUT('internet', editandoGasto['internet'], data, cargarHistorialInternet);
+                if (ok) {
+                    editandoGasto['internet'] = null;
+                    document.getElementById('internet-razon').value = '';
+                    document.getElementById('internet-valor').value = '';
+                    document.getElementById('internet-descripcion').value = '';
+                    alert('Gasto actualizado correctamente');
+                }
+                return;
+            }
             
             try {
                 const res = await fetch('/api/gastos/internet', {
@@ -3220,6 +3403,12 @@
         document.getElementById('internet-modal').addEventListener('click', (e) => {
             if (e.target.id === 'internet-modal') cerrarModalInternet();
         });
+
+        function editarGastoInternet(gastoId) {
+            const g = (gastosInternet || []).find(x => x.id === gastoId);
+            if (!g) return;
+            poblarSelectsCalendarioGastos().then(() => iniciarEdicionGasto('internet', 'internet', g));
+        }
         
         // ============================================================
         // MODAL DE GASTOS DE GASOLINA
@@ -3232,7 +3421,9 @@
             const modal = document.getElementById('gasolina-modal');
             
             await cargarProveedoresGasolina();
+            await poblarSelectsCalendarioGastos();
             
+            editandoGasto['gasolina'] = null;
             document.getElementById('gasolina-proveedor').value = '';
             document.getElementById('gasolina-razon').value = '';
             document.getElementById('gasolina-nombre').value = '';
@@ -3306,6 +3497,7 @@
                                 <div class="gasto-info">
                                     <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
                                     <span class="gasto-proveedor">${g.nombre || ''}</span>
+                                    ${badgeCalendarioGasto(g.calendario_id)}
                                     <span class="gasto-fecha">${fechaPago}</span>
                                 </div>
                                 <div class="gasto-valor">
@@ -3313,6 +3505,7 @@
                                     <span class="gasto-estado">${estado}</span>
                                 </div>
                                 <div class="gasto-acciones">
+                                    <button type="button" class="gasto-btn editar-btn" onclick='editarGastoGasolina("${g.id}")' title="Editar">✏️</button>
                                     <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('gasolina','${g.id}', cargarHistorialGasolina)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
                                     <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('gasolina','${g.id}', cargarHistorialGasolina)" title="Eliminar">🗑</button>
                                 </div>
@@ -3350,8 +3543,21 @@
                 whatsapp: document.getElementById('gasolina-whatsapp').value,
                 descripcion: document.getElementById('gasolina-descripcion').value,
                 pagado: document.getElementById('gasolina-pagado').checked,
-                proveedor_id: document.getElementById('gasolina-proveedor').value
+                proveedor_id: document.getElementById('gasolina-proveedor').value,
+                calendario_id: document.getElementById('gasolina-calendario').value
             };
+
+            if (editandoGasto['gasolina']) {
+                const ok = await actualizarGastoPUT('gasolina', editandoGasto['gasolina'], data, cargarHistorialGasolina);
+                if (ok) {
+                    editandoGasto['gasolina'] = null;
+                    document.getElementById('gasolina-razon').value = '';
+                    document.getElementById('gasolina-valor').value = '';
+                    document.getElementById('gasolina-descripcion').value = '';
+                    alert('Gasto actualizado correctamente');
+                }
+                return;
+            }
             
             try {
                 const res = await fetch('/api/gastos/gasolina', {
@@ -3381,6 +3587,12 @@
         document.getElementById('gasolina-modal').addEventListener('click', (e) => {
             if (e.target.id === 'gasolina-modal') cerrarModalGasolina();
         });
+
+        function editarGastoGasolina(gastoId) {
+            const g = (gastosGasolina || []).find(x => x.id === gastoId);
+            if (!g) return;
+            poblarSelectsCalendarioGastos().then(() => iniciarEdicionGasto('gasolina', 'gasolina', g));
+        }
         
         // ============================================================
         // MODAL DE GASTOS DE ASEO
@@ -3393,7 +3605,9 @@
             const modal = document.getElementById('aseo-modal');
             
             await cargarProveedoresAseo();
+            await poblarSelectsCalendarioGastos();
             
+            editandoGasto['aseo'] = null;
             document.getElementById('aseo-proveedor').value = '';
             document.getElementById('aseo-razon').value = '';
             document.getElementById('aseo-nombre').value = '';
@@ -3467,6 +3681,7 @@
                                 <div class="gasto-info">
                                     <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
                                     <span class="gasto-proveedor">${g.nombre || ''}</span>
+                                    ${badgeCalendarioGasto(g.calendario_id)}
                                     <span class="gasto-fecha">${fechaPago}</span>
                                 </div>
                                 <div class="gasto-valor">
@@ -3474,6 +3689,7 @@
                                     <span class="gasto-estado">${estado}</span>
                                 </div>
                                 <div class="gasto-acciones">
+                                    <button type="button" class="gasto-btn editar-btn" onclick='editarGastoAseo("${g.id}")' title="Editar">✏️</button>
                                     <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('aseo','${g.id}', cargarHistorialAseo)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
                                     <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('aseo','${g.id}', cargarHistorialAseo)" title="Eliminar">🗑</button>
                                 </div>
@@ -3511,8 +3727,21 @@
                 whatsapp: document.getElementById('aseo-whatsapp').value,
                 descripcion: document.getElementById('aseo-descripcion').value,
                 pagado: document.getElementById('aseo-pagado').checked,
-                proveedor_id: document.getElementById('aseo-proveedor').value
+                proveedor_id: document.getElementById('aseo-proveedor').value,
+                calendario_id: document.getElementById('aseo-calendario').value
             };
+
+            if (editandoGasto['aseo']) {
+                const ok = await actualizarGastoPUT('aseo', editandoGasto['aseo'], data, cargarHistorialAseo);
+                if (ok) {
+                    editandoGasto['aseo'] = null;
+                    document.getElementById('aseo-razon').value = '';
+                    document.getElementById('aseo-valor').value = '';
+                    document.getElementById('aseo-descripcion').value = '';
+                    alert('Gasto actualizado correctamente');
+                }
+                return;
+            }
             
             try {
                 const res = await fetch('/api/gastos/aseo', {
@@ -3542,6 +3771,12 @@
         document.getElementById('aseo-modal').addEventListener('click', (e) => {
             if (e.target.id === 'aseo-modal') cerrarModalAseo();
         });
+
+        function editarGastoAseo(gastoId) {
+            const g = (gastosAseo || []).find(x => x.id === gastoId);
+            if (!g) return;
+            poblarSelectsCalendarioGastos().then(() => iniciarEdicionGasto('aseo', 'aseo', g));
+        }
         
         // ========== MODAL OTROS ==========
         let gastosOtros = [];
@@ -3550,6 +3785,8 @@
         async function abrirModalOtros() {
             const modal = document.getElementById('otros-modal');
             await cargarProveedoresOtros();
+            await poblarSelectsCalendarioGastos();
+            editandoGasto['otros'] = null;
             document.getElementById('otros-proveedor').value = '';
             document.getElementById('otros-razon').value = '';
             document.getElementById('otros-nombre').value = '';
@@ -3607,6 +3844,7 @@
                             <div class="gasto-info">
                                 <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
                                 <span class="gasto-proveedor">${g.nombre || ''}</span>
+                                ${badgeCalendarioGasto(g.calendario_id)}
                                 <span class="gasto-fecha">${fechaPago}</span>
                             </div>
                             <div class="gasto-valor">
@@ -3614,6 +3852,7 @@
                                 <span class="gasto-estado">${estado}</span>
                             </div>
                             <div class="gasto-acciones">
+                                <button type="button" class="gasto-btn editar-btn" onclick="editarGastoOtros('${g.id}')" title="Editar">✏️</button>
                                 <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('otros','${g.id}', cargarHistorialOtros)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
                                 <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('otros','${g.id}', cargarHistorialOtros)" title="Eliminar">🗑</button>
                             </div>
@@ -3639,8 +3878,20 @@
                 whatsapp: document.getElementById('otros-whatsapp').value,
                 descripcion: document.getElementById('otros-descripcion').value,
                 pagado: document.getElementById('otros-pagado').checked,
-                proveedor_id: document.getElementById('otros-proveedor').value
+                proveedor_id: document.getElementById('otros-proveedor').value,
+                calendario_id: document.getElementById('otros-calendario').value
             };
+            if (editandoGasto['otros']) {
+                const ok = await actualizarGastoPUT('otros', editandoGasto['otros'], data, cargarHistorialOtros);
+                if (ok) {
+                    editandoGasto['otros'] = null;
+                    document.getElementById('otros-razon').value = '';
+                    document.getElementById('otros-valor').value = '';
+                    document.getElementById('otros-descripcion').value = '';
+                    alert('Gasto actualizado correctamente');
+                }
+                return;
+            }
             try {
                 const res = await fetch('/api/gastos/otros', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
                 const result = await res.json();
@@ -3658,6 +3909,12 @@
         document.getElementById('otros-modal').addEventListener('click', (e) => {
             if (e.target.id === 'otros-modal') cerrarModalOtros();
         });
+
+        function editarGastoOtros(gastoId) {
+            const g = (gastosOtros || []).find(x => x.id === gastoId);
+            if (!g) return;
+            poblarSelectsCalendarioGastos().then(() => iniciarEdicionGasto('otros', 'otros', g));
+        }
         
         // ========== MODAL ELECTRICIDAD ==========
         let gastosElectricidad = [];
@@ -3666,6 +3923,8 @@
         async function abrirModalElectricidad() {
             const modal = document.getElementById('electricidad-modal');
             await cargarProveedoresElectricidad();
+            await poblarSelectsCalendarioGastos();
+            editandoGasto['electricidad'] = null;
             document.getElementById('electricidad-proveedor').value = '';
             document.getElementById('electricidad-razon').value = '';
             document.getElementById('electricidad-nombre').value = '';
@@ -3723,6 +3982,7 @@
                             <div class="gasto-info">
                                 <span class="gasto-razon">${g.razon || 'Sin razón'}</span>
                                 <span class="gasto-proveedor">${g.nombre || ''}</span>
+                                ${badgeCalendarioGasto(g.calendario_id)}
                                 <span class="gasto-fecha">${fechaPago}</span>
                             </div>
                             <div class="gasto-valor">
@@ -3730,6 +3990,7 @@
                                 <span class="gasto-estado">${estado}</span>
                             </div>
                             <div class="gasto-acciones">
+                                <button type="button" class="gasto-btn editar-btn" onclick="editarGastoElectricidad('${g.id}')" title="Editar">✏️</button>
                                 <button type="button" class="gasto-btn pagado-btn" onclick="togglePagadoGasto('electricidad','${g.id}', cargarHistorialElectricidad)" title="${btnPagado}">${g.pagado ? '⏳' : '✓'}</button>
                                 <button type="button" class="gasto-btn eliminar-btn" onclick="eliminarGasto('electricidad','${g.id}', cargarHistorialElectricidad)" title="Eliminar">🗑</button>
                             </div>
@@ -3755,8 +4016,20 @@
                 whatsapp: document.getElementById('electricidad-whatsapp').value,
                 descripcion: document.getElementById('electricidad-descripcion').value,
                 pagado: document.getElementById('electricidad-pagado').checked,
-                proveedor_id: document.getElementById('electricidad-proveedor').value
+                proveedor_id: document.getElementById('electricidad-proveedor').value,
+                calendario_id: document.getElementById('electricidad-calendario').value
             };
+            if (editandoGasto['electricidad']) {
+                const ok = await actualizarGastoPUT('electricidad', editandoGasto['electricidad'], data, cargarHistorialElectricidad);
+                if (ok) {
+                    editandoGasto['electricidad'] = null;
+                    document.getElementById('electricidad-razon').value = '';
+                    document.getElementById('electricidad-valor').value = '';
+                    document.getElementById('electricidad-descripcion').value = '';
+                    alert('Gasto actualizado correctamente');
+                }
+                return;
+            }
             try {
                 const res = await fetch('/api/gastos/electricidad', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
                 const result = await res.json();
@@ -3774,6 +4047,12 @@
         document.getElementById('electricidad-modal').addEventListener('click', (e) => {
             if (e.target.id === 'electricidad-modal') cerrarModalElectricidad();
         });
+
+        function editarGastoElectricidad(gastoId) {
+            const g = (gastosElectricidad || []).find(x => x.id === gastoId);
+            if (!g) return;
+            poblarSelectsCalendarioGastos().then(() => iniciarEdicionGasto('electricidad', 'electricidad', g));
+        }
         
         // Refrescar todos los gastos (widgets, total, iconos en calendario) - usar tras guardar/toggle/eliminar
         async function refrescarTodosLosGastos() {
