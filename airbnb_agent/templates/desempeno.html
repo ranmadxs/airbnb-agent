@@ -358,7 +358,7 @@
                         <div class="desglose-seccion-titulo">Egresos (se restan)</div>
                         <div class="desglose-item"><span>Agua</span><span id="desglose-agua">-$0</span></div>
                         <div class="desglose-item"><span>Internet</span><span id="desglose-internet">-$0</span></div>
-                        <div class="desglose-item"><span>Gasolina</span><span id="desglose-gasolina">-$0</span></div>
+                        <div class="desglose-item"><span>Transporte</span><span id="desglose-gasolina">-$0</span></div>
                         <div class="desglose-item"><span>Aseo</span><span id="desglose-aseo">-$0</span></div>
                         <div class="desglose-item"><span>Otros</span><span id="desglose-otros">-$0</span></div>
                         <div class="desglose-item"><span>Electricidad</span><span id="desglose-electricidad">-$0</span></div>
@@ -423,7 +423,7 @@
                         <label class="desempeno-anual-desglose-item">
                             <span class="desempeno-anual-plus">−</span>
                             <input type="checkbox" id="anual-cb-gasolina" checked>
-                            <span>Gasolina</span>
+                            <span>Transporte</span>
                             <span class="desempeno-anual-desglose-valor desempeno-anual-gasto-item-valor" id="anual-valor-gasolina">—</span>
                         </label>
                         <label class="desempeno-anual-desglose-item">
@@ -608,7 +608,7 @@
             <div class="desempeno-modal-filtro" id="egresos-filtro">
                 <label><input type="checkbox" id="filtro-egreso-agua" checked> Agua</label>
                 <label><input type="checkbox" id="filtro-egreso-internet" checked> Internet</label>
-                <label><input type="checkbox" id="filtro-egreso-gasolina" checked> Gasolina</label>
+                <label><input type="checkbox" id="filtro-egreso-gasolina" checked> Transporte</label>
                 <label><input type="checkbox" id="filtro-egreso-aseo" checked> Aseo</label>
                 <label><input type="checkbox" id="filtro-egreso-otros" checked> Otros</label>
                 <label><input type="checkbox" id="filtro-egreso-electricidad" checked> Electricidad</label>
@@ -1015,7 +1015,7 @@
             const seriesAll = [
                 { key: 'agua', arr: agua, color: '#0ea5e9', acum: acumAgua, nombre: 'Agua' },
                 { key: 'internet', arr: internet, color: '#3B82F6', acum: acumInternet, nombre: 'Internet' },
-                { key: 'gasolina', arr: gasolina, color: '#f59e0b', acum: acumGasolina, nombre: 'Gasolina' },
+                { key: 'gasolina', arr: gasolina, color: '#f59e0b', acum: acumGasolina, nombre: 'Transporte' },
                 { key: 'aseo', arr: aseo, color: '#8b5cf6', acum: acumAseo, nombre: 'Aseo' },
                 { key: 'otros', arr: otros, color: '#10b981', acum: acumOtros, nombre: 'Otros' },
                 { key: 'electricidad', arr: electricidad, color: '#6366f1', acum: acumElectricidad, nombre: 'Electricidad' },

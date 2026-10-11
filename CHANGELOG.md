@@ -1,3 +1,10 @@
+## [3.7.0] - 2026-10-11
+### Added
+- Gastos por calendario (propiedad): los 6 tipos (agua, internet, gasolina/transporte, aseo, otros, electricidad) aceptan `calendario_id` al crear y al editar (nuevo `PUT /api/gastos/<tipo>/<id>` + botón ✏️ en cada historial + selector en los 6 modales). GETs y `/api/desempeno*` aceptan `?calendario_ids=`. Devoluciones por cancelación heredan el calendario de la reserva.
+- Transporte (antes Gasolina, solo etiqueta UI; colección y endpoints `gasolina` intactos + alias `/api/gastos/transporte`): nuevos tipos `pasaje` y `traslado`, proveedor `Tur Bus` (seed idempotente tipo `gasolinera`).
+- Otros: nuevos tipos `Gasto Común` (`gasto_comun`) y `Contribuciones`, proveedor `Comunidad Edificio Santiago Magno` (seed idempotente tipo `otros`).
+- Migración `scripts/migrate_gastos_calendario_id.py`: asigna `paraiso_los_quinquelles_1` a todos los gastos legacy sin `calendario_id` (idempotente, con `--dry-run`). Ejecutar antes del deploy con filtro.
+
 ## [3.6.2] - 2026-10-05
 ### Fixed
 - Sync no duplica por código: si el iCal trae un código que ya existe como reserva manual (con huésped y precio), se omite aunque no tenga candado (bug Julián 7-oct: gemelo airbnb de HMPYPZTKA3 eliminado + candado puesto).

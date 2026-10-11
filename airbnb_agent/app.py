@@ -839,8 +839,9 @@ def desempeno():
 @app.route('/api/desempeno')
 @login_required
 def api_desempeno():
-    """API: Datos de desempeño mensual (ingresos, gastos, pagado/próximos)."""
+    """API: Datos de desempeño mensual (ingresos, gastos, pagado/próximos). Acepta ?calendario_ids= para filtrar gastos."""
     year = request.args.get('year', datetime.now().year, type=int)
+    calendario_ids = _parse_calendario_ids()
 
     ical_events = airbnb_service.fetch_events()
     if ical_events is not None:
@@ -861,7 +862,7 @@ def api_desempeno():
                 all_events = list(all_events) + pagos_anio
     except Exception:
         pass
-    gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
+    gastos_por_mes = db_service.obtener_gastos_agregados_anio(year, calendario_ids=calendario_ids)
 
     meses_data = []
     for mes in range(1, 13):
@@ -952,7 +953,7 @@ def api_desempeno_dias():
             if precio + extra > 0:
                 eventos.append({'dia': ev_end, 'tipo': 'ingreso', 'concepto': 'reserva', 'valor': precio + extra})
 
-    gastos_mes = db_service.obtener_gastos_mes(year, month)
+    gastos_mes = db_service.obtener_gastos_mes(year, month, calendario_ids=_parse_calendario_ids())
     for concepto, lista in gastos_mes.items():
         for g in lista:
             fp = g.get('fecha_pago', '')
@@ -1097,7 +1098,7 @@ def api_estadisticas_total_mes():
     year = request.args.get('year', date.today().year, type=int)
 
     all_events = db_service.obtener_eventos_formato_ical()
-    gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
+    gastos_por_mes = db_service.obtener_gastos_agregados_anio(year, calendario_ids=_parse_calendario_ids())
 
     balances = []
     gastos_list = []
@@ -1684,13 +1685,50 @@ def admin_reserva():
 # API GASTOS (todos en un endpoint)
 # ============================================================
 
+GASTOS_TIPO_A_COLECCION = {
+    'agua': 'gastos_agua',
+    'internet': 'gastos_internet',
+    'gasolina': 'gastos_gasolina',
+    'transporte': 'gastos_gasolina',  # v3.7.0: alias UI Transporte → misma colección
+    'aseo': 'gastos_aseo',
+    'otros': 'gastos_otros',
+    'electricidad': 'gastos_electricidad',
+}
+
+
+def _calendario_id_gasto(data: dict) -> str:
+    """Sanitiza calendario_id de un gasto: válido → id, resto → '' (legacy)."""
+    return _validate_calendario_id((data or {}).get('calendario_id')) or ''
+
+
+def _gasto_update_from_request(data: dict) -> dict:
+    """Filtra body de PUT a keys editables + valida calendario_id."""
+    allowed = ('razon', 'nombre', 'tipo', 'fecha_pago', 'valor',
+               'descripcion', 'whatsapp', 'pagado', 'proveedor_id',
+               'calendario_id', 'reserva_id')
+    out = {k: data.get(k) for k in allowed if k in (data or {})}
+    if 'calendario_id' in out:
+        out['calendario_id'] = _validate_calendario_id(out.get('calendario_id')) or ''
+    return out
+
+
+def _api_gasto_id_generico(coleccion: str, gasto_id: str):
+    """PUT: edita (incluye calendario_id). PATCH: toggle pagado. DELETE: elimina."""
+    if request.method == 'PUT':
+        data = request.get_json(silent=True) or {}
+        return jsonify(db_service.actualizar_gasto(coleccion, gasto_id, _gasto_update_from_request(data)))
+    if request.method == 'PATCH':
+        return jsonify(db_service.toggle_pagado_gasto(coleccion, gasto_id))
+    return jsonify(db_service.eliminar_gasto(coleccion, gasto_id))
+
+
 @app.route('/api/gastos', methods=['GET'])
 @login_required
 def obtener_gastos_mes():
     """Obtiene todos los gastos del mes (agua, internet, gasolina, aseo, otros, electricidad) en un solo llamado."""
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
-    return jsonify(db_service.obtener_gastos_mes(year, month))
+    return jsonify(db_service.obtener_gastos_mes(year, month, calendario_ids=_parse_calendario_ids()))
 
 # ============================================================
 # API GASTOS DE AGUA
@@ -1703,7 +1741,7 @@ def obtener_gastos_agua():
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
     
-    gastos = db_service.obtener_gastos_agua(year, month)
+    gastos = db_service.obtener_gastos_agua(year, month, calendario_ids=_parse_calendario_ids())
     return jsonify({"gastos": gastos})
 
 @app.route('/api/gastos/agua', methods=['POST'])
@@ -1721,19 +1759,18 @@ def guardar_gasto_agua():
         'descripcion': data.get('descripcion', ''),
         'whatsapp': data.get('whatsapp', ''),
         'pagado': data.get('pagado', True),
-        'proveedor_id': data.get('proveedor_id', '')
+        'proveedor_id': data.get('proveedor_id', ''),
+        'calendario_id': _calendario_id_gasto(data),
     }
     
     resultado = db_service.guardar_gasto_agua(gasto)
     return jsonify(resultado)
 
-@app.route('/api/gastos/agua/<gasto_id>', methods=['PATCH', 'DELETE'])
+@app.route('/api/gastos/agua/<gasto_id>', methods=['PATCH', 'PUT', 'DELETE'])
 @login_required
 def api_gasto_agua_id(gasto_id):
-    """PATCH: alterna pagado. DELETE: elimina el gasto."""
-    if request.method == 'PATCH':
-        return jsonify(db_service.toggle_pagado_gasto('gastos_agua', gasto_id))
-    return jsonify(db_service.eliminar_gasto('gastos_agua', gasto_id))
+    """PUT: edita (incluye calendario_id). PATCH: alterna pagado. DELETE: elimina el gasto."""
+    return _api_gasto_id_generico('gastos_agua', gasto_id)
 
 # ============================================================
 # API GASTOS DE INTERNET
@@ -1746,7 +1783,7 @@ def obtener_gastos_internet():
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
     
-    gastos = db_service.obtener_gastos_internet(year, month)
+    gastos = db_service.obtener_gastos_internet(year, month, calendario_ids=_parse_calendario_ids())
     return jsonify({"gastos": gastos})
 
 @app.route('/api/gastos/internet', methods=['POST'])
@@ -1764,18 +1801,17 @@ def guardar_gasto_internet():
         'descripcion': data.get('descripcion', ''),
         'whatsapp': data.get('whatsapp', ''),
         'pagado': data.get('pagado', True),
-        'proveedor_id': data.get('proveedor_id', '')
+        'proveedor_id': data.get('proveedor_id', ''),
+        'calendario_id': _calendario_id_gasto(data),
     }
     
     resultado = db_service.guardar_gasto_internet(gasto)
     return jsonify(resultado)
 
-@app.route('/api/gastos/internet/<gasto_id>', methods=['PATCH', 'DELETE'])
+@app.route('/api/gastos/internet/<gasto_id>', methods=['PATCH', 'PUT', 'DELETE'])
 @login_required
 def api_gasto_internet_id(gasto_id):
-    if request.method == 'PATCH':
-        return jsonify(db_service.toggle_pagado_gasto('gastos_internet', gasto_id))
-    return jsonify(db_service.eliminar_gasto('gastos_internet', gasto_id))
+    return _api_gasto_id_generico('gastos_internet', gasto_id)
 
 # ============================================================
 # API GASTOS DE GASOLINA
@@ -1784,17 +1820,17 @@ def api_gasto_internet_id(gasto_id):
 @app.route('/api/gastos/gasolina', methods=['GET'])
 @login_required
 def obtener_gastos_gasolina():
-    """Obtiene gastos de gasolina del mes especificado."""
+    """Obtiene gastos de transporte (colección histórica gastos_gasolina) del mes."""
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
     
-    gastos = db_service.obtener_gastos_gasolina(year, month)
+    gastos = db_service.obtener_gastos_gasolina(year, month, calendario_ids=_parse_calendario_ids())
     return jsonify({"gastos": gastos})
 
 @app.route('/api/gastos/gasolina', methods=['POST'])
 @login_required
 def guardar_gasto_gasolina():
-    """Guarda un nuevo gasto de gasolina."""
+    """Guarda un nuevo gasto de transporte."""
     data = request.get_json()
     
     gasto = {
@@ -1806,18 +1842,54 @@ def guardar_gasto_gasolina():
         'descripcion': data.get('descripcion', ''),
         'whatsapp': data.get('whatsapp', ''),
         'pagado': data.get('pagado', True),
-        'proveedor_id': data.get('proveedor_id', '')
+        'proveedor_id': data.get('proveedor_id', ''),
+        'calendario_id': _calendario_id_gasto(data),
     }
     
     resultado = db_service.guardar_gasto_gasolina(gasto)
     return jsonify(resultado)
 
-@app.route('/api/gastos/gasolina/<gasto_id>', methods=['PATCH', 'DELETE'])
+@app.route('/api/gastos/gasolina/<gasto_id>', methods=['PATCH', 'PUT', 'DELETE'])
 @login_required
 def api_gasto_gasolina_id(gasto_id):
-    if request.method == 'PATCH':
-        return jsonify(db_service.toggle_pagado_gasto('gastos_gasolina', gasto_id))
-    return jsonify(db_service.eliminar_gasto('gastos_gasolina', gasto_id))
+    return _api_gasto_id_generico('gastos_gasolina', gasto_id)
+
+
+# v3.7.0: alias Transporte → misma colección que gasolina (retrocompat UI nueva).
+@app.route('/api/gastos/transporte', methods=['GET'])
+@login_required
+def obtener_gastos_transporte():
+    """Alias de /api/gastos/gasolina con nombre UI Transporte."""
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+    gastos = db_service.obtener_gastos_gasolina(year, month, calendario_ids=_parse_calendario_ids())
+    return jsonify({"gastos": gastos})
+
+
+@app.route('/api/gastos/transporte', methods=['POST'])
+@login_required
+def guardar_gasto_transporte():
+    """Alias de POST gasolina."""
+    data = request.get_json()
+    gasto = {
+        'razon': data.get('razon', ''),
+        'nombre': data.get('nombre', ''),
+        'tipo': data.get('tipo', 'combustible'),
+        'fecha_pago': data.get('fecha_pago', ''),
+        'valor': data.get('valor', 0),
+        'descripcion': data.get('descripcion', ''),
+        'whatsapp': data.get('whatsapp', ''),
+        'pagado': data.get('pagado', True),
+        'proveedor_id': data.get('proveedor_id', ''),
+        'calendario_id': _calendario_id_gasto(data),
+    }
+    return jsonify(db_service.guardar_gasto_gasolina(gasto))
+
+
+@app.route('/api/gastos/transporte/<gasto_id>', methods=['PATCH', 'PUT', 'DELETE'])
+@login_required
+def api_gasto_transporte_id(gasto_id):
+    return _api_gasto_id_generico('gastos_gasolina', gasto_id)
 
 # ============================================================
 # API GASTOS DE ASEO
@@ -1830,7 +1902,7 @@ def obtener_gastos_aseo():
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
     
-    gastos = db_service.obtener_gastos_aseo(year, month)
+    gastos = db_service.obtener_gastos_aseo(year, month, calendario_ids=_parse_calendario_ids())
     return jsonify({"gastos": gastos})
 
 @app.route('/api/gastos/aseo', methods=['POST'])
@@ -1848,18 +1920,17 @@ def guardar_gasto_aseo():
         'descripcion': data.get('descripcion', ''),
         'whatsapp': data.get('whatsapp', ''),
         'pagado': data.get('pagado', True),
-        'proveedor_id': data.get('proveedor_id', '')
+        'proveedor_id': data.get('proveedor_id', ''),
+        'calendario_id': _calendario_id_gasto(data),
     }
     
     resultado = db_service.guardar_gasto_aseo(gasto)
     return jsonify(resultado)
 
-@app.route('/api/gastos/aseo/<gasto_id>', methods=['PATCH', 'DELETE'])
+@app.route('/api/gastos/aseo/<gasto_id>', methods=['PATCH', 'PUT', 'DELETE'])
 @login_required
 def api_gasto_aseo_id(gasto_id):
-    if request.method == 'PATCH':
-        return jsonify(db_service.toggle_pagado_gasto('gastos_aseo', gasto_id))
-    return jsonify(db_service.eliminar_gasto('gastos_aseo', gasto_id))
+    return _api_gasto_id_generico('gastos_aseo', gasto_id)
 
 # ============================================================
 # API GASTOS OTROS (devoluciones, etc.)
@@ -1870,7 +1941,7 @@ def api_gasto_aseo_id(gasto_id):
 def obtener_gastos_otros():
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
-    gastos = db_service.obtener_gastos_otros(year, month)
+    gastos = db_service.obtener_gastos_otros(year, month, calendario_ids=_parse_calendario_ids())
     return jsonify({"gastos": gastos})
 
 @app.route('/api/gastos/otros', methods=['POST'])
@@ -1886,17 +1957,16 @@ def guardar_gasto_otros():
         'descripcion': data.get('descripcion', ''),
         'whatsapp': data.get('whatsapp', ''),
         'pagado': data.get('pagado', True),
-        'proveedor_id': data.get('proveedor_id', '')
+        'proveedor_id': data.get('proveedor_id', ''),
+        'calendario_id': _calendario_id_gasto(data),
     }
     resultado = db_service.guardar_gasto_otros(gasto)
     return jsonify(resultado)
 
-@app.route('/api/gastos/otros/<gasto_id>', methods=['PATCH', 'DELETE'])
+@app.route('/api/gastos/otros/<gasto_id>', methods=['PATCH', 'PUT', 'DELETE'])
 @login_required
 def api_gasto_otros_id(gasto_id):
-    if request.method == 'PATCH':
-        return jsonify(db_service.toggle_pagado_gasto('gastos_otros', gasto_id))
-    return jsonify(db_service.eliminar_gasto('gastos_otros', gasto_id))
+    return _api_gasto_id_generico('gastos_otros', gasto_id)
 
 # ============================================================
 # API GASTOS ELECTRICIDAD
@@ -1907,7 +1977,7 @@ def api_gasto_otros_id(gasto_id):
 def obtener_gastos_electricidad():
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
-    gastos = db_service.obtener_gastos_electricidad(year, month)
+    gastos = db_service.obtener_gastos_electricidad(year, month, calendario_ids=_parse_calendario_ids())
     return jsonify({"gastos": gastos})
 
 @app.route('/api/gastos/electricidad', methods=['POST'])
@@ -1923,17 +1993,16 @@ def guardar_gasto_electricidad():
         'descripcion': data.get('descripcion', ''),
         'whatsapp': data.get('whatsapp', ''),
         'pagado': data.get('pagado', True),
-        'proveedor_id': data.get('proveedor_id', '')
+        'proveedor_id': data.get('proveedor_id', ''),
+        'calendario_id': _calendario_id_gasto(data),
     }
     resultado = db_service.guardar_gasto_electricidad(gasto)
     return jsonify(resultado)
 
-@app.route('/api/gastos/electricidad/<gasto_id>', methods=['PATCH', 'DELETE'])
+@app.route('/api/gastos/electricidad/<gasto_id>', methods=['PATCH', 'PUT', 'DELETE'])
 @login_required
 def api_gasto_electricidad_id(gasto_id):
-    if request.method == 'PATCH':
-        return jsonify(db_service.toggle_pagado_gasto('gastos_electricidad', gasto_id))
-    return jsonify(db_service.eliminar_gasto('gastos_electricidad', gasto_id))
+    return _api_gasto_id_generico('gastos_electricidad', gasto_id)
 
 # ============================================================
 # API PROVEEDORES
@@ -1957,6 +2026,10 @@ def guardar_proveedor():
 
 
 db_service.seed_proveedores_otros()
+try:
+    db_service.seed_proveedores_gastos()
+except Exception:
+    pass
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

@@ -962,6 +962,27 @@ header {
     background: #fecaca;
 }
 
+.gasto-btn.editar-btn {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.gasto-btn.editar-btn:hover {
+    background: #bfdbfe;
+}
+
+.gasto-calendario {
+    display: inline-block;
+    font-size: 0.72em;
+    font-weight: 600;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    padding: 1px 8px;
+    margin-top: 2px;
+}
+
 .gasto-item.pendiente {
     border-left-color: #f59e0b;
     background: #fffbeb;
