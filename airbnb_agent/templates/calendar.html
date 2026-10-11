@@ -1970,15 +1970,21 @@
                 // Si la tira continúa, nombre completo flotando sobre ella;
                 // si termina acá, cortado a la celda.
                 const largo = f.der ? 30 : 12;
-                const nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, largo);
-                const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
-                // Conteos: personas (adultos+niños) sumadas +👤, mascotas +N🐾.
+                let nombre = (ev.nombre_huesped || nombreCal.split(' ')[0] || ev.summary || '?').substring(0, largo);
+                // Conteos: personas (adultos+niños) y mascotas, sin "+" (ej. "2👤", "1🐾").
                 const ad = ev.adultos || 0, ni = ev.ninos || 0, ma = ev.mascotas || 0;
                 const per = ad + ni;
+                // En móvil el espacio es mínimo: con nombre largo y conteos,
+                // acortar a las primeras 4 letras + "..." (ej. "Andr...")
+                // para que la mascota siempre quepa.
+                if (window.innerWidth < 768 && (per > 1 || ma > 0) && nombre.length > 5) {
+                    nombre = nombre.substring(0, 4) + '...';
+                }
+                const ini = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
                 let counts = '';
                 if (per > 1 || ma > 0) {
-                    if (per > 0) counts += `<span class="p-count">+${per}👤</span>`;
-                    if (ma > 0) counts += `<span class="p-count">+${ma}🐾</span>`;
+                    if (per > 0) counts += `<span class="p-count">${per}👤</span>`;
+                    if (ma > 0) counts += `<span class="p-count">${ma}🐾</span>`;
                 }
                 dentro = `
                     ${logo ? `<img src="${logo}" alt="" loading="lazy" onerror="this.remove()">` : dot}
