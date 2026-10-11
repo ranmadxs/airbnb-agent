@@ -4198,3 +4198,14 @@ footer {
         font-size: 0.8em;
     }
 }
+
+/* Ranking admin top copas oro/plata/bronce */
+.ranking-link { display: block; }
+.ranking-pos { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #F3F4F6; border: 2px solid #E5E7EB; flex-shrink: 0; }
+.ranking-pos.copa-oro { background: linear-gradient(135deg,#FFD700,#B8860B); color: #fff; border-color: #B8860B; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.ranking-pos.copa-plata { background: linear-gradient(135deg,#E5E7EB,#9CA3AF); color: #fff; border-color: #9CA3AF; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.ranking-pos.copa-bronce { background: linear-gradient(135deg,#F59E0B,#92400E); color: #fff; border-color: #92400E; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+
+/* Link copa Ranking junto a Total del Mes: pill centrado, sin subrayado */
+.ranking-cup-link { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 8px auto 0; padding: 6px 16px; border-radius: 999px; background: #fff8e6; border: 1px solid #f0d48a; color: #8a5a00; font-weight: 700; font-size: 0.85em; text-decoration: none; width: fit-content; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.ranking-cup-link:hover { background: #ffefc2; text-decoration: none; }

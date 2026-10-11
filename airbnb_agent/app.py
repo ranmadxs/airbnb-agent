@@ -836,6 +836,17 @@ def desempeno():
                          current_month=now.month)
 
 
+@app.route('/ranking')
+@login_required
+def ranking():
+    """Vista ranking admin (anual + global) por ingresos brutos."""
+    now = datetime.now()
+    return render_template('ranking.html',
+                         version=APP_VERSION,
+                         property_name=PROPERTY_NAME,
+                         current_year=now.year)
+
+
 @app.route('/api/desempeno')
 @login_required
 def api_desempeno():
@@ -1088,6 +1099,208 @@ def api_promedio_anual():
         'promedio': round(promedio),
         'cantidad_meses': len(resultados)
     })
+
+
+# Todos los gastos históricos del sistema pertenecen a Paraíso (migración
+# scripts/migrate_gastos_calendario_id.py). Los docs legacy sin calendario_id
+# se cuentan en Paraíso hasta que la migración corra.
+PARAISO_CALENDARIO_ID = "paraiso_los_quinquelles_1"
+
+
+def _gastos_anuales_por_calendario(year: int, calendario_ids: list) -> dict:
+    """Gastos reales anuales por calendario_id (sin prorrateo).
+
+    Paraíso incluye docs legacy sin calendario_id. '__legacy__' retorna 0
+    para no duplicar con Paraíso.
+    """
+    totales: dict = {}
+    for cid in (calendario_ids or []):
+        if cid == '__legacy__':
+            totales[cid] = 0
+            continue
+        try:
+            filtro = [cid, '__legacy__'] if cid == PARAISO_CALENDARIO_ID else [cid]
+            agg = db_service.obtener_gastos_agregados_anio(year, calendario_ids=filtro)
+        except Exception:
+            agg = {}
+        total = 0
+        for mes in range(1, 13):
+            g = (agg or {}).get(mes, {})
+            total += sum((g.get(k, 0) or 0) for k in ('agua', 'internet', 'gasolina', 'aseo', 'otros', 'electricidad'))
+        totales[cid] = total
+    return totales
+
+
+def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict, gastos_anuales_por_cal: dict | None = None) -> dict:
+    """Top10 anual por ingresos brutos (arriendo+tinaja). Tinaja siempre sumada.
+
+    gastos_anuales_por_cal: {calendario_id: gastos_reales_anio}. Si se entrega,
+    se usa gasto real por calendario; si no, prorrateo proporcional (legacy tests).
+    """
+    meses = []
+    ing_por_cal: dict = {}
+    cli: dict = {}
+    for mes in range(1, 13):
+        arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(all_events, year, mes)
+        ingresos = (arriendo or 0) + (tinaja or 0)
+        g = (gastos_por_mes or {}).get(mes, {})
+        gastos = sum((g.get(k, 0) or 0) for k in ('agua', 'internet', 'gasolina', 'aseo', 'otros', 'electricidad'))
+        if ingresos > 0:
+            meses.append({'mes': mes, 'nombre_mes': MESES_ES[mes], 'anio': year,
+                          'ingresos': ingresos, 'gastos': gastos, 'neto': ingresos - gastos})
+        por_cal = _calcular_ingresos_por_calendario(all_events, year, mes)
+        for cid, v in por_cal.items():
+            slot = ing_por_cal.setdefault(cid, {'ingresos': 0})
+            slot['ingresos'] += (v.get('arriendo', 0) or 0) + (v.get('tinaja', 0) or 0)
+    if gastos_anuales_por_cal is None:
+        # fallback prorrateo (tests unitarios sin DB)
+        for mes in range(1, 13):
+            arriendo, tinaja, _, _ = _calcular_ingresos_mes_reservas(all_events, year, mes)
+            ingresos = (arriendo or 0) + (tinaja or 0)
+            g = (gastos_por_mes or {}).get(mes, {})
+            gastos = sum((g.get(k, 0) or 0) for k in ('agua', 'internet', 'gasolina', 'aseo', 'otros', 'electricidad'))
+            por_cal = _calcular_ingresos_por_calendario(all_events, year, mes)
+            for cid, v in por_cal.items():
+                slot = ing_por_cal.setdefault(cid, {'ingresos': 0, 'gastos': 0})
+                if ingresos > 0:
+                    slot['gastos'] = slot.get('gastos', 0) + round(gastos * ((v.get('total', 0) or 0) / ingresos))
+    # clientes: prorrateo por mes igual que calendario (excluye pagos arriendo sintéticos)
+    for ev in (all_events or []):
+        if ev.get('estado') != 'reservado':
+            continue
+        if ev.get('source') == 'arriendo' or ev.get('tipo') == 'pago_arriendo':
+            continue
+        nombre = (ev.get('nombre_huesped') or '').strip() or (ev.get('summary') or '').strip() or 'Huésped'
+        try:
+            ev_start = date.fromisoformat(ev.get('start', ''))
+            ev_end = date.fromisoformat(ev.get('end', ''))
+        except Exception:
+            continue
+        dias_totales = max(1, (ev_end - ev_start).days + 1)
+        total_arriendo = 0
+        total_extras = 0
+        for mes in range(1, 13):
+            inicio_mes = date(year, mes, 1)
+            fin_mes = date(year + 1, 1, 1) if mes == 12 else date(year, mes + 1, 1)
+            if ev_start >= fin_mes or ev_end < inicio_mes:
+                continue
+            ev_end_excl = ev_end + timedelta(days=1)
+            dias_en_mes = max(0, (min(ev_end_excl, fin_mes) - max(ev_start, inicio_mes)).days)
+            if dias_en_mes <= 0:
+                continue
+            prop = dias_en_mes / dias_totales
+            total_arriendo += round((ev.get('precio', 0) or 0) * prop)
+            total_extras += round((ev.get('extra_valor', 0) or 0) * prop)
+        if total_arriendo + total_extras > 0:
+            slot = cli.setdefault(nombre, {'arriendo': 0, 'extras': 0})
+            slot['arriendo'] += total_arriendo
+            slot['extras'] += total_extras
+    nombres_cal = {c['calendario_id']: c.get('nombre') or c['calendario_id'] for c in obtener_todos_calendarios()}
+    calendarios = []
+    for cid, v in ing_por_cal.items():
+        if v['ingresos'] <= 0:
+            continue
+        if gastos_anuales_por_cal is not None and cid in gastos_anuales_por_cal:
+            g_real = gastos_anuales_por_cal[cid] or 0
+        else:
+            g_real = v.get('gastos', 0) or 0
+        calendarios.append({'calendario_id': cid, 'nombre': nombres_cal.get(cid, cid),
+                            'ingresos': v['ingresos'], 'gastos': g_real, 'neto': v['ingresos'] - g_real})
+    clientes = [{'cliente': k, 'arriendo': v['arriendo'], 'extras': v['extras'], 'ingresos': v['arriendo'] + v['extras']}
+                for k, v in cli.items()]
+    meses_top = sorted(meses, key=lambda x: x['ingresos'], reverse=True)[:10]
+    cal_top = sorted(calendarios, key=lambda x: x['ingresos'], reverse=True)[:10]
+    cli_top = sorted(clientes, key=lambda x: x['ingresos'], reverse=True)[:10]
+    return {'meses_top': meses_top, 'calendarios_top': cal_top, 'clientes_top': cli_top}
+
+
+def _pagos_arriendo_anio(year: int) -> list:
+    """Pagos de arriendo con alias de un año completo (12 queries). Retorna [] si no aplica."""
+    try:
+        fn = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
+        if not callable(fn):
+            return []
+        pagos = []
+        for _m in range(1, 13):
+            _r = fn(year, _m)
+            if isinstance(_r, list) and _r:
+                pagos.extend(_r)
+        return pagos
+    except Exception:
+        return []
+
+
+@app.route('/api/ranking')
+@login_required
+def api_ranking():
+    """API: ranking anual top10 por ingresos brutos."""
+    year = request.args.get('year', date.today().year, type=int)
+    if year is None:
+        year = date.today().year
+    if not 1 <= year <= 9999:
+        return jsonify({'error': 'Año inválido'}), 400
+    all_events = db_service.obtener_eventos_formato_ical()
+    pagos_anio = _pagos_arriendo_anio(year)
+    if pagos_anio:
+        all_events = list(all_events) + pagos_anio
+    gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
+    cals_del_anio = {ev.get('calendario_id') or '__legacy__' for ev in (all_events or [])}
+    gastos_reales = _gastos_anuales_por_calendario(year, sorted(cals_del_anio))
+    data = _ranking_anual(year, all_events, gastos_por_mes, gastos_reales)
+    return jsonify({'year': year, **data})
+
+
+@app.route('/api/ranking-global')
+@login_required
+def api_ranking_global():
+    """API: ranking global todos los años top10 meses + establecimientos."""
+    all_events = db_service.obtener_eventos_formato_ical() or []
+    hoy = date.today().year
+    anios = set()
+    for ev in all_events:
+        try:
+            s = (ev.get('start') or '')[:4]
+            if s.isdigit():
+                anios.add(int(s))
+        except Exception:
+            pass
+    anios.add(hoy)
+    # Pagos de arriendo por año candidato (cubre años solo-pagos recientes)
+    for y in sorted(anios):
+        for p in _pagos_arriendo_anio(y):
+            all_events.append(p)
+    # Re-derivar años por si los pagos aportaron uno nuevo
+    anios = set()
+    for ev in all_events:
+        try:
+            s = (ev.get('start') or '')[:4]
+            if s.isdigit() and 1 <= int(s) <= 9999:
+                anios.add(int(s))
+        except Exception:
+            pass
+    if not anios:
+        anios = {hoy}
+    meses_all = []
+    est: dict = {}
+    for y in sorted(anios):
+        try:
+            gastos = db_service.obtener_gastos_agregados_anio(y)
+        except Exception:
+            gastos = {}
+        cals_y = {ev.get('calendario_id') or '__legacy__' for ev in (all_events or [])
+                  if (ev.get('start') or '')[:4] == str(y)}
+        reales_y = _gastos_anuales_por_calendario(y, sorted(cals_y))
+        d = _ranking_anual(y, all_events, gastos or {}, reales_y)
+        meses_all.extend(d.get('meses_top', []))
+        for c in d.get('calendarios_top', []):
+            slot = est.setdefault(c['calendario_id'], {'nombre': c.get('nombre') or c['calendario_id'], 'ingresos': 0, 'gastos': 0})
+            slot['ingresos'] += c.get('ingresos', 0) or 0
+            slot['gastos'] += c.get('gastos', 0) or 0
+    meses_top = sorted(meses_all, key=lambda x: x.get('ingresos', 0), reverse=True)[:10]
+    establecimientos = [{'calendario_id': k, 'nombre': v['nombre'], 'ingresos': v['ingresos'],
+                         'gastos': v['gastos'], 'neto': v['ingresos'] - v['gastos']} for k, v in est.items()]
+    establecimientos_top = sorted(establecimientos, key=lambda x: x['ingresos'], reverse=True)[:10]
+    return jsonify({'meses_top': meses_top, 'establecimientos_top': establecimientos_top})
 
 
 @app.route('/api/estadisticas-total-mes')

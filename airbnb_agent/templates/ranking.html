@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Ranking - {{ property_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ version }}">
+    <style>
+        .ranking-page { max-width: 720px; margin: 0 auto; padding: 16px; padding-bottom: 120px; }
+        .ranking-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+        .ranking-back { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #ebebeb; background: white; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #484848; font-size: 1.2em; }
+        .ranking-title { font-size: 1.5em; font-weight: 700; margin: 0; }
+        .ranking-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; }
+        .ranking-tab { padding: 10px 20px; font-weight: 600; color: #6b7280; background: transparent; border: none; border-bottom: 3px solid transparent; margin-bottom: -2px; cursor: pointer; }
+        .ranking-tab.active { color: #1d4ed8; border-bottom-color: #1d4ed8; }
+        .ranking-panel { display: none; }
+        .ranking-panel.active { display: block; }
+        .ranking-year { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; }
+        .ranking-year button { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #ebebeb; background: white; cursor: pointer; }
+        .ranking-year span { font-weight: 700; min-width: 60px; text-align: center; }
+        .ranking-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .ranking-card h3 { margin: 0 0 12px 0; }
+        .ranking-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+        .ranking-row:last-child { border-bottom: none; }
+        .ranking-pos { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #F3F4F6; border: 2px solid #E5E7EB; flex-shrink: 0; position: relative; }
+        .ranking-pos.copa-oro { background: linear-gradient(135deg,#FFD700,#B8860B); color: white; border-color: #B8860B; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+        .ranking-pos.copa-plata { background: linear-gradient(135deg,#E5E7EB,#9CA3AF); color: white; border-color: #9CA3AF; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+        .ranking-pos.copa-bronce { background: linear-gradient(135deg,#F59E0B,#92400E); color: white; border-color: #92400E; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+        .ranking-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .ranking-name { font-weight: 700; }
+        .ranking-vals { font-size: 0.85em; color: #374151; }
+        .ranking-vals .g { color: #dc2626; }
+        .ranking-empty { color: #6b7280; padding: 12px 0; }
+        .ranking-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; gap: 12px; }
+        .ranking-loading.hidden { display: none; }
+        .ranking-spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top-color: #1d4ed8; border-radius: 50%; animation: ranking-spin 0.8s linear infinite; }
+        @keyframes ranking-spin { to { transform: rotate(360deg); } }
+        .ranking-loading-text { font-size: 0.9em; color: #6b7280; font-weight: 500; }
+        .v-ing { color: #059669; font-weight: 600; }
+        .v-gas { color: #dc2626; font-weight: 600; }
+        .v-neto { color: #1d4ed8; font-weight: 800; }
+        .ranking-copa { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .copa-emoji { font-size: 42px; line-height: 1; }
+        .ranking-copa.copa-oro .copa-emoji { filter: saturate(1.7) brightness(1.18) drop-shadow(0 0 5px rgba(255,215,0,.95)); }
+        .ranking-copa.copa-plata .copa-emoji { filter: grayscale(1) brightness(1.15) drop-shadow(0 2px 3px rgba(0,0,0,.25)); }
+        .ranking-copa.copa-bronce .copa-emoji { filter: sepia(1) saturate(2.4) hue-rotate(-12deg) brightness(0.52) contrast(1.15); }
+        .copa-num { position: absolute; top: 58%; left: 50%; transform: translate(-50%,-50%); color: #fff; font-weight: 800; font-size: 1em; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+    </style>
+</head>
+<body>
+<div class="container ranking-page">
+    <div class="ranking-header">
+        <a href="/" class="ranking-back">←</a>
+        <h1 class="ranking-title">🏆 Ranking</h1>
+        <span class="version">v{{ version }}</span>
+    </div>
+    <div class="ranking-tabs">
+        <button class="ranking-tab active" id="tab-anual">Anual</button>
+        <button class="ranking-tab" id="tab-global">Global</button>
+    </div>
+    <div class="ranking-panel active" id="panel-anual">
+        <div class="ranking-year">
+            <button id="year-prev">←</button>
+            <span id="year-label">{{ current_year }}</span>
+            <button id="year-next">→</button>
+        </div>
+        <div class="ranking-loading" id="ranking-loading">
+            <div class="ranking-spinner"></div>
+            <span class="ranking-loading-text">Cargando ranking...</span>
+        </div>
+        <div class="ranking-card"><h3>Meses</h3><div id="ranking-meses"></div></div>
+        <div class="ranking-card"><h3>Calendarios</h3><div id="ranking-calendarios"></div></div>
+        <div class="ranking-card"><h3>Clientes</h3><div id="ranking-clientes"></div></div>
+    </div>
+    <div class="ranking-panel" id="panel-global">
+        <div class="ranking-card"><h3>Top 10 meses</h3><div id="ranking-global-meses"></div></div>
+        <div class="ranking-card"><h3>Establecimientos</h3><div id="ranking-global-est"></div></div>
+    </div>
+</div>
+<script>
+let rankingYear = {{ current_year }};
+function fmt(n){ return '$' + (n||0).toLocaleString('es-CL'); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function posClass(i){ return i===0?'copa-oro':i===1?'copa-plata':i===2?'copa-bronce':''; }
+function posHtml(i){
+    if (i < 3) return `<div class="ranking-copa ${posClass(i)}"><span class="copa-emoji">🏆</span><span class="copa-num">${i+1}</span></div>`;
+    return `<div class="ranking-pos">${i+1}</div>`;
+}
+function rowTop(nombre, vals, i){
+    return `<div class="ranking-row">${posHtml(i)}<div class="ranking-info"><span class="ranking-name">${esc(nombre)}</span><span class="ranking-vals">${vals}</span></div></div>`;
+}
+function rowVals(ingresos, gastos, neto){
+    return `<span class="v-ing">${fmt(ingresos)}</span> - <span class="v-gas">${fmt(gastos)}</span> = <span class="v-neto">${fmt(neto)}</span>`;
+}
+async function loadAnual(){
+    const loading = document.getElementById('ranking-loading');
+    if (loading) loading.classList.remove('hidden');
+    const res = await fetch(`/api/ranking?year=${rankingYear}`, {credentials:'include'});
+    if(res.status===401){ window.location.href='/login?next='+encodeURIComponent('/ranking'); return; }
+    const d = await res.json();
+    if (loading) loading.classList.add('hidden');
+    document.getElementById('year-label').textContent = d.year;
+    const meses = document.getElementById('ranking-meses');
+    meses.innerHTML = (d.meses_top||[]).map((m,i)=>rowTop(`${m.nombre_mes} ${m.anio}`, rowVals(m.ingresos, m.gastos, m.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
+    document.getElementById('ranking-calendarios').innerHTML = (d.calendarios_top||[]).map((c,i)=>rowTop(c.nombre, rowVals(c.ingresos, c.gastos, c.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
+    document.getElementById('ranking-clientes').innerHTML = (d.clientes_top||[]).map((c,i)=>rowTop(c.cliente, `<span class="v-ing">${fmt(c.arriendo)}</span> + ${fmt(c.extras)} = <span class="v-neto">${fmt(c.ingresos)}</span>`, i)).join('') || '<div class="ranking-empty">Sin datos</div>';
+}
+async function loadGlobal(){
+    const res = await fetch('/api/ranking-global', {credentials:'include'});
+    if(res.status===401){ return; }
+    const d = await res.json();
+    document.getElementById('ranking-global-meses').innerHTML = (d.meses_top||[]).map((m,i)=>rowTop(`${m.nombre_mes} ${m.anio}`, rowVals(m.ingresos, m.gastos, m.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
+    document.getElementById('ranking-global-est').innerHTML = (d.establecimientos_top||[]).map((c,i)=>rowTop(c.nombre, rowVals(c.ingresos, c.gastos, c.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
+}
+document.getElementById('year-prev').onclick = ()=>{ rankingYear--; loadAnual(); };
+document.getElementById('year-next').onclick = ()=>{ rankingYear++; loadAnual(); };
+document.getElementById('tab-anual').onclick = ()=>{ document.getElementById('tab-anual').classList.add('active'); document.getElementById('tab-global').classList.remove('active'); document.getElementById('panel-anual').classList.add('active'); document.getElementById('panel-global').classList.remove('active'); };
+document.getElementById('tab-global').onclick = ()=>{ document.getElementById('tab-global').classList.add('active'); document.getElementById('tab-anual').classList.remove('active'); document.getElementById('panel-global').classList.add('active'); document.getElementById('panel-anual').classList.remove('active'); loadGlobal(); };
+loadAnual();
+</script>
+</body>
+</html>
