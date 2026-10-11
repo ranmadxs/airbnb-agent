@@ -126,3 +126,28 @@ def test_ranking_html_escapa_nombres():
     from pathlib import Path
     html = Path("airbnb_agent/templates/ranking.html").read_text(encoding="utf-8")
     assert "function esc(" in html or "escapeHtml" in html
+
+
+def test_ranking_filas_formato_colores():
+    from pathlib import Path
+    html = Path("airbnb_agent/templates/ranking.html").read_text(encoding="utf-8")
+    assert "v-ing" in html and "v-gas" in html and "v-neto" in html
+    assert "ranking-spinner" in html or "ranking-loading" in html
+
+
+def test_ranking_tiene_spinner_carga():
+    from pathlib import Path
+    html = Path("airbnb_agent/templates/ranking.html").read_text(encoding="utf-8").lower()
+    assert "spinner" in html or ("loading" in html and "cargando" in html)
+
+
+def test_total_mes_sin_link_y_copa_ranking_al_lado():
+    from pathlib import Path
+    html = Path("airbnb_agent/templates/calendar.html").read_text(encoding="utf-8")
+    assert '<a href="/ranking"' not in html.split('id="widget-total-mes"')[0].split("income-widgets-sidebar")[-1] or \
+        html.count('<a href="/ranking"') == 1
+    # el widget Total del Mes no es link; el único link es la copa Ranking al lado
+    assert 'id="widget-total-mes"' in html
+    seg = html[html.find('id="widget-total-mes"')-500:html.find('id="widget-total-mes"')]
+    assert '/ranking' not in seg
+    assert '/ranking' in html and 'Ranking' in html and '🏆' in html
