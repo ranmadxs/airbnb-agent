@@ -1835,7 +1835,7 @@ header {
     position: absolute !important;
     top: 50% !important;
     left: -3px !important;
-    right: 15% !important;
+    right: 25% !important;
     width: auto !important;
     height: 28px !important;
     background: var(--airbnb-red) !important;
@@ -2178,6 +2178,11 @@ header {
     right: -2px;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
+}
+/* Día de checkout: la tira termina acá y ocupa 3/4 del día (no completa).
+   Nunca coincide con con-der (en checkout der=false), va después para ganar. */
+.day-cell.multi-band .pill.fin {
+    right: 25%;
 }
 /* Un solo calendario ese día → tira GRANDE (tamaño original). */
 .day-cell.multi-band .pill.grande {
@@ -3727,7 +3732,7 @@ footer {
     .day-cell.blocked.checkout-day::after {
         height: 22px !important;
         left: -3px !important;
-        right: 15% !important;
+        right: 25% !important;
         width: auto !important;
         border-radius: 0 11px 11px 0 !important;
         background: var(--airbnb-red) !important;

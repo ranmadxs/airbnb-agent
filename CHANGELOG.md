@@ -4,6 +4,7 @@
 - Transporte (antes Gasolina, solo etiqueta UI; colección y endpoints `gasolina` intactos + alias `/api/gastos/transporte`): nuevos tipos `pasaje` y `traslado`, proveedor `Tur Bus` (seed idempotente tipo `gasolinera`).
 - Otros: nuevos tipos `Gasto Común` (`gasto_comun`) y `Contribuciones`, proveedor `Comunidad Edificio Santiago Magno` (seed idempotente tipo `otros`).
 - Migración `scripts/migrate_gastos_calendario_id.py`: asigna `paraiso_los_quinquelles_1` a todos los gastos legacy sin `calendario_id` (idempotente, con `--dry-run`). Ejecutar antes del deploy con filtro.
+- Tira del día de checkout ocupa 3/4 del día (antes completa) en multi y en única (`pill.fin` + `checkout-day::after` a 25%).
 
 ## [3.6.2] - 2026-10-05
 ### Fixed

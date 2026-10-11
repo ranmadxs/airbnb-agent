@@ -1945,6 +1945,7 @@
                 + (f.der ? ' con-der' : '')
                 + (f.mini ? ' mini' : '')
                 + (f.grande ? ' grande' : '')
+                + (f.fin ? ' fin' : '')
                 + ((f.etiqueta === 'full' && f.der) ? ' label-largo' : '');
             const cid = ev.calendario_id || '';
             const cal = calendariosImagenes[cid] || {};
@@ -2031,6 +2032,7 @@
                     etiqueta,
                     mini: !solo && esCheckout && etiqueta !== 'full',
                     grande: solo,
+                    fin: esCheckout,
                 });
                 cell.appendChild(pill);
                 puestas.push(pill);
