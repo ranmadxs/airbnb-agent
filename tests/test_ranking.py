@@ -38,3 +38,10 @@ def test_api_ranking_global_todos_los_anios(logged_in_flask_client, app_module):
     r = logged_in_flask_client.get("/api/ranking-global")
     assert r.status_code == 200
     assert r.get_json()["meses_top"][0]["anio"] == 2025
+
+
+def test_pagina_ranking_solo_admin(logged_in_flask_client, flask_client):
+    assert logged_in_flask_client.get("/ranking").status_code == 200
+    r = flask_client.get("/ranking", follow_redirects=False)
+    assert r.status_code in (302, 401)
+    assert "/login" in r.headers.get("Location", "") or r.status_code == 401

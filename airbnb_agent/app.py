@@ -836,6 +836,17 @@ def desempeno():
                          current_month=now.month)
 
 
+@app.route('/ranking')
+@login_required
+def ranking():
+    """Vista ranking admin (anual + global) por ingresos brutos."""
+    now = datetime.now()
+    return render_template('ranking.html',
+                         version=APP_VERSION,
+                         property_name=PROPERTY_NAME,
+                         current_year=now.year)
+
+
 @app.route('/api/desempeno')
 @login_required
 def api_desempeno():
