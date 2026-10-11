@@ -1121,9 +1121,11 @@ def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict) -> dict:
             # prorrateo de gastos del mes proporcional al ingreso del calendario
             if ingresos > 0:
                 slot['gastos'] += round(gastos * ((v.get('total', 0) or 0) / ingresos))
-    # clientes: prorrateo por mes igual que calendario
+    # clientes: prorrateo por mes igual que calendario (excluye pagos arriendo sintéticos)
     for ev in (all_events or []):
         if ev.get('estado') != 'reservado':
+            continue
+        if ev.get('source') == 'arriendo' or ev.get('tipo') == 'pago_arriendo':
             continue
         nombre = (ev.get('nombre_huesped') or '').strip() or (ev.get('summary') or '').strip() or 'Huésped'
         try:
@@ -1162,24 +1164,35 @@ def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict) -> dict:
     return {'meses_top': meses_top, 'calendarios_top': cal_top, 'clientes_top': cli_top}
 
 
+def _pagos_arriendo_anio(year: int) -> list:
+    """Pagos de arriendo con alias de un año completo (12 queries). Retorna [] si no aplica."""
+    try:
+        fn = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
+        if not callable(fn):
+            return []
+        pagos = []
+        for _m in range(1, 13):
+            _r = fn(year, _m)
+            if isinstance(_r, list) and _r:
+                pagos.extend(_r)
+        return pagos
+    except Exception:
+        return []
+
+
 @app.route('/api/ranking')
 @login_required
 def api_ranking():
     """API: ranking anual top10 por ingresos brutos."""
     year = request.args.get('year', date.today().year, type=int)
+    if year is None:
+        year = date.today().year
+    if not 1 <= year <= 9999:
+        return jsonify({'error': 'Año inválido'}), 400
     all_events = db_service.obtener_eventos_formato_ical()
-    try:
-        fn_pagos = getattr(db_service, 'obtener_pagos_arriendo_mes', None)
-        if callable(fn_pagos):
-            pagos_anio = []
-            for _m in range(1, 13):
-                _r = fn_pagos(year, _m)
-                if isinstance(_r, list) and _r:
-                    pagos_anio.extend(_r)
-            if pagos_anio:
-                all_events = list(all_events) + pagos_anio
-    except Exception:
-        pass
+    pagos_anio = _pagos_arriendo_anio(year)
+    if pagos_anio:
+        all_events = list(all_events) + pagos_anio
     gastos_por_mes = db_service.obtener_gastos_agregados_anio(year)
     data = _ranking_anual(year, all_events, gastos_por_mes)
     return jsonify({'year': year, **data})
@@ -1190,6 +1203,7 @@ def api_ranking():
 def api_ranking_global():
     """API: ranking global todos los años top10 meses + establecimientos."""
     all_events = db_service.obtener_eventos_formato_ical() or []
+    hoy = date.today().year
     anios = set()
     for ev in all_events:
         try:
@@ -1198,8 +1212,22 @@ def api_ranking_global():
                 anios.add(int(s))
         except Exception:
             pass
+    anios.add(hoy)
+    # Pagos de arriendo por año candidato (cubre años solo-pagos recientes)
+    for y in sorted(anios):
+        for p in _pagos_arriendo_anio(y):
+            all_events.append(p)
+    # Re-derivar años por si los pagos aportaron uno nuevo
+    anios = set()
+    for ev in all_events:
+        try:
+            s = (ev.get('start') or '')[:4]
+            if s.isdigit() and 1 <= int(s) <= 9999:
+                anios.add(int(s))
+        except Exception:
+            pass
     if not anios:
-        anios = {date.today().year}
+        anios = {hoy}
     meses_all = []
     est: dict = {}
     for y in sorted(anios):

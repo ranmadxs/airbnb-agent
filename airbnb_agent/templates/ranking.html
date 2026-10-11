@@ -62,9 +62,10 @@
 <script>
 let rankingYear = {{ current_year }};
 function fmt(n){ return '$' + (n||0).toLocaleString('es-CL'); }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function posClass(i){ return i===0?'copa-oro':i===1?'copa-plata':i===2?'copa-bronce':''; }
 function rowTop(nombre, vals, i){
-    return `<div class="ranking-row"><div class="ranking-pos ${posClass(i)}">${i+1}</div><div class="ranking-info"><span class="ranking-name">${nombre}</span><span class="ranking-vals">${vals}</span></div></div>`;
+    return `<div class="ranking-row"><div class="ranking-pos ${posClass(i)}">${i+1}</div><div class="ranking-info"><span class="ranking-name">${esc(nombre)}</span><span class="ranking-vals">${vals}</span></div></div>`;
 }
 async function loadAnual(){
     const res = await fetch(`/api/ranking?year=${rankingYear}`, {credentials:'include'});
