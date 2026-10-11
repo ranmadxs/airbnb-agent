@@ -1174,6 +1174,41 @@ def api_ranking():
     return jsonify({'year': year, **data})
 
 
+@app.route('/api/ranking-global')
+@login_required
+def api_ranking_global():
+    """API: ranking global todos los años top10 meses + establecimientos."""
+    all_events = db_service.obtener_eventos_formato_ical() or []
+    anios = set()
+    for ev in all_events:
+        try:
+            s = (ev.get('start') or '')[:4]
+            if s.isdigit():
+                anios.add(int(s))
+        except Exception:
+            pass
+    if not anios:
+        anios = {date.today().year}
+    meses_all = []
+    est: dict = {}
+    for y in sorted(anios):
+        try:
+            gastos = db_service.obtener_gastos_agregados_anio(y)
+        except Exception:
+            gastos = {}
+        d = _ranking_anual(y, all_events, gastos or {})
+        meses_all.extend(d.get('meses_top', []))
+        for c in d.get('calendarios_top', []):
+            slot = est.setdefault(c['calendario_id'], {'nombre': c.get('nombre') or c['calendario_id'], 'ingresos': 0, 'gastos': 0})
+            slot['ingresos'] += c.get('ingresos', 0) or 0
+            slot['gastos'] += c.get('gastos', 0) or 0
+    meses_top = sorted(meses_all, key=lambda x: x.get('ingresos', 0), reverse=True)[:10]
+    establecimientos = [{'calendario_id': k, 'nombre': v['nombre'], 'ingresos': v['ingresos'],
+                         'gastos': v['gastos'], 'neto': v['ingresos'] - v['gastos']} for k, v in est.items()]
+    establecimientos_top = sorted(establecimientos, key=lambda x: x['ingresos'], reverse=True)[:10]
+    return jsonify({'meses_top': meses_top, 'establecimientos_top': establecimientos_top})
+
+
 @app.route('/api/estadisticas-total-mes')
 @login_required
 def api_estadisticas_total_mes():
