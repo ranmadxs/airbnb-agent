@@ -1,3 +1,7 @@
+## [3.7.1] - 2026-10-11
+### Fixed
+- Orden de tiras sigue el orden del filtro (rojo Paraíso primero, luego azul Santiago): `carrilEnFila` y `pildorasVisibles` ordenan por índice de `calendariosDisponibles` antes que por `(start, id)`. Corrige días 13-14 en móvil donde el azul quedaba arriba del rojo.
+
 ## [3.7.0] - 2026-10-11
 ### Added
 - Gastos por calendario (propiedad): los 6 tipos (agua, internet, gasolina/transporte, aseo, otros, electricidad) aceptan `calendario_id` al crear y al editar (nuevo `PUT /api/gastos/<tipo>/<id>` + botón ✏️ en cada historial + selector en los 6 modales). GETs y `/api/desempeno*` aceptan `?calendario_ids=`. Devoluciones por cancelación heredan el calendario de la reserva.

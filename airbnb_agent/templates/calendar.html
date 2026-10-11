@@ -1391,6 +1391,25 @@
             return '';
         }
 
+        // Orden de tiras sigue el orden del filtro: rojo primero, luego azul.
+        // calendariosDisponibles define el orden visual; legacy/unknown al final.
+        function indiceCalendario(ev) {
+            const cid = (ev && (ev.calendario_id || '')) || '';
+            if (!cid) return 9998;
+            const i = calendariosDisponibles.findIndex(c => c.calendario_id === cid);
+            return i === -1 ? 9999 : i;
+        }
+
+        function compararPorFiltro(a, b) {
+            const ia = indiceCalendario(a), ib = indiceCalendario(b);
+            if (ia !== ib) return ia - ib;
+            if (a.start < b.start) return -1;
+            if (a.start > b.start) return 1;
+            if ((a.id || '') < (b.id || '')) return -1;
+            if ((a.id || '') > (b.id || '')) return 1;
+            return 0;
+        }
+
         function renderFilterBar() {
             const bar = document.getElementById('calendar-filter-bar');
             if (!bar) return;
@@ -1925,7 +1944,7 @@
             const enFila = events
                 .filter(e => e.estado === 'reservado' && e.source !== 'arriendo')
                 .filter(e => (e.start || '') <= fin && (e.end || '') >= ini)
-                .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : (a.id < b.id ? -1 : 1)));
+                .sort(compararPorFiltro);
             const finPorCarril = [];
             const carril = new Map();
             const solapa = (a, b) => a.start <= b.end && b.start <= a.end;
@@ -2003,12 +2022,13 @@
         }
 
         // Píldoras visibles de una celda: el día de checkout SÍ lleva tira
-        // (final redondeado + logo). Máx. 3. Orden estable por (start, id)
-        // para que la misma tira quede alineada entre días.
+        // (final redondeado + logo). Máx. 3. Orden estable por filtro
+        // (rojo primero, luego azul) y luego (start, id) para que la misma
+        // tira quede alineada entre días.
         function pildorasVisibles(cell) {
             const evs = (cell._eventosDia || [])
                 .slice()
-                .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : (a.id < b.id ? -1 : 1)));
+                .sort(compararPorFiltro);
             return { vis: evs.slice(0, 3) };
         }
 
