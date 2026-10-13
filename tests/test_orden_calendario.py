@@ -67,3 +67,13 @@ def test_continuacion_hereda_altura_dia_anterior():
     la línea sigue recta aunque el carril calculado varíe."""
     html = _html()
     assert "heredado" in html and 'sumarDias(dia, -1)' in html
+
+
+def test_continuacion_compensa_si_anterior_es_pequeno():
+    """Si la tira anterior es pequeña y la actual es grande, se compensa
+    con marginTop para que los bordes superiores coincidan."""
+    html = _html()
+    idx = html.find("dataset.heredado = '1'")
+    assert idx != -1
+    bloque = html[idx:idx + 600]
+    assert "marginTop" in bloque and "offsetHeight" in bloque

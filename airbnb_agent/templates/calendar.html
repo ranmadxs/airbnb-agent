@@ -2067,9 +2067,13 @@
                     fin: esCheckout,
                 });
                 pill.dataset.lane = lane;
+                cell.appendChild(pill);
+                puestas.push(pill);
                 // Continuación: heredar la altura de la misma tira del día
                 // anterior para que la franja siga una sola línea recta
                 // hasta el checkout, aunque el carril calculado varíe.
+                // Si la anterior es pequeña y esta es grande, se compensa
+                // con marginTop para que los bordes superiores coincidan.
                 if (ev.start < dia) {
                     const prevCell = document.querySelector(`[data-date="${sumarDias(dia, -1)}"]`);
                     const prevPill = prevCell?.querySelector(`:scope > .pill[data-event-id="${CSS.escape(eventIdDe(ev))}"]`);
@@ -2077,10 +2081,13 @@
                         pill.style.top = prevPill.style.top;
                         pill.style.transform = prevPill.style.transform || 'none';
                         pill.dataset.heredado = '1';
+                        if ((prevPill.style.transform || '').indexOf('translate') !== -1) {
+                            const dh = (pill.offsetHeight || 0) - (prevPill.offsetHeight || 0);
+                            const prevMargin = parseFloat(prevPill.style.marginTop) || 0;
+                            pill.style.marginTop = (prevMargin + dh / 2) + 'px';
+                        }
                     }
                 }
-                cell.appendChild(pill);
-                puestas.push(pill);
                 // Repliegue: si el nombre se recorta con … y hay conteos,
                 // los +N bajan debajo (solo en ese caso, para que quepa).
                 // En label-largo hay espacio de sobra (no aplica).
