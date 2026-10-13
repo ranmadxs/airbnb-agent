@@ -37,7 +37,7 @@ def test_movil_centra_por_carril_no_por_indice():
     assert "dataset.lane" in html
 
 
-def test_grande_solo_al_inicio_del_evento():
-    """La tira continua mantiene el mismo grosor: grande solo si el evento parte ese día."""
+def test_grande_en_dias_solitarios():
+    """La tira se agranda en días de un solo calendario, parta o continúe el evento."""
     html = _html()
-    assert "grande: solo && esInicio" in html or "grande:solo&&esInicio" in html or "grande: (solo && esInicio)" in html
+    assert "grande: solo," in html

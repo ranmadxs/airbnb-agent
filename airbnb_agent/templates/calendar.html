@@ -2036,8 +2036,7 @@
         function restaurarPildoras(cell) {
             cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
             const { vis } = pildorasVisibles(cell);
-            // Un solo calendario ese día Y el evento parte acá → tira GRANDE.
-            // Los días de continuación van delgados para no cortar la tira.
+            // Un solo calendario ese día → tira GRANDE (tamaño original).
             const solo = (cell._eventosDia || []).length <= 1;
             const movil = window.innerWidth < 768;
             const dia = cell.dataset.date;
@@ -2058,7 +2057,7 @@
                     izq: ev.start < dia,
                     der: diaMas1 <= ev.end,
                     etiqueta,
-                    grande: solo && esInicio,
+                    grande: solo,
                     fin: esCheckout,
                 });
                 pill.dataset.lane = lane;
