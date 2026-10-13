@@ -60,3 +60,10 @@ def test_continuacion_ancla_borde_superior():
     assert idx != -1
     bloque = html[idx:idx + 900]
     assert "con-izq" in bloque
+
+
+def test_continuacion_hereda_altura_dia_anterior():
+    """La continuación hereda el top de su misma tira del día anterior:
+    la línea sigue recta aunque el carril calculado varíe."""
+    html = _html()
+    assert "heredado" in html and 'sumarDias(dia, -1)' in html

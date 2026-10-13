@@ -2067,6 +2067,18 @@
                     fin: esCheckout,
                 });
                 pill.dataset.lane = lane;
+                // Continuación: heredar la altura de la misma tira del día
+                // anterior para que la franja siga una sola línea recta
+                // hasta el checkout, aunque el carril calculado varíe.
+                if (ev.start < dia) {
+                    const prevCell = document.querySelector(`[data-date="${sumarDias(dia, -1)}"]`);
+                    const prevPill = prevCell?.querySelector(`:scope > .pill[data-event-id="${CSS.escape(eventIdDe(ev))}"]`);
+                    if (prevPill && prevPill.style.top) {
+                        pill.style.top = prevPill.style.top;
+                        pill.style.transform = prevPill.style.transform || 'none';
+                        pill.dataset.heredado = '1';
+                    }
+                }
                 cell.appendChild(pill);
                 puestas.push(pill);
                 // Repliegue: si el nombre se recorta con … y hay conteos,
@@ -2094,6 +2106,7 @@
             // (12px alto fino y pitch 13px: ver CSS móvil .pill/.pill.grande.)
             if (movil && puestas.length) {
                 puestas.forEach((pill) => {
+                    if (pill.dataset.heredado === '1') return; // ya viene alineada del día anterior
                     const lane = parseInt(pill.dataset.lane || '0', 10);
                     if (pill.classList.contains('con-izq')) {
                         pill.style.top = `calc(50% + ${-12.5 + lane * 13}px)`;
