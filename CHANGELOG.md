@@ -4,6 +4,10 @@
 - Panel Clientes anual con año en el título y widgets de fecha por reserva (página de calendario con mes y días inicio → fin) con logo redondo de su propiedad.
 - Logos redondos de cada propiedad en filas del panel Calendarios (anual y global).
 
+## [3.8.1] - 2026-10-13
+### Fixed
+- Franja continua en móvil ya no se corre entre días: las tiras van en su carril global (0 arriba, 1 abajo) y la que continúa del día anterior ancla su borde superior a la línea del carril, así el checkout solitario comparte la línea superior con los días previos. Las que parten ese día no se tocan. Checkout con gradiente y brillo curvo.
+
 ## [3.8.0] - 2026-10-11
 ### Added
 - Ranking solo admin desde Total del Mes (`/ranking`): tabs Anual (año actual + flechas, top 10 meses / calendarios / clientes por ingresos brutos con tinaja sumada, filas Ingresos-Gastos=Neto) y Global todos los años (top 10 meses + establecimientos). Copas oro/plata/bronce 1-3 con número al medio.
