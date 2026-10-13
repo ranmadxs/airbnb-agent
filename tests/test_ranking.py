@@ -153,6 +153,23 @@ def test_ranking_top15_clientes():
     assert d["clientes_top"][0]["cliente"] == "Cli15"
 
 
+def test_ranking_ordena_por_neto():
+    """Mayor ingreso con mayor gasto queda debajo: ordena por neto desc."""
+    from airbnb_agent.app import _ranking_anual
+    gastos = {m: {"agua": 0, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0} for m in range(1, 13)}
+    gastos[1] = {"agua": 300000, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0}
+    gastos[5] = {"agua": 10000, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0}
+    ev = [
+        {"start": "2026-01-05", "end": "2026-01-06", "estado": "reservado", "precio": 500000, "extra_valor": 0,
+         "calendario_id": "c1", "nombre_huesped": "A"},
+        {"start": "2026-05-10", "end": "2026-05-11", "estado": "reservado", "precio": 400000, "extra_valor": 0,
+         "calendario_id": "c1", "nombre_huesped": "B"},
+    ]
+    d = _ranking_anual(2026, ev, gastos)
+    assert [m["mes"] for m in d["meses_top"]] == [5, 1]
+    assert d["meses_top"][0]["neto"] == 390000
+
+
 def test_ranking_filas_formato_colores():
     from pathlib import Path
     html = Path("airbnb_agent/templates/ranking.html").read_text(encoding="utf-8")

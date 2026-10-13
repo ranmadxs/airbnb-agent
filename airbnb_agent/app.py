@@ -1215,8 +1215,8 @@ def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict, gastos_anu
     clientes = [{'cliente': k, 'arriendo': v['arriendo'], 'extras': v['extras'], 'ingresos': v['arriendo'] + v['extras'],
                  'reservas': v['reservas']}
                 for k, v in cli.items()]
-    meses_top = sorted(meses, key=lambda x: x['ingresos'], reverse=True)[:15]
-    cal_top = sorted(calendarios, key=lambda x: x['ingresos'], reverse=True)[:15]
+    meses_top = sorted(meses, key=lambda x: x['neto'], reverse=True)[:15]
+    cal_top = sorted(calendarios, key=lambda x: x['neto'], reverse=True)[:15]
     cli_top = sorted(clientes, key=lambda x: x['ingresos'], reverse=True)[:15]
     return {'meses_top': meses_top, 'calendarios_top': cal_top, 'clientes_top': cli_top}
 
@@ -1303,10 +1303,10 @@ def api_ranking_global():
             slot = est.setdefault(c['calendario_id'], {'nombre': c.get('nombre') or c['calendario_id'], 'ingresos': 0, 'gastos': 0})
             slot['ingresos'] += c.get('ingresos', 0) or 0
             slot['gastos'] += c.get('gastos', 0) or 0
-    meses_top = sorted(meses_all, key=lambda x: x.get('ingresos', 0), reverse=True)[:15]
+    meses_top = sorted(meses_all, key=lambda x: x.get('neto', 0), reverse=True)[:15]
     establecimientos = [{'calendario_id': k, 'nombre': v['nombre'], 'ingresos': v['ingresos'],
                          'gastos': v['gastos'], 'neto': v['ingresos'] - v['gastos']} for k, v in est.items()]
-    establecimientos_top = sorted(establecimientos, key=lambda x: x['ingresos'], reverse=True)[:15]
+    establecimientos_top = sorted(establecimientos, key=lambda x: x['neto'], reverse=True)[:15]
     return jsonify({'meses_top': meses_top, 'establecimientos_top': establecimientos_top})
 
 
