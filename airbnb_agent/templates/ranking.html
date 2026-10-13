@@ -79,6 +79,10 @@
         <div class="ranking-card"><h3>Clientes <span id="clientes-year">{{ current_year }}</span></h3><div id="ranking-clientes"></div></div>
     </div>
     <div class="ranking-panel" id="panel-global">
+        <div class="ranking-loading" id="ranking-loading-global">
+            <div class="ranking-spinner"></div>
+            <span class="ranking-loading-text">Cargando ranking...</span>
+        </div>
         <div class="ranking-card"><h3>Top 10 meses</h3><div id="ranking-global-meses"></div></div>
         <div class="ranking-card"><h3>Establecimientos</h3><div id="ranking-global-est"></div></div>
     </div>
@@ -140,9 +144,12 @@ async function loadAnual(){
     }).join('') || '<div class="ranking-empty">Sin datos</div>';
 }
 async function loadGlobal(){
+    const loading = document.getElementById('ranking-loading-global');
+    if (loading) loading.classList.remove('hidden');
     const res = await fetch('/api/ranking-global', {credentials:'include'});
     if(res.status===401){ return; }
     const d = await res.json();
+    if (loading) loading.classList.add('hidden');
     document.getElementById('ranking-global-meses').innerHTML = (d.meses_top||[]).map((m,i)=>rowTop(`${m.nombre_mes} ${m.anio}`, rowVals(m.ingresos, m.gastos, m.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
     document.getElementById('ranking-global-est').innerHTML = (d.establecimientos_top||[]).map((c,i)=>rowTopHtml(`${logoImg(c.calendario_id, 'cal-logo')} ${esc(c.nombre)}`, rowVals(c.ingresos, c.gastos, c.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
 }

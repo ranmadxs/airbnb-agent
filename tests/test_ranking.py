@@ -184,6 +184,7 @@ def test_ranking_tiene_spinner_carga():
     from pathlib import Path
     html = Path("airbnb_agent/templates/ranking.html").read_text(encoding="utf-8").lower()
     assert "spinner" in html or ("loading" in html and "cargando" in html)
+    assert 'id="ranking-loading-global"' in html
 
 
 def test_total_mes_sin_link_y_copa_ranking_al_lado():
