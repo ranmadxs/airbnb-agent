@@ -41,3 +41,12 @@ def test_grande_en_dias_solitarios():
     """La tira se agranda en días de un solo calendario, parta o continúe el evento."""
     html = _html()
     assert "grande: solo," in html
+
+
+def test_checkout_con_gradiente():
+    """El día de checkout (fin) lleva gradiente con brillo para la terminación curva."""
+    html = _html()
+    idx = html.find("function construirPildora")
+    assert idx != -1
+    bloque = html[idx:idx + 2500]
+    assert "linear-gradient" in bloque and "color-mix" in bloque
