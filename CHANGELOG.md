@@ -1,3 +1,9 @@
+## [3.9.0] - 2026-10-13
+### Added
+- Ranking top 15 (antes 10) en todos los paneles.
+- Panel Clientes anual con año en el título y widgets de fecha por reserva (página de calendario con mes y días inicio → fin) con logo redondo de su propiedad.
+- Logos redondos de cada propiedad en filas del panel Calendarios (anual y global).
+
 ## [3.8.1] - 2026-10-13
 ### Fixed
 - Franja continua en móvil ya no se corre entre días: las tiras van en su carril global (0 arriba, 1 abajo) y la que continúa del día anterior ancla su borde superior a la línea del carril, así el checkout solitario comparte la línea superior con los días previos. Las que parten ese día no se tocan. Checkout con gradiente y brillo curvo.

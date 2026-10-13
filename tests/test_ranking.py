@@ -128,18 +128,63 @@ def test_ranking_html_escapa_nombres():
     assert "function esc(" in html or "escapeHtml" in html
 
 
+def test_clientes_incluyen_reservas_con_fechas():
+    from airbnb_agent.app import _ranking_anual
+    gastos = {m: {"agua": 0, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0} for m in range(1, 13)}
+    ev = [
+        {"start": "2026-01-10", "end": "2026-01-12", "estado": "reservado", "precio": 100000, "extra_valor": 0,
+         "calendario_id": "c1", "nombre_huesped": "Juan"},
+        {"start": "2026-03-05", "end": "2026-03-07", "estado": "reservado", "precio": 200000, "extra_valor": 0,
+         "calendario_id": "c1", "nombre_huesped": "Juan"},
+    ]
+    d = _ranking_anual(2026, ev, gastos)
+    juan = next(c for c in d["clientes_top"] if c["cliente"] == "Juan")
+    assert len(juan["reservas"]) == 2
+    assert juan["reservas"][0] == {"inicio": "2026-01-10", "fin": "2026-01-12", "mes": "Enero", "calendario_id": "c1"}
+
+
+def test_ranking_top15_clientes():
+    from airbnb_agent.app import _ranking_anual
+    gastos = {m: {"agua": 0, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0} for m in range(1, 13)}
+    ev = [{"start": "2026-06-01", "end": "2026-06-02", "estado": "reservado", "precio": 10000 * (i + 1),
+           "extra_valor": 0, "calendario_id": "c1", "nombre_huesped": f"Cli{i:02d}"} for i in range(16)]
+    d = _ranking_anual(2026, ev, gastos)
+    assert len(d["clientes_top"]) == 15
+    assert d["clientes_top"][0]["cliente"] == "Cli15"
+
+
+def test_ranking_ordena_por_neto():
+    """Mayor ingreso con mayor gasto queda debajo: ordena por neto desc."""
+    from airbnb_agent.app import _ranking_anual
+    gastos = {m: {"agua": 0, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0} for m in range(1, 13)}
+    gastos[1] = {"agua": 300000, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0}
+    gastos[5] = {"agua": 10000, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0}
+    ev = [
+        {"start": "2026-01-05", "end": "2026-01-06", "estado": "reservado", "precio": 500000, "extra_valor": 0,
+         "calendario_id": "c1", "nombre_huesped": "A"},
+        {"start": "2026-05-10", "end": "2026-05-11", "estado": "reservado", "precio": 400000, "extra_valor": 0,
+         "calendario_id": "c1", "nombre_huesped": "B"},
+    ]
+    d = _ranking_anual(2026, ev, gastos)
+    assert [m["mes"] for m in d["meses_top"]] == [5, 1]
+    assert d["meses_top"][0]["neto"] == 390000
+
+
 def test_ranking_filas_formato_colores():
     from pathlib import Path
     html = Path("airbnb_agent/templates/ranking.html").read_text(encoding="utf-8")
     assert "v-ing" in html and "v-gas" in html and "v-neto" in html
     assert "ranking-spinner" in html or "ranking-loading" in html
     assert "ranking-copa" in html and "copa-emoji" in html and "copa-num" in html
+    assert "fecha-widget" in html and "fw-mes" in html and "fw-dias" in html
+    assert "clientes-year" in html and "cal-logo" in html
 
 
 def test_ranking_tiene_spinner_carga():
     from pathlib import Path
     html = Path("airbnb_agent/templates/ranking.html").read_text(encoding="utf-8").lower()
     assert "spinner" in html or ("loading" in html and "cargando" in html)
+    assert 'id="ranking-loading-global"' in html
 
 
 def test_total_mes_sin_link_y_copa_ranking_al_lado():

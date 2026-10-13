@@ -1192,9 +1192,13 @@ def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict, gastos_anu
             total_arriendo += round((ev.get('precio', 0) or 0) * prop)
             total_extras += round((ev.get('extra_valor', 0) or 0) * prop)
         if total_arriendo + total_extras > 0:
-            slot = cli.setdefault(nombre, {'arriendo': 0, 'extras': 0})
+            slot = cli.setdefault(nombre, {'arriendo': 0, 'extras': 0, 'reservas': []})
             slot['arriendo'] += total_arriendo
             slot['extras'] += total_extras
+            if ev_start.year == year:
+                slot['reservas'].append({'inicio': ev.get('start', ''), 'fin': ev.get('end', ''),
+                                         'mes': MESES_ES[ev_start.month],
+                                         'calendario_id': ev.get('calendario_id') or '__legacy__'})
     nombres_cal = {c['calendario_id']: c.get('nombre') or c['calendario_id'] for c in obtener_todos_calendarios()}
     calendarios = []
     for cid, v in ing_por_cal.items():
@@ -1206,11 +1210,14 @@ def _ranking_anual(year: int, all_events: list, gastos_por_mes: dict, gastos_anu
             g_real = v.get('gastos', 0) or 0
         calendarios.append({'calendario_id': cid, 'nombre': nombres_cal.get(cid, cid),
                             'ingresos': v['ingresos'], 'gastos': g_real, 'neto': v['ingresos'] - g_real})
-    clientes = [{'cliente': k, 'arriendo': v['arriendo'], 'extras': v['extras'], 'ingresos': v['arriendo'] + v['extras']}
+    for _res in cli.values():
+        _res['reservas'].sort(key=lambda r: (r['inicio'], r['fin']))
+    clientes = [{'cliente': k, 'arriendo': v['arriendo'], 'extras': v['extras'], 'ingresos': v['arriendo'] + v['extras'],
+                 'reservas': v['reservas']}
                 for k, v in cli.items()]
-    meses_top = sorted(meses, key=lambda x: x['ingresos'], reverse=True)[:10]
-    cal_top = sorted(calendarios, key=lambda x: x['ingresos'], reverse=True)[:10]
-    cli_top = sorted(clientes, key=lambda x: x['ingresos'], reverse=True)[:10]
+    meses_top = sorted(meses, key=lambda x: x['neto'], reverse=True)[:15]
+    cal_top = sorted(calendarios, key=lambda x: x['neto'], reverse=True)[:15]
+    cli_top = sorted(clientes, key=lambda x: x['ingresos'], reverse=True)[:15]
     return {'meses_top': meses_top, 'calendarios_top': cal_top, 'clientes_top': cli_top}
 
 
@@ -1233,7 +1240,7 @@ def _pagos_arriendo_anio(year: int) -> list:
 @app.route('/api/ranking')
 @login_required
 def api_ranking():
-    """API: ranking anual top10 por ingresos brutos."""
+    """API: ranking anual top15 por ingresos brutos."""
     year = request.args.get('year', date.today().year, type=int)
     if year is None:
         year = date.today().year
@@ -1253,7 +1260,7 @@ def api_ranking():
 @app.route('/api/ranking-global')
 @login_required
 def api_ranking_global():
-    """API: ranking global todos los años top10 meses + establecimientos."""
+    """API: ranking global todos los años top15 meses + establecimientos."""
     all_events = db_service.obtener_eventos_formato_ical() or []
     hoy = date.today().year
     anios = set()
@@ -1296,10 +1303,10 @@ def api_ranking_global():
             slot = est.setdefault(c['calendario_id'], {'nombre': c.get('nombre') or c['calendario_id'], 'ingresos': 0, 'gastos': 0})
             slot['ingresos'] += c.get('ingresos', 0) or 0
             slot['gastos'] += c.get('gastos', 0) or 0
-    meses_top = sorted(meses_all, key=lambda x: x.get('ingresos', 0), reverse=True)[:10]
+    meses_top = sorted(meses_all, key=lambda x: x.get('neto', 0), reverse=True)[:15]
     establecimientos = [{'calendario_id': k, 'nombre': v['nombre'], 'ingresos': v['ingresos'],
                          'gastos': v['gastos'], 'neto': v['ingresos'] - v['gastos']} for k, v in est.items()]
-    establecimientos_top = sorted(establecimientos, key=lambda x: x['ingresos'], reverse=True)[:10]
+    establecimientos_top = sorted(establecimientos, key=lambda x: x['neto'], reverse=True)[:15]
     return jsonify({'meses_top': meses_top, 'establecimientos_top': establecimientos_top})
 
 
