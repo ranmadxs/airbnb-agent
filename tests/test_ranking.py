@@ -128,12 +128,39 @@ def test_ranking_html_escapa_nombres():
     assert "function esc(" in html or "escapeHtml" in html
 
 
+def test_clientes_incluyen_reservas_con_fechas():
+    from airbnb_agent.app import _ranking_anual
+    gastos = {m: {"agua": 0, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0} for m in range(1, 13)}
+    ev = [
+        {"start": "2026-01-10", "end": "2026-01-12", "estado": "reservado", "precio": 100000, "extra_valor": 0,
+         "calendario_id": "c1", "nombre_huesped": "Juan"},
+        {"start": "2026-03-05", "end": "2026-03-07", "estado": "reservado", "precio": 200000, "extra_valor": 0,
+         "calendario_id": "c1", "nombre_huesped": "Juan"},
+    ]
+    d = _ranking_anual(2026, ev, gastos)
+    juan = next(c for c in d["clientes_top"] if c["cliente"] == "Juan")
+    assert len(juan["reservas"]) == 2
+    assert juan["reservas"][0] == {"inicio": "2026-01-10", "fin": "2026-01-12", "mes": "Enero", "calendario_id": "c1"}
+
+
+def test_ranking_top15_clientes():
+    from airbnb_agent.app import _ranking_anual
+    gastos = {m: {"agua": 0, "internet": 0, "gasolina": 0, "aseo": 0, "otros": 0, "electricidad": 0} for m in range(1, 13)}
+    ev = [{"start": "2026-06-01", "end": "2026-06-02", "estado": "reservado", "precio": 10000 * (i + 1),
+           "extra_valor": 0, "calendario_id": "c1", "nombre_huesped": f"Cli{i:02d}"} for i in range(16)]
+    d = _ranking_anual(2026, ev, gastos)
+    assert len(d["clientes_top"]) == 15
+    assert d["clientes_top"][0]["cliente"] == "Cli15"
+
+
 def test_ranking_filas_formato_colores():
     from pathlib import Path
     html = Path("airbnb_agent/templates/ranking.html").read_text(encoding="utf-8")
     assert "v-ing" in html and "v-gas" in html and "v-neto" in html
     assert "ranking-spinner" in html or "ranking-loading" in html
     assert "ranking-copa" in html and "copa-emoji" in html and "copa-num" in html
+    assert "fecha-widget" in html and "fw-mes" in html and "fw-dias" in html
+    assert "clientes-year" in html and "cal-logo" in html
 
 
 def test_ranking_tiene_spinner_carga():

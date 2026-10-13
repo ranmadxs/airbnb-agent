@@ -39,6 +39,12 @@
         .v-ing { color: #059669; font-weight: 600; }
         .v-gas { color: #dc2626; font-weight: 600; }
         .v-neto { color: #1d4ed8; font-weight: 800; }
+        .cal-logo { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #e5e7eb; background: #f3f4f6; }
+        .client-widgets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+        .fecha-widget { position: relative; background: white; border: 1px solid #e5e7eb; border-radius: 10px; overflow: visible; min-width: 92px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-top: 8px; }
+        .fw-mes { background: #1d4ed8; color: white; font-size: 0.68em; font-weight: 700; padding: 3px 8px; border-radius: 9px 9px 0 0; text-transform: capitalize; }
+        .fw-dias { font-size: 1.15em; font-weight: 800; color: #222; padding: 6px 8px 8px; white-space: nowrap; }
+        .fw-logo { position: absolute; top: -10px; right: -10px; width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 2px solid white; background: #f3f4f6; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
         .ranking-copa { position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .copa-emoji { font-size: 42px; line-height: 1; }
         .ranking-copa.copa-oro .copa-emoji { filter: saturate(1.7) brightness(1.18) drop-shadow(0 0 5px rgba(255,215,0,.95)); }
@@ -70,7 +76,7 @@
         </div>
         <div class="ranking-card"><h3>Meses</h3><div id="ranking-meses"></div></div>
         <div class="ranking-card"><h3>Calendarios</h3><div id="ranking-calendarios"></div></div>
-        <div class="ranking-card"><h3>Clientes</h3><div id="ranking-clientes"></div></div>
+        <div class="ranking-card"><h3>Clientes <span id="clientes-year">{{ current_year }}</span></h3><div id="ranking-clientes"></div></div>
     </div>
     <div class="ranking-panel" id="panel-global">
         <div class="ranking-card"><h3>Top 10 meses</h3><div id="ranking-global-meses"></div></div>
@@ -79,6 +85,27 @@
 </div>
 <script>
 let rankingYear = {{ current_year }};
+const STATIC_BASE = "{{ url_for('static', filename='') }}".replace(/\/$/, '');
+let calLogos = {};
+async function loadCalLogos(){
+    try {
+        const res = await fetch('/api/calendarios', {credentials:'include'});
+        const d = await res.json();
+        (d.configured || []).forEach(c => {
+            const img = c.logo_url || (c.thumbnail ? `${STATIC_BASE}/${c.thumbnail}` : '');
+            calLogos[c.calendario_id] = {img, color: c.color || '#9ca3af', nombre: c.nombre || c.calendario_id};
+        });
+    } catch(e) {}
+}
+function logoImg(cid, cls){
+    const c = calLogos[cid || ''] || {};
+    if (c.img) return `<img class="${cls}" src="${c.img}" alt="" loading="lazy" onerror="this.remove()">`;
+    return `<span class="${cls}" style="display:inline-block;background:${c.color};"></span>`;
+}
+function diaDe(fecha){ return (fecha || '').slice(8, 10).replace(/^0/, '') || '?'; }
+function fechaWidget(r){
+    return `<div class="fecha-widget"><div class="fw-mes">${esc(r.mes || '')}</div><div class="fw-dias">${esc(diaDe(r.inicio))} → ${esc(diaDe(r.fin))}</div>${logoImg(r.calendario_id, 'fw-logo')}</div>`;
+}
 function fmt(n){ return '$' + (n||0).toLocaleString('es-CL'); }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function posClass(i){ return i===0?'copa-oro':i===1?'copa-plata':i===2?'copa-bronce':''; }
@@ -88,6 +115,9 @@ function posHtml(i){
 }
 function rowTop(nombre, vals, i){
     return `<div class="ranking-row">${posHtml(i)}<div class="ranking-info"><span class="ranking-name">${esc(nombre)}</span><span class="ranking-vals">${vals}</span></div></div>`;
+}
+function rowTopHtml(nombreHtml, vals, i){
+    return `<div class="ranking-row">${posHtml(i)}<div class="ranking-info"><span class="ranking-name">${nombreHtml}</span><span class="ranking-vals">${vals}</span></div></div>`;
 }
 function rowVals(ingresos, gastos, neto){
     return `<span class="v-ing">${fmt(ingresos)}</span> - <span class="v-gas">${fmt(gastos)}</span> = <span class="v-neto">${fmt(neto)}</span>`;
@@ -100,23 +130,27 @@ async function loadAnual(){
     const d = await res.json();
     if (loading) loading.classList.add('hidden');
     document.getElementById('year-label').textContent = d.year;
+    document.getElementById('clientes-year').textContent = d.year;
     const meses = document.getElementById('ranking-meses');
     meses.innerHTML = (d.meses_top||[]).map((m,i)=>rowTop(`${m.nombre_mes} ${m.anio}`, rowVals(m.ingresos, m.gastos, m.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
-    document.getElementById('ranking-calendarios').innerHTML = (d.calendarios_top||[]).map((c,i)=>rowTop(c.nombre, rowVals(c.ingresos, c.gastos, c.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
-    document.getElementById('ranking-clientes').innerHTML = (d.clientes_top||[]).map((c,i)=>rowTop(c.cliente, `<span class="v-ing">${fmt(c.arriendo)}</span> + ${fmt(c.extras)} = <span class="v-neto">${fmt(c.ingresos)}</span>`, i)).join('') || '<div class="ranking-empty">Sin datos</div>';
+    document.getElementById('ranking-calendarios').innerHTML = (d.calendarios_top||[]).map((c,i)=>rowTopHtml(`${logoImg(c.calendario_id, 'cal-logo')} ${esc(c.nombre)}`, rowVals(c.ingresos, c.gastos, c.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
+    document.getElementById('ranking-clientes').innerHTML = (d.clientes_top||[]).map((c,i)=>{
+        const widgets = (c.reservas||[]).map(fechaWidget).join('');
+        return `<div class="ranking-row">${posHtml(i)}<div class="ranking-info"><span class="ranking-name">${esc(c.cliente)}</span><span class="ranking-vals"><span class="v-ing">${fmt(c.arriendo)}</span> + ${fmt(c.extras)} = <span class="v-neto">${fmt(c.ingresos)}</span></span><div class="client-widgets">${widgets}</div></div></div>`;
+    }).join('') || '<div class="ranking-empty">Sin datos</div>';
 }
 async function loadGlobal(){
     const res = await fetch('/api/ranking-global', {credentials:'include'});
     if(res.status===401){ return; }
     const d = await res.json();
     document.getElementById('ranking-global-meses').innerHTML = (d.meses_top||[]).map((m,i)=>rowTop(`${m.nombre_mes} ${m.anio}`, rowVals(m.ingresos, m.gastos, m.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
-    document.getElementById('ranking-global-est').innerHTML = (d.establecimientos_top||[]).map((c,i)=>rowTop(c.nombre, rowVals(c.ingresos, c.gastos, c.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
+    document.getElementById('ranking-global-est').innerHTML = (d.establecimientos_top||[]).map((c,i)=>rowTopHtml(`${logoImg(c.calendario_id, 'cal-logo')} ${esc(c.nombre)}`, rowVals(c.ingresos, c.gastos, c.neto), i)).join('') || '<div class="ranking-empty">Sin datos</div>';
 }
 document.getElementById('year-prev').onclick = ()=>{ rankingYear--; loadAnual(); };
 document.getElementById('year-next').onclick = ()=>{ rankingYear++; loadAnual(); };
 document.getElementById('tab-anual').onclick = ()=>{ document.getElementById('tab-anual').classList.add('active'); document.getElementById('tab-global').classList.remove('active'); document.getElementById('panel-anual').classList.add('active'); document.getElementById('panel-global').classList.remove('active'); };
 document.getElementById('tab-global').onclick = ()=>{ document.getElementById('tab-global').classList.add('active'); document.getElementById('tab-anual').classList.remove('active'); document.getElementById('panel-global').classList.add('active'); document.getElementById('panel-anual').classList.remove('active'); loadGlobal(); };
-loadAnual();
+loadCalLogos().finally(loadAnual);
 </script>
 </body>
 </html>
