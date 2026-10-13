@@ -50,3 +50,13 @@ def test_checkout_con_gradiente():
     assert idx != -1
     bloque = html[idx:idx + 2500]
     assert "linear-gradient" in bloque and "color-mix" in bloque
+
+
+def test_continuacion_ancla_borde_superior():
+    """La tira que continúa del día anterior ancla su borde superior a la línea
+    del carril (no se centra): el checkout solitario no cae bajo la línea."""
+    html = _html()
+    idx = html.find("para que la tira continua no salte")
+    assert idx != -1
+    bloque = html[idx:idx + 900]
+    assert "con-izq" in bloque

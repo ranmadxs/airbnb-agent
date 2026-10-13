@@ -2087,11 +2087,21 @@
             });
             // En mobile las tiras van en su carril global (0 arriba, 1 abajo)
             // para que la tira continua no salte de altura entre días.
+            // La que continúa del día anterior (con-izq) ancla su borde
+            // superior a la línea del carril en vez de centrarse: así el
+            // checkout solitario (más alto) comparte la línea superior con
+            // los días previos. Las que parten ese día no se tocan.
+            // (12px alto fino y pitch 13px: ver CSS móvil .pill/.pill.grande.)
             if (movil && puestas.length) {
                 puestas.forEach((pill) => {
                     const lane = parseInt(pill.dataset.lane || '0', 10);
-                    pill.style.top = `calc(50% + ${(lane - 0.5) * 13}px)`;
-                    pill.style.transform = 'translateY(-50%)';
+                    if (pill.classList.contains('con-izq')) {
+                        pill.style.top = `calc(50% + ${-12.5 + lane * 13}px)`;
+                        pill.style.transform = 'none';
+                    } else {
+                        pill.style.top = `calc(50% + ${(lane - 0.5) * 13}px)`;
+                        pill.style.transform = 'translateY(-50%)';
+                    }
                 });
             }
         }

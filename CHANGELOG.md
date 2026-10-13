@@ -1,6 +1,6 @@
 ## [3.8.1] - 2026-10-13
 ### Fixed
-- Franja continua en móvil ya no se corre entre días: el centrado vertical usa el carril global (0 arriba, 1 abajo) en vez del índice del día, y la tira GRANDE solo aplica cuando el evento parte ese día (los días de continuación mantienen el grosor).
+- Franja continua en móvil ya no se corre entre días: las tiras van en su carril global (0 arriba, 1 abajo) y la que continúa del día anterior ancla su borde superior a la línea del carril, así el checkout solitario comparte la línea superior con los días previos. Las que parten ese día no se tocan. Checkout con gradiente y brillo curvo.
 
 ## [3.8.0] - 2026-10-11
 ### Added
