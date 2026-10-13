@@ -2036,7 +2036,8 @@
         function restaurarPildoras(cell) {
             cell.querySelectorAll(':scope > .pill').forEach(p => p.remove());
             const { vis } = pildorasVisibles(cell);
-            // Un solo calendario ese día → tira GRANDE (tamaño original).
+            // Un solo calendario ese día Y el evento parte acá → tira GRANDE.
+            // Los días de continuación van delgados para no cortar la tira.
             const solo = (cell._eventosDia || []).length <= 1;
             const movil = window.innerWidth < 768;
             const dia = cell.dataset.date;
@@ -2057,9 +2058,10 @@
                     izq: ev.start < dia,
                     der: diaMas1 <= ev.end,
                     etiqueta,
-                    grande: solo,
+                    grande: solo && esInicio,
                     fin: esCheckout,
                 });
+                pill.dataset.lane = lane;
                 cell.appendChild(pill);
                 puestas.push(pill);
                 // Repliegue: si el nombre se recorta con … y hay conteos,
@@ -2078,11 +2080,12 @@
                     cell.appendChild(below);
                 }
             });
-            // En mobile las tiras van centradas verticalmente (una sola) o
-            // centradas en grupo (dos), sin importar las burbujas.
+            // En mobile las tiras van en su carril global (0 arriba, 1 abajo)
+            // para que la tira continua no salte de altura entre días.
             if (movil && puestas.length) {
-                puestas.forEach((pill, j) => {
-                    pill.style.top = `calc(50% + ${(j - (puestas.length - 1) / 2) * 13}px)`;
+                puestas.forEach((pill) => {
+                    const lane = parseInt(pill.dataset.lane || '0', 10);
+                    pill.style.top = `calc(50% + ${(lane - 0.5) * 13}px)`;
                     pill.style.transform = 'translateY(-50%)';
                 });
             }

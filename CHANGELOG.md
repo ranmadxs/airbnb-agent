@@ -1,3 +1,7 @@
+## [3.8.1] - 2026-10-13
+### Fixed
+- Franja continua en móvil ya no se corre entre días: el centrado vertical usa el carril global (0 arriba, 1 abajo) en vez del índice del día, y la tira GRANDE solo aplica cuando el evento parte ese día (los días de continuación mantienen el grosor).
+
 ## [3.8.0] - 2026-10-11
 ### Added
 - Ranking solo admin desde Total del Mes (`/ranking`): tabs Anual (año actual + flechas, top 10 meses / calendarios / clientes por ingresos brutos con tinaja sumada, filas Ingresos-Gastos=Neto) y Global todos los años (top 10 meses + establecimientos). Copas oro/plata/bronce 1-3 con número al medio.

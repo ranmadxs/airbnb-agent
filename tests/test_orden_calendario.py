@@ -28,3 +28,16 @@ def test_carril_en_fila_orden_filtro():
     bloque = html[idx:idx + 1200]
     # carril debe usar el mismo orden de filtro, no solo (start, id)
     assert "compararPorFiltro" in bloque or "indiceCalendario" in bloque or "ordenCalendario" in bloque or "calendariosDisponibles" in bloque
+
+
+def test_movil_centra_por_carril_no_por_indice():
+    """La tira continua no debe saltar de altura entre día multi y día solo."""
+    html = _html()
+    # el centrado móvil debe usar el carril global (dataset.lane), no el índice j del día
+    assert "dataset.lane" in html
+
+
+def test_grande_solo_al_inicio_del_evento():
+    """La tira continua mantiene el mismo grosor: grande solo si el evento parte ese día."""
+    html = _html()
+    assert "grande: solo && esInicio" in html or "grande:solo&&esInicio" in html or "grande: (solo && esInicio)" in html
